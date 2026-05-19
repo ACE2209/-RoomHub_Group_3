@@ -1,0 +1,222 @@
+[
+  {
+    "id": 1,
+    "name": "Ph.D Nguyen Trong Luan",
+    "lecturer": "LuanNT",
+    "category": "Management Team",
+    "role": "Head Of Entrepreneurship Dept FU CT",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/nguyentrongluan.png",
+    "desc": "Sustainable Development expert – FPT University"
+  },
+  {
+    "id": 2,
+    "name": "Ph.D Nguyen Dinh Khoi",
+    "lecturer": "KhoiND",
+    "category": "Management Team",
+    "role": "Entrepreneurship Dept FU CT",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/nguyendinhkhoi.png",
+    "desc": "Financial expert"
+  },
+  {
+    "id": 3,
+    "name": "Ph.D Le Canh Bich Tho",
+    "lecturer": "ThoLCB",
+    "category": "Management Team",
+    "role": "Entrepreneurship Dept FU CT",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/lecanhbichtho.png",
+    "desc": "Candidate / Researcher expert"
+  },
+  {
+    "id": 4,
+    "name": "Ph.D Nguyen Huu Tho",
+    "lecturer": "ThoNH",
+    "category": "Management Team",
+    "role": "Entrepreneurship Dept FU",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/nguyenhuutho.png",
+    "desc": "Business expert"
+  },
+  {
+    "id": 5,
+    "name": "Ph.D Nguyen Truc Linh",
+    "lecturer": "LinhNT",
+    "category": "Mentorship",
+    "role": "CEO & Founder",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/nguyentruclinh.png",
+    "desc": "Nata Viet Nam Service JSC"
+  },
+  {
+    "id": 6,
+    "name": "Ms Quang Chan Chan",
+    "lecturer": "ChanQC",
+    "category": "Mentorship",
+    "role": "CEO & Founder",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/quangchanchan.png",
+    "desc": "ECOKA JSC"
+  },
+  {
+    "id": 7,
+    "name": "Mr Ha Anh Truong",
+    "lecturer": "TruongHA",
+    "category": "Mentorship",
+    "role": "General Director & Co-Founder",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/haanhtruong.png",
+    "desc": "ECOKA JSC"
+  },
+  {
+    "id": 8,
+    "name": "MBA Nguyen Thi Kim Thoa",
+    "lecturer": "ThoaNTK",
+    "category": "Mentorship",
+    "role": "CEO & Founder",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/nguyenthikimthoa.png",
+    "desc": "ABAVINA JSC"
+  },
+  {
+    "id": 9,
+    "name": "MBA Truong Quoc Thai",
+    "lecturer": "ThaiTQ",
+    "category": "Mentorship",
+    "role": "Branch Head",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/truongquocthai.png",
+    "desc": "SMBC Bank"
+  },
+  {
+    "id": 10,
+    "name": "MBA Huynh Thi Bich Tuyen",
+    "lecturer": "TuyenHTB",
+    "category": "Mentorship",
+    "role": "CEO & Founder",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/nguyenthibichtuyen.png",
+    "desc": "Mekong Silt Ecolodge"
+  },
+  {
+    "id": 11,
+    "name": "MBA Lam Thanh Huy",
+    "lecturer": "HuyLT",
+    "category": "Mentorship",
+    "role": "CEO & Founder",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/lamthanhhuy.png",
+    "desc": "Delta Brains JSC"
+  },
+  {
+    "id": 12,
+    "name": "Pharmacist Le Quang Vinh",
+    "lecturer": "VinhLQ",
+    "category": "Mentorship",
+    "role": "CEO & Founder",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/lequangvinh.png",
+    "desc": "Orobanc iScience Company"
+  },
+  {
+    "id": 13,
+    "name": "MBA Ngo Van Chon",
+    "lecturer": "ChonNV",
+    "category": "Mentorship",
+    "role": "General Director",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/ngovanchon.png",
+    "desc": "Tay Do Garment Company"
+  },
+  {
+    "id": 14,
+    "name": "Mr Le Hoang Phuong",
+    "lecturer": "PhuongLH",
+    "category": "Mentorship",
+    "role": "Program Manager",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/lehoangphuong.png",
+    "desc": "BSSC"
+  },
+  {
+    "id": 15,
+    "name": "Le Hong Duc",
+    "lecturer": "DucLH",
+    "category": "Mentorship",
+    "role": "CEO & Founder",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/lehongduc.png",
+    "desc": "Haravan Trainer"
+  },
+  {
+    "id": 16,
+    "name": "Mr Nguyen Nhat Anh",
+    "lecturer": "AnhNN",
+    "category": "Mentorship",
+    "role": "Representative",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/nguyennhatanh.png",
+    "desc": "Youth Startup Support Fund – BSSC"
+  },
+  {
+    "id": 17,
+    "name": "Mr Bui Vuong Quoc Thong",
+    "lecturer": "ThongBVQ",
+    "category": "Mentorship",
+    "role": "Marketing Director",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/buivuongquocthong.png",
+    "desc": "Tra Anh Tea Company"
+  },
+  {
+    "id": 18,
+    "name": "Ms Bui Thi Thanh Tu",
+    "lecturer": "TuBTT",
+    "category": "Mentorship",
+    "role": "Community Manager / Ambassador",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/buithithanhtu.png",
+    "desc": "BSSC – Passerelles numériques VN – Former CMO InFashion"
+  },
+  {
+    "id": 19,
+    "name": "Mr Pham Dinh Ngai",
+    "lecturer": "NgaiPD",
+    "category": "Mentorship",
+    "role": "Founder",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/phamdinhngai.png",
+    "desc": "Sokfarm Co., LTD"
+  },
+  {
+    "id": 20,
+    "name": "Mr Nguyen Manh Tan",
+    "lecturer": "TanNM",
+    "category": "Mentorship",
+    "role": "CMO",
+    "rating": 5.0,
+    "reviews": 0,
+    "avatar": "/assets/mentor/nguyenmanhtan.png",
+    "desc": "Haravan Company"
+  }
+]

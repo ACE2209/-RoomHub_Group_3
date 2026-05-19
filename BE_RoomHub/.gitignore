@@ -1,0 +1,33 @@
+# Node.js modules
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+
+# Build and distribution files
+dist/
+build/
+
+# Dependency directories
+jspm_packages/
+
+# IDEs and text editors
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# npm package lock file (optional)
+package-lock.json
+
+# Jest/Testing temporary files
+coverage/

@@ -1,0 +1,203 @@
+/* ===== PAGE ===== */
+
+.mentorDetail {
+  display: flex;
+  gap: 24px;
+  padding: 30px;
+  background: #f7f9fc;
+  min-height: 100vh;
+}
+
+/* ================= LEFT SIDEBAR ================= */
+
+.mentorDetail .mentor-left {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ===== PROFILE CARD ===== */
+
+.mentorDetail .mentor-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.mentorDetail .mentor-avatar {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 12px;
+}
+
+.mentorDetail .mentor-card h2 {
+  margin: 6px 0;
+}
+
+.mentorDetail .mentor-role {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.mentorDetail .mentor-rating {
+  margin-top: 8px;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+/* ===== TAGS ===== */
+
+.mentorDetail .mentor-tags {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.mentorDetail .mentor-tags span {
+  background: #eaf2ff;
+  color: #2563eb;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+/* ===== SELECT MENTOR BUTTON ===== */
+
+.mentorDetail .select-mentor-btn {
+  margin-top: 16px;
+  width: 100%;
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.mentorDetail .select-mentor-btn:hover {
+  background: #1d4ed8;
+}
+
+/* ===== ABOUT ===== */
+
+.mentorDetail .mentor-about {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.mentorDetail .mentor-about h3 {
+  margin-bottom: 10px;
+}
+
+/* ================= RIGHT SIDE ================= */
+
+.mentorDetail .mentor-right {
+  flex: 1;
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.mentorDetail .mentor-right h2 {
+  margin-bottom: 10px;
+}
+
+.mentorDetail .mentor-right p {
+  color: #6b7280;
+}
+
+/* ================= BOOKING BAR ================= */
+
+.mentorDetail .booking-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: 70%;
+  max-width: 900px;
+
+  background: white;
+  padding: 18px 24px;
+  border-radius: 14px;
+
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  z-index: 999;
+}
+
+/* ===== ACTION BUTTONS ===== */
+
+.mentorDetail .slot-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.mentorDetail .msg-btn {
+  border: 1px solid #e5e7eb;
+  background: white;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: 0.2s;
+}
+
+.mentorDetail .msg-btn:hover {
+  background: #f3f4f6;
+}
+
+.mentorDetail .book-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.mentorDetail .book-btn:hover {
+  background: #1d4ed8;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 900px) {
+  .profile-page {
+    flex-direction: column;
+  }
+
+  .profile-left {
+    width: 100%;
+  }
+
+  .booking-bar {
+    width: 90%;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .slot-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

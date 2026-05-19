@@ -1,0 +1,50 @@
+{
+  "blogs": [
+    {
+      "id": 1,
+      "title": "How to Choose the Right Mentor",
+      "author": "MBA Nguyen Thi Kim Thoa",
+      "category": "Business",
+      "readTime": "5 min read",
+      "views": 1200,
+      "thumbnail": "/assets/blog/blog1.jpg",
+      "excerpt": "Choosing the right mentor is very important for your career growth..."
+    },
+    {
+      "id": 2,
+      "title": "How to Prepare for IT Interview",
+      "author": "Mr. Tấn",
+      "category": "IT",
+      "readTime": "7 min read",
+      "views": 980,
+      "thumbnail": "/assets/blog/blog2.jpg",
+      "excerpt": "To prepare for IT interview, you need technical + soft skills..."
+    }
+  ],
+
+  "testimonials": [
+    {
+      "id": 1,
+      "studentName": "Nguyen Van A",
+      "mentorName": "MBA Nguyen Thi Kim Thoa",
+      "review": "Sau 3 buổi mentoring mình đã đậu intern!",
+      "rating": 5
+    }
+  ],
+
+  "questions": [
+    {
+      "id": 1,
+      "question": "Business Analyst cần học gì?",
+      "askedBy": "student",
+      "answers": [
+        {
+          "mentor": "MBA Nguyen Thi Kim Thoa",
+          "content": "Em nên học requirement gathering, UML và SQL cơ bản."
+        }
+      ]
+    }
+  ],
+
+  "contacts": []
+}

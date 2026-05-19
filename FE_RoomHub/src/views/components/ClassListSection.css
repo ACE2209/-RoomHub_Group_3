@@ -1,0 +1,462 @@
+/* ================= MAIN SECTION ================= */
+.class-section {
+  padding: 124px;
+  background: #f0f9ff;
+  border-radius: 8px;
+}
+
+.class-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 24px;
+}
+
+/* ================= TOP BAR ================= */
+.class-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.class-topbar input {
+  flex: 1;
+  min-width: 250px;
+  padding: 12px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: #f5f5f5;
+  color: #333;
+  transition: all 0.3s ease;
+}
+
+.class-topbar input::placeholder {
+  color: #999;
+}
+
+.class-topbar input:focus {
+  outline: none;
+  border-color: #007bff;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.class-topbar select {
+  padding: 12px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: #f5f5f5;
+  color: #333;
+  cursor: pointer;
+  min-width: 150px;
+  transition: all 0.3s ease;
+}
+
+.class-topbar select:hover {
+  border-color: #007bff;
+}
+
+.class-topbar select:focus {
+  outline: none;
+  border-color: #007bff;
+  background-color: #fff;
+}
+
+/* .create-btn {
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+    }
+
+    .create-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    }
+
+    .create-btn:active {
+    transform: translateY(0);
+    } */
+
+/* ================= TABLE WRAPPER ================= */
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background-color: #fafafa;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #ffffff;
+}
+
+thead {
+  background: linear-gradient(to right, #f8f9fa, #ffffff);
+  border-bottom: 2px solid #e0e0e0;
+}
+
+th {
+  padding: 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background-color: #f8f9fa;
+}
+
+tbody tr {
+  border-bottom: 1px solid #e8e8e8;
+  transition: background-color 0.2s ease;
+}
+
+tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+tbody tr.row-disabled {
+  opacity: 0.6;
+  background-color: #f0f0f0;
+}
+
+td {
+  padding: 16px;
+  font-size: 14px;
+  color: #333;
+  vertical-align: middle;
+}
+
+/* ================= CLASS NAME BADGES ================= */
+td:first-child {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+td:first-child::before {
+  content: "";
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  font-weight: 600;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Different colors for class name prefixes */
+tr:nth-child(1) td:first-child::before {
+  content: "EXE";
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  color: #1976d2;
+}
+
+tr:nth-child(2) td:first-child::before {
+  content: "PRN";
+  background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+  color: #7b1fa2;
+}
+
+tr:nth-child(3) td:first-child::before {
+  content: "UXD";
+  background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+  color: #7b1fa2;
+}
+
+tr:nth-child(4) td:first-child::before {
+  content: "MKG";
+  background: linear-gradient(135deg, #fce4ec, #f8bbd0);
+  color: #c2185b;
+}
+
+tr:nth-child(5) td:first-child::before {
+  content: "CSD";
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  color: #1976d2;
+}
+
+tr:nth-child(6) td:first-child::before {
+  content: "EXE";
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  color: #1976d2;
+}
+
+/* ================= FIELD BADGES ================= */
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  text-align: center;
+}
+
+/* .badge-it {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.badge-kinhte {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.badge-marketing {
+  background-color: #fff3e0;
+  color: #f57c00;
+}
+
+.badge-design {
+  background-color: #e8f5e9;
+  color: #388e3c;
+}
+
+.badge-default {
+  background-color: #f5f5f5;
+  color: #757575;
+} */
+
+/* ================= PROGRESS BAR ================= */
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 150px;
+}
+
+.custom-progress-bar {
+  flex: 1;
+  height: 8px;
+  background-color: #4caf50;
+  border-radius: 4px;
+  transition:
+    width 0.3s ease,
+    background-color 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.custom-progress-bar.full {
+  background: linear-gradient(90deg, #ff7043, #ff5722);
+}
+
+.progress-container span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* ================= BUTTONS ================= */
+.btn-primary {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+  white-space: nowrap;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-full {
+  padding: 10px 20px;
+  background-color: #e0e0e0;
+  color: #999;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: not-allowed;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-full::before {
+  content: "🚫";
+  font-size: 12px;
+}
+
+/* ================= TABLE FOOTER ================= */
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background-color: #fafafa;
+  border-top: 1px solid #e0e0e0;
+  border-radius: 0 0 8px 8px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.table-footer span {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* ================= PAGINATION ================= */
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination button {
+  min-width: 40px;
+  height: 40px;
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  background-color: #ffffff;
+  color: #666;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pagination button:hover {
+  border-color: #007bff;
+  color: #007bff;
+  background-color: #f5f5f5;
+}
+
+.pagination button.active-page {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: white;
+  border-color: #007bff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 1024px) {
+  .class-topbar {
+    flex-direction: column;
+  }
+
+  .class-topbar input,
+  .class-topbar select {
+    width: 100%;
+  }
+
+  .create-btn {
+    width: 100%;
+  }
+
+  table {
+    font-size: 13px;
+  }
+
+  td,
+  th {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .class-section {
+    padding: 16px;
+  }
+
+  .class-title {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
+  table {
+    min-width: 600px;
+    font-size: 12px;
+  }
+
+  td,
+  th {
+    padding: 10px;
+  }
+
+  .progress-container {
+    min-width: 120px;
+  }
+
+  .btn-primary,
+  .btn-full {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .table-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pagination {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .class-section {
+    padding: 12px;
+  }
+
+  .class-title {
+    font-size: 18px;
+  }
+
+  .table-wrapper {
+    border: none;
+  }
+
+  table {
+    min-width: 500px;
+  }
+
+  .class-topbar {
+    gap: 8px;
+  }
+
+  .btn-primary,
+  .btn-full {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+}

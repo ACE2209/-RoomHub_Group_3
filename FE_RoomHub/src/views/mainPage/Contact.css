@@ -1,0 +1,144 @@
+.contactPage {
+  background: #f0f9ff;
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+.contactPage .contactContainer {
+  max-width: 1200px;
+  margin: auto;
+  padding: 100px 20px;
+}
+
+/* SECTION TITLE */
+
+.contactPage .section-title-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 13px;
+  color: #0ea5e9;
+  margin-bottom: 20px;
+}
+
+/* FEATURED */
+
+.contactPage .featured-card {
+  background: #fff;
+  border-radius: 25px;
+  overflow: hidden;
+  margin-bottom: 40px;
+}
+
+.contactPage .featured-img {
+  width: 100%;
+  height: 400px;
+  object-fit: cover;
+}
+
+.contactPage .featured-content {
+  padding: 40px;
+}
+
+.contactPage .badge-soft {
+  background: #e0f2fe !important;
+  color: #0369a1 !important;
+  padding: 8px 16px !important;
+}
+
+.contactPage .meta-info {
+  display: flex;
+  gap: 20px;
+  margin: 15px 0;
+  font-size: 14px;
+}
+
+.contactPage .btn-read-more {
+  background: #0ea5e9;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+}
+
+/* FILTER */
+
+.contactPage .category-filter {
+  margin-bottom: 30px;
+}
+
+.contactPage .filter-pill {
+  border: 1px solid #ddd;
+  background: white;
+  padding: 8px 20px;
+  margin-right: 10px;
+  border-radius: 10px;
+}
+
+.contactPage .filter-pill.active {
+  background: #0ea5e9;
+  color: white;
+}
+
+/* NEWS CARD */
+
+.contactPage .news-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.contactPage .news-img {
+  position: relative;
+  height: 200px;
+}
+
+.contactPage .news-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.contactPage .bookmark-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: white;
+  border-radius: 8px;
+  width: 35px;
+  height: 35px;
+}
+
+.contactPage .news-body {
+  padding: 20px;
+}
+
+.contactPage .news-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.contactPage .news-footer {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.contactPage .icon-btn {
+  border: none;
+  background: #f1f5f9;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+}
+
+/* MAP */
+
+.contactPage .mapBox {
+  margin-top: 60px;
+  border-radius: 20px;
+  overflow: hidden;
+}

@@ -1,0 +1,94 @@
+.allMentorPage {
+  background: #f0f9ff;
+}
+
+/* container rộng hơn */
+.mentor-container {
+  padding: 100px 6%;
+  max-width: 1400px;
+  margin: auto;
+}
+
+/* grid */
+.mentor-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 50px;
+}
+
+/* card */
+.mentor-card {
+  display: flex;
+  align-items: center;
+  background: #f8fbff;
+  border-radius: 28px;
+  padding: 20px;
+  box-shadow: 0 18px 40px rgba(14,165,233,0.08);
+  cursor: pointer;
+  transition: 0.35s;
+}
+
+.mentor-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 28px 55px rgba(14,165,233,0.18);
+}
+
+/* avatar lớn hơn + bo tròn */
+.mentor-avatar {
+  width: 440px;
+  height: 201px;
+  border-radius: 20px;
+  object-fit: cover;
+  object-position: top;
+  margin-right: 40px;
+}
+
+/* info */
+.mentor-info {
+  flex: 1;
+}
+
+/* name */
+.mentor-info h3 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #0f172a;
+}
+
+/* role */
+.mentor-role {
+  font-size: 16px;
+  color: #0369a1;
+  font-weight: 500;
+}
+
+/* meta */
+.mentor-meta {
+  display: flex;
+  gap: 20px;
+  margin: 18px 0;
+}
+
+.mentor-category {
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mentor-rating {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+/* desc thoáng hơn */
+.mentor-desc {
+  font-size: 15px;
+  color: #475569;
+  line-height: 1.7;
+  max-width: 800px;
+}

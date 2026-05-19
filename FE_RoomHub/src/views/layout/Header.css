@@ -1,0 +1,173 @@
+:root {
+  --primary: #1e3a8a; /* xanh theo logo */
+  --primary-dark: #162d6b;
+  --secondary: #0f172a;
+  --white: #ffffff;
+}
+
+.headerpage {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 40px;
+
+  background: transparent; /* trong suốt lúc đầu */
+  transition: all 0.3s ease;
+}
+
+.headerpage.scrolled {
+  background: white;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 8px 40px;
+}
+
+.logo {
+  width: 130px;
+  object-fit: contain;
+}
+
+.mainMenu {
+  display: flex;
+  gap: 40px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.menuItem {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.25s ease;
+}
+
+.menuItem:hover {
+  color: #22c;
+}
+
+.menuItem::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -6px;
+  width: 0%;
+  height: 3px;
+  background: #22c;
+  border-radius: 2px;
+  transition: width 0.25s ease;
+}
+
+.menuItem:hover::after {
+  width: 100%;
+}
+
+.menuItem.active {
+  color: #22c;
+}
+
+.menuItem.active::after {
+  width: 100%;
+}
+
+.nav {
+  display: flex;
+  gap: 24px;
+}
+
+.navItem {
+  text-decoration: none;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.signupBtn {
+  background: var(--primary);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 20px;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.signupBtn:hover {
+  background: var(--primary-dark);
+}
+
+.loginBtn {
+  background: transparent;
+  border: 2px solid var(--primary);
+  padding: 6px 14px;
+  border-radius: 20px;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.loginBtn:hover {
+  background: var(--primary);
+  color: white;
+}
+
+/* avatar khi đăng nhập */
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+}
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #22c55e;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.userTrigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.dropdownMenu {
+  position: absolute;
+  top: 60px;
+  right: 0;
+  background: white;
+  border-radius: 14px;
+  min-width: 160px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+  padding: 8px 0;
+  animation: scaleIn 0.2s ease;
+  z-index: 100;
+}
+
+.dropdownItem {
+  padding: 12px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.dropdownItem:hover {
+  background: #f1f5f9;
+}
+
+.dropdownItem.logout {
+  color: #ef4444;
+  font-weight: 600;
+}

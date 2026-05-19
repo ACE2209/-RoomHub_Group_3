@@ -1,0 +1,27 @@
+/* input lỗi */
+
+.formInput .errorInput {
+  border: 1px solid #ff4d4f !important;
+}
+
+/* icon trong input cũng đỏ */
+
+.formInput .errorInput svg {
+  color: #ff4d4f;
+}
+
+/* text báo lỗi */
+
+.formInput .errorText {
+  color: #ff4d4f;
+  font-size: 13px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+/* hiệu ứng focus khi lỗi */
+
+.formInput .errorInput:focus-within {
+  border: 1px solid #ff4d4f;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+}

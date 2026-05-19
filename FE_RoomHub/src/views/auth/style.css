@@ -1,0 +1,229 @@
+/* ================= CONTAINER ================= */
+
+.container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+
+/* ===== HEADER ===== */
+
+.container .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: fadeDown 0.6s ease;
+}
+
+.container .logo {
+  width: 250px;
+  object-fit: contain;
+}
+
+/* ===== CENTER ===== */
+
+.container .center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== CARD ===== */
+
+.container .card {
+  width: 420px;
+  max-width: 90%;
+  background: #ffffff;
+  padding: 32px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+.container .title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  text-align: center;
+  color: #0f172a;
+}
+
+.container .label {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #374151;
+}
+
+/* ===== INPUT ===== */
+
+.container .inputWrapper {
+  display: flex;
+  align-items: center;
+  border: 1px solid #e0f2fe;
+  border-radius: 14px;
+  padding: 0 12px;
+  margin-bottom: 16px;
+  background-color: #f0f9ff;
+  transition: 0.2s ease;
+}
+
+.container .inputWrapper:focus-within {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(224, 242, 254, 0.8);
+}
+
+.container .inputWrapper input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 12px 8px;
+  background: transparent;
+  font-size: 14px;
+}
+
+.container .eye {
+  cursor: pointer;
+}
+
+/* ===== BUTTON ===== */
+
+.container .nextBtn {
+  width: 100%;
+  background-color: #e0f2fe;
+  padding: 16px;
+  border-radius: 999px;
+  border: none;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 16px;
+  margin-top: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 20px rgba(224, 242, 254, 0.6);
+}
+
+.container .nextBtn:hover {
+  transform: translateY(-2px);
+  background-color: #bfdbfe;
+  box-shadow: 0 12px 26px rgba(224, 242, 254, 0.9);
+}
+
+.container .nextBtn:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 14px rgba(224, 242, 254, 0.5);
+}
+
+/* ===== TEXT ===== */
+
+.container .footerText {
+  text-align: center;
+  margin-top: 16px;
+  color: #6b7280;
+}
+
+.container .loginLink {
+  color: #0284c7;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.container .loginLink:hover {
+  text-decoration: underline;
+}
+
+.container .orText {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 12px;
+  margin: 12px 0;
+}
+
+/* ===== SOCIAL BUTTON ===== */
+
+.container .socialRow {
+  display: flex;
+  gap: 12px;
+}
+
+.container .socialBtn {
+  flex: 1;
+  border: 1px solid #e0f2fe;
+  padding: 12px 0;
+  border-radius: 12px;
+  text-align: center;
+  cursor: pointer;
+  font-weight: 500;
+  background: #f0f9ff;
+  transition: 0.2s ease;
+}
+
+.container .socialBtn:hover {
+  background: #e0f2fe;
+}
+
+/* ===== FORGOT PASSWORD ===== */
+
+.container .forgotLink {
+  text-align: right;
+  font-size: 13px;
+  color: #0284c7;
+  font-weight: 500;
+  cursor: pointer;
+  margin: -8px 4px 12px;
+}
+
+.container .forgotLink:hover {
+  text-decoration: underline;
+}
+
+/* ===== INFO / ERROR MESSAGE ===== */
+
+.infoMessage {
+  background: #e0f2fe;
+  color: #075985;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.errorMessage {
+  background: #fdecea;
+  color: #842029;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+/* ===== ANIMATION ===== */
+
+@keyframes fadeDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== RESPONSIVE ===== */
+
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .container .card {
+    padding: 24px;
+  }
+
+  .container .logo {
+    width: 180px;
+  }
+}
