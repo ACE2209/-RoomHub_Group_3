@@ -1,19 +1,21 @@
-const authRoutes = require("./authRoutes");
-const userRoutes = require("./userRoutes");
-// const productRoutes = require("./productRoutes");
-// const categoryRoutes = require("./categoryRoutes");
-// const cartRoutes = require("./cartRoutes");
-// const orderRoutes = require("./orderRoutes");
-// const statisticsRoutes = require("./statisticsRoutes");
+import {
+  authMiddleware,
+  ownerMiddleware,
+  adminMiddleware,
+  staffMiddleware,
+} from '../middlewares/index.js';
+import { commonRouter } from './commonRouter.js';
+import { authRouter } from './authRouter.js';
+// import { ownerRouter } from './ownerRouter.js';
+// import { adminRouter } from './adminRouter.js';
+// import { staffRouter } from './staffRouter.js';
 
-const route = (app) => {
-  app.use("/api/auth", authRoutes);
-  app.use("/api/users", userRoutes);
-  // app.use("/api/products", productRoutes);
-  // app.use("/api/categories", categoryRoutes);
-  // app.use("/api/carts", cartRoutes);
-  // app.use("/api/orders", orderRoutes);
-  // app.use("/api/sta  tistics", statisticsRoutes);
-};
+function routes(app) {
+  app.use('/', commonRouter);
+  app.use('/auth', authMiddleware, authRouter);
+  // app.use('/staff', staffMiddleware, staffRouter);
+  // app.use('/owner', ownerMiddleware, ownerRouter);
+  // app.use('/dashboard', adminMiddleware, adminRouter);
+}
 
-module.exports = route;
+export default routes;

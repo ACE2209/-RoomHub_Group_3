@@ -1,48 +1,52 @@
-const express = require("express");
-const connectDB = require("./config/db/connectDB");
-const cookieParser = require("cookie-parser");
-const cors = require("cors");
-const route = require("./routes");
-require("dotenv").config();
-const path = require("path");
+import dotenv from "dotenv";
+import express from "express";
+import connect from "./config/dbConnect.js";
+import route from "./routes/index.js";
+import cors from "cors";
+import { fileURLToPath } from "url";
+import path from "path";
 
-// Load environment variables
-const PORT = process.env.PORT || 5000;
-const DATABASE_URL = process.env.DATABASE_URL;
 
-// Initialize Express app
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Cập nhật đường dẫn để chỉ tới thư mục public
+const shortHfilePath = (fileUlR) => {
+    return path.join(__dirname, "../public", fileUlR); // Thay đổi đường dẫn
+};
+
+dotenv.config();
+
 const app = express();
 
-// Middleware static files
-app.use(
-  "/uploads/avatars",
-  express.static(path.join(__dirname, "uploads/avatars"))
-);
-app.use(
-  "/uploads/products",
-  express.static(path.join(__dirname, "uploads/products"))
-);
+app.use(cors());
 
-// Built-in middleware
+// Kết nối đến MongoDB
+connect();
+
+// Cấu hình express để phân tích body của request
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-app.use(
-  cors({
-    origin: "http://localhost:3000",
-    credentials: true,
-  })
-);
+app.use("/public/images/boardingHouse", express.static(path.join(__dirname, "../public/images/boardingHouse")));
 
-// Initialize routes
+
+app.use(express.static("public"));
+app.set("view engine", "ejs");
+
+
+// Define routes
 route(app);
 
-// Start server and connect to database
-app.listen(PORT, async () => {
-  try {
-    await connectDB(DATABASE_URL);
-    console.log(`Server is running on port ${PORT}`);
-  } catch (error) {
-    console.error("Server failed to start:", error);
-  }
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send("Something broke!");
+});
+
+// Validate environment variables
+const hostname = process.env.APP_HOST || "localhost";
+const port = process.env.APP_PORT || 3000;
+
+app.listen(port, hostname, () => {
+    console.log(`Server is running at http://${hostname}:${port}/`);
 });

@@ -10,9 +10,6 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# Environment variables
-.env
-
 # Build and distribution files
 dist/
 build/

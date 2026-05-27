@@ -1,400 +1,364 @@
-const User = require("../models/userModel");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
-const OTP = require("../models/otpModel");
-const { validateEmail } = require("../utils/validation");
+import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
+import googleAuth from 'google-auth-library';
+import nodemailer from 'nodemailer';
+import { generateToken, verifyToken } from '../utils/functions.js';
 
-const generateAccessToken = (user) => {
-  return jwt.sign(
-    { _id: user._id, isAdmin: user.isAdmin, status: user.status },
-    process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: "1h" }
-  );
-};
+import { Account } from '../models/account.js';
+dotenv.config();
 
-const generateRefreshToken = (user) => {
-  return jwt.sign(
-    { _id: user._id, isAdmin: user.isAdmin, status: user.status },
-    process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: "7d" }
-  );
-};
+class AuthController {
+  resetTokenBlacklist = new Set();
+  async getAccountFromToken(req, res) {
+    const user = await Account.findOne({ username: req.user.username }).select(
+      '-password'
+    );
+    res.status(200).json(user);
+  }
 
-const register = async (req, res) => {
-  try {
-    const { fullName, email, password, address, phone, avatar, gender } =
-      req.body;
+  async sendOTPRegister(req, res) {
+    try {
+      const account = req.body;
 
-    if (!fullName || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Full name, email, and password are required",
+      const existingUser = await Account.findOne({
+        $or: [
+          { email: account.email },
+          { username: account.username },
+          { phoneNumber: account.phoneNumber },
+        ],
       });
-    }
 
-    if (!validateEmail(email)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid email address",
+      if (existingUser) {
+        return res.status(409).json({
+          message: 'Email or Username or Phone Number already exists',
+        });
+      }
+
+      const otp = Math.floor(100000 + Math.random() * 900000);
+      const hashedOtp = await bcrypt.hash(otp.toString(), 10);
+      const token = generateToken({ otp: hashedOtp }, '10m');
+
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: 'trantnce180829@fpt.edu.vn',
+          pass: 'rjvs rqzj nsut asvr',
+        },
       });
+      const mailOptions = {
+        from: 'support@example.com',
+        to: account.email,
+        subject: 'Mã OTP xác minh tài khoản của bạn',
+        html: `
+  <p>Kính gửi Anh/Chị ${account.fullname},</p>
+  <p>Chúng tôi đã nhận được yêu cầu xác minh tài khoản của bạn trên nền tảng RoomHub.</p>
+  <p>Mã OTP của bạn là:</p>
+  <h2 style="color: #2a7ae4; text-align: center;">${otp}</h2>
+  <p>Lưu ý: Mã OTP này có hiệu lực trong vòng 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
+  <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>
+  <p>Nếu bạn cần hỗ trợ thêm, vui lòng liên hệ với chúng tôi qua email <a href="mailto:support@example.com">support@example.com</a> hoặc số điện thoại 0123-456-789.</p>
+  <p>Trân trọng,<br>
+  Đội ngũ Hỗ trợ Nền tảng RoomHub<br>
+  Email: <a href="mailto:support@example.com">support@example.com</a><br>
+  Hotline: 0123-456-789</p>
+  `,
+      };
+
+      await transporter.sendMail(mailOptions);
+
+      res.status(200).json({
+        token,
+        account,
+        message: 'OTP sent successfully, please check your email.',
+      });
+    } catch (error) {
+      console.log(error.message);
+      res.status(500).json({ message: 'An unexpected error occurred' });
     }
+  }
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email already registered" });
+  async registerWithGoogle(req, res) {
+    try {
+      const user = new Account(req.body);
+      user.password = await bcrypt.hash(user.password, 10);
+      const createdAccount = await user.save();
+      if (!createdAccount) {
+        return res.status(422).json({ message: 'Account creation failed' });
+      }
+
+      const token = generateToken({
+        userId: user._id,
+        username: user.username,
+        role: user.role,
+      });
+
+      delete user.password;
+      res.status(201).json({
+        token,
+        user,
+      });
+    } catch (error) {
+      console.log(error.message);
+      if (error.code === 11000) {
+        return res.status(409).json({
+          message: 'Username or Email or Phone Number already exist!',
+        });
+      }
+      res.status(500).json({ message: 'An unexpected error occurred' });
     }
+  }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = Date.now() + 5 * 60 * 1000;
-    const hashedPassword = await bcrypt.hash(password, 10);
+  async verifyRegister(req, res) {
+    try {
+      const { token, otp, account } = req.body;
 
-    const existingOTP = await OTP.findOne({ email });
+      const decoded = verifyToken(token);
+      const isOtpValid = await bcrypt.compare(otp.toString(), decoded.otp);
+      if (!isOtpValid) {
+        return res.status(400).json({ message: 'Invalid OTP' });
+      }
 
-    if (existingOTP) {
-      await OTP.findOneAndUpdate(
-        { email },
+      const user = new Account(account);
+      user.password = await bcrypt.hash(user.password, 10);
+      const createdAccount = await user.save();
+      if (!createdAccount) {
+        return res.status(422).json({ message: 'Account creation failed' });
+      }
+
+      const accessToken = generateToken({
+        userId: user._id,
+        username: user.username,
+        role: user.role,
+      });
+
+      delete user.password;
+      res.status(201).json({
+        token: accessToken,
+        user,
+      });
+    } catch (error) {
+      console.log(error.message);
+      if (error.code === 11000) {
+        return res.status(409).json({
+          message: 'Username or Email or Phone Number already exist!',
+        });
+      }
+      res.status(500).json({ message: 'An unexpected error occurred' });
+    }
+  }
+
+  async login(req, res) {
+    try {
+      const { username, password, remember } = req.body;
+      const user = await Account.findOne({ username: username });
+
+      if (!user) {
+        return res
+          .status(401)
+          .json({ message: 'Username or Password is incorrect' });
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res
+          .status(401)
+          .json({ message: 'Username or Password is incorrect' });
+      }
+      const token = generateToken(
         {
-          otp: otpCode,
-          expiresAt: otpExpires,
-          tempUserData: {
-            fullName,
-            password: hashedPassword,
-            address,
-            phone,
-            avatar,
-            gender,
-          },
+          userId: user._id,
+          username: user.username,
+          role: user.role,
         },
-        { new: true }
+        remember ? '7d' : '1d'
       );
-    } else {
-      await OTP.create({
-        email,
-        otp: otpCode,
-        expiresAt: otpExpires,
-        tempUserData: {
-          fullName,
-          password: hashedPassword,
-          address,
-          phone,
-          avatar,
-          gender,
-        },
+      delete user.password;
+      res.status(200).json({
+        token,
+        user,
       });
+    } catch (error) {
+      console.log(error.message);
+      res.status(500).json({ message: 'An unexpected error occurred' });
     }
-
-    await sendOTP(email, otpCode, "register");
-
-    res.status(200).json({
-      success: true,
-      message:
-        "An OTP has been sent to your email. Please verify to complete registration.",
-      data: { email },
-    });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
   }
-};
 
-const login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Incorrect email or password. Please try again.",
-      });
-    }
-
-    if (user.status === "inactive") {
-      return res.status(403).json({
-        success: false,
-        message: "Your account is inactive. Please contact support.",
-      });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: "Incorrect email or password. Please try again.",
-      });
-    }
-
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: false,
-      path: "/",
-      sameSite: "strict",
+  async loginWithGoogle(req, res) {
+    const { credential, clientId, remember } = req.body;
+    const client = new googleAuth.OAuth2Client({
+      clientId: process.env.GOOGLE_CLIENT_ID,
     });
-
-    const { password: _, ...userData } = user._doc;
-    res.json({
-      success: true,
-      message: "Login successful",
-      data: { ...userData, accessToken },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message:
-        "An error occurred while processing your request. Please try again later.",
-    });
-  }
-};
-
-const logout = async (req, res) => {
-  try {
-    const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) {
-      return res
-        .status(400)
-        .json({ success: false, message: "No refresh token found" });
-    }
-
-    res.clearCookie("refreshToken");
-
-    return res
-      .status(200)
-      .json({ success: true, message: "Logout successful" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Logout failed" });
-  }
-};
-
-const requestRefreshToken = async (req, res) => {
-  try {
-    const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) {
-      return res
-        .status(401)
-        .json({ success: false, message: "No refresh token provided." });
-    }
-
-    const user = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-    const newAccessToken = generateAccessToken(user);
-    const newRefreshToken = generateRefreshToken(user);
-
-    res.cookie("refreshToken", newRefreshToken, {
-      httpOnly: true,
-      secure: false,
-      path: "/",
-      sameSite: "strict",
-    });
-
-    res.status(200).json({ success: true, accessToken: newAccessToken });
-  } catch (error) {
-    res
-      .status(403)
-      .json({ success: false, message: "Refresh token invalid or expired." });
-  }
-};
-
-const verifyOTPRegister = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-
-    if (!email || !otp) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and OTP are required",
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
       });
-    }
+      const payload = ticket.getPayload();
+      const user = await Account.findOne({ email: payload.email }).select(
+        '-password'
+      );
 
-    const storedOTP = await OTP.findOne({ email, otp });
-    if (!storedOTP) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid OTP",
-      });
-    }
+      if (!user) {
+        return res.status(200).json({
+          isRegistered: false,
+          message: 'User not registered. Please complete registration.',
+          user: payload,
+        });
+      }
 
-    if (storedOTP.expiresAt < Date.now()) {
-      return res.status(400).json({
-        success: false,
-        message: "OTP Expired",
-      });
-    }
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: "Email already registered",
-      });
-    }
-
-    const { fullName, password, address, phone, avatar, gender } =
-      storedOTP.tempUserData;
-
-    const newUser = new User({
-      fullName,
-      email,
-      password,
-      address,
-      phone,
-      avatar,
-      gender,
-    });
-
-    await newUser.save();
-    await OTP.deleteOne({ email, otp });
-
-    res.status(201).json({
-      success: true,
-      message: "Registration successful! Please log in to continue.",
-      data: { email },
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-const requestPasswordReset = async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email is required." });
-    }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "No account found with that email." });
-    }
-
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = Date.now() + 5 * 60 * 1000;
-
-    const existingOTP = await OTP.findOne({ email });
-
-    if (existingOTP) {
-      await OTP.findOneAndUpdate(
-        { email },
+      const token = generateToken(
         {
-          otp: otpCode,
-          expiresAt: otpExpires,
+          userId: user._id,
+          username: user.username,
+          role: user.role,
         },
-        { new: true }
+        remember ? '7d' : '1d'
       );
-    } else {
-      await OTP.create({
-        email,
-        otp: otpCode,
-        expiresAt: otpExpires,
+
+      res.status(200).json({
+        isRegistered: true,
+        token,
+        user,
       });
+    } catch (error) {
+      console.log(error.message);
+      res.status(401).json({ message: 'Invalid Google Token' });
     }
-
-    await sendOTP(email, otpCode, "reset");
-
-    res.json({ success: true, message: "OTP sent. Please check your email." });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
   }
-};
 
-const resetPasswordWithOTP = async (req, res) => {
-  try {
-    const { email, otp, newPassword } = req.body;
+  async forgotPassword(req, res) {
+    try {
+      const { email } = req.body;
+      const user = await Account.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: 'Email not found' });
+      }
 
-    const storedOTP = await OTP.findOne({ email, otp });
-    if (!storedOTP || storedOTP.expiresAt < Date.now()) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid or expired OTP." });
+      const resetToken = generateToken({ userId: user._id }, '1h');
+
+      const resetLink = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: 'todohongy@gmail.com',
+          pass: 'onbg hyaz wxcd vmgw',
+        },
+      });
+      const mailOptions = {
+        from: 'support@example.com',
+        to: email,
+        subject: 'Đặt lại mật khẩu tài khoản của bạn',
+        html: `
+  <p>Kính gửi Anh/Chị ${user.fullname},</p>
+  <p>Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn trên nền tảng XYZ.</p>
+  <p>Vui lòng nhấp vào liên kết bên dưới để đặt lại mật khẩu:</p>
+  <p><a href="${resetLink}" style="color: #2a7ae4; text-decoration: none;">Đặt lại mật khẩu</a></p>
+  <p>Lưu ý: Liên kết này chỉ có hiệu lực trong vòng 1 giờ. Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>
+  <p>Nếu bạn cần hỗ trợ thêm, vui lòng liên hệ với chúng tôi qua email <a href="mailto:support@example.com">support@example.com</a> hoặc số điện thoại 0123-456-789.</p>
+  <p>Trân trọng,<br>
+  Đội ngũ Hỗ trợ Nền tảng XYZ<br>
+  Email: <a href="mailto:support@example.com">support@example.com</a><br>
+  Hotline: 0123-456-789</p>
+  `,
+      };
+
+      await transporter.sendMail(mailOptions);
+      res.status(200).json({ message: 'Reset link sent to email' });
+    } catch (error) {
+      res.status(500).json({ message: 'An unexpected error occurred' });
     }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await User.findOneAndUpdate({ email }, { password: hashedPassword });
-
-    await OTP.deleteOne({ email });
-    res.json({
-      success: true,
-      message: "Password has been reset successfully.",
-    });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
   }
-};
 
-const sendOTP = async (email, otp, type = "register") => {
-  try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-    });
+  async forgotPasswordMobile(req, res) {
+    try {
+      const { email } = req.body;
+      const user = await Account.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: 'Email not found' });
+      }
 
-    let subject, htmlContent;
+      const resetToken = generateToken({ userId: user._id }, '1h');
 
-    if (type === "register") {
-      subject = "🔐 Your OTP Code for Registration";
-      htmlContent = `
-        <div style="max-width: 600px; margin: auto; padding: 20px; font-family: Arial, sans-serif; border: 1px solid #e0e0e0; border-radius: 5px;">
-          <h2 style="color: #007bff; text-align: center;">🔐 Complete Your Registration</h2>
-          <p style="font-size: 16px; color: #333;">Hello,</p>
-          <p style="font-size: 16px; color: #333;">Thank you for signing up with Clothing Store! To complete your registration, please use the OTP code below:</p>
-          <div style="background-color: #f4f4f4; padding: 15px; text-align: center; border-radius: 5px; margin: 20px 0;">
-            <h3 style="margin: 0; font-size: 24px; color: #007bff;">${otp}</h3>
-          </div>
-          <p style="font-size: 14px; color: #666;">This code is valid for <strong>5 minutes</strong>.</p>
-          <p style="font-size: 16px; color: #333;">Click the button below to verify your OTP and activate your account:</p>
-          <p style="font-size: 12px; color: #666; text-align: center;">If you did not request this registration, please ignore this email or contact our support team.</p>
-          <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-          <p style="font-size: 12px; color: #999; text-align: center;">&copy; 2025 Clothing Store. All rights reserved.</p>
-        </div>
-      `;
-    } else if (type === "reset") {
-      subject = "🔐 Your OTP Code for Password Reset";
-      htmlContent = `
-        <div style="max-width: 600px; margin: auto; padding: 20px; font-family: Arial, sans-serif; border: 1px solid #e0e0e0; border-radius: 5px;">
-          <h2 style="color: #007bff; text-align: center;">🔐 Reset Your Password</h2>
-          <p style="font-size: 16px; color: #333;">Hello,</p>
-          <p style="font-size: 16px; color: #333;">You have requested to reset your password for Clothing Store. Please use the OTP code below:</p>
-          <div style="background-color: #f4f4f4; padding: 15px; text-align: center; border-radius: 5px; margin: 20px 0;">
-            <h3 style="margin: 0; font-size: 24px; color: #007bff;">${otp}</h3>
-          </div>
-          <p style="font-size: 14px; color: #666;">This code is valid for <strong>5 minutes</strong>.</p>
-          <p style="font-size: 16px; color: #333;">Click the button below to reset your password:</p>
-          <p style="font-size: 12px; color: #666; text-align: center;">If you did not request a password reset, please ignore this email or contact our support team.</p>
-          <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-          <p style="font-size: 12px; color: #999; text-align: center;">&copy; 2025 Clothing Store. All rights reserved.</p>
-        </div>
-      `;
+      // const resetLink = `mobile://resetPassword/${resetToken}`;
+      const resetLink = `${process.env.NGROK_URL}/reset-password-mobile/${resetToken}`;
+
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: 'todohongy@gmail.com',
+          pass: 'onbg hyaz wxcd vmgw',
+        },
+      });
+
+      const mailOptions = {
+        from: 'support@example.com',
+        to: email,
+        subject: 'Đặt lại mật khẩu trên ứng dụng XYZ (Mobile)',
+        html: `
+  <p>Kính gửi Anh/Chị ${user.fullname},</p>
+  <p>Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn trên nền tảng XYZ.</p>
+  <p>Vui lòng nhấp vào liên kết bên dưới để đặt lại mật khẩu:</p>
+  <p><a href="${resetLink}" style="color: #2a7ae4; text-decoration: none;">Đặt lại mật khẩu</a></p>
+  <p>Lưu ý: Liên kết này chỉ có hiệu lực trong vòng 1 giờ. Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>
+  <p>Nếu bạn cần hỗ trợ thêm, vui lòng liên hệ với chúng tôi qua email <a href="mailto:support@example.com">support@example.com</a> hoặc số điện thoại 0123-456-789.</p>
+  <p>Trân trọng,<br>
+  Đội ngũ Hỗ trợ Nền tảng XYZ<br>
+  Email: <a href="mailto:support@example.com">support@example.com</a><br>
+  Hotline: 0123-456-789</p>
+  `,
+      };
+
+      await transporter.sendMail(mailOptions);
+      res.status(200).json({ message: 'Mobile reset link sent to email' });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({ message: 'An unexpected error occurred' });
     }
-
-    const mailOptions = {
-      from: `"ED Planner" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject,
-      html: htmlContent,
-    };
-
-    await transporter.sendMail(mailOptions);
-  } catch (error) {
-    throw new Error("Failed to send OTP email.");
   }
-};
 
-module.exports = {
-  register,
-  login,
-  requestPasswordReset,
-  requestRefreshToken,
-  logout,
-  resetPasswordWithOTP,
-  verifyOTPRegister,
-};
+  async resetPasswordMobile(req, res) {
+    const token = req.params.token;
+
+    const deepLink = `mobile://resetPassword/${token}`;
+
+    const userAgent = req.headers['user-agent'];
+    const isMobile = /Android|iPhone|iPad/i.test(userAgent);
+
+    if (isMobile) {
+      res.redirect(deepLink);
+    } else {
+      // Nếu không phải mobile, show thông báo hoặc redirect về trang web
+      res.send('Please open this link on your mobile device.');
+    }
+  }
+
+  resetPassword = async (req, res) => {
+    try {
+      const { token, password } = req.body;
+
+      if (this.resetTokenBlacklist.has(token)) {
+        return res.status(400).json({ message: 'Reset token has been used' });
+      }
+
+      const decoded = verifyToken(token);
+      const user = await Account.findById(decoded.userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      user.password = await bcrypt.hash(password, 10);
+      await user.save();
+
+      this.resetTokenBlacklist.add(token);
+      res.status(200).json({ message: 'Password reset successful' });
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        return res.status(400).json({ message: 'Token expired' });
+      }
+      res.status(500).json({ message: 'An unexpected error occurred' });
+    }
+  };
+}
+
+export default new AuthController();

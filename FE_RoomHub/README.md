@@ -32,11 +32,3 @@ npm install chart.js
 npm install react-router-dom@6
 npm list react-router-dom
 
-# Code up git
-
-git init
-git add .
-git remote add origin https://github.com/TruonTran/TIKOPlanner_System.git
-git branch -M main
-git commit -m "first commit"
-git push -u origin main
