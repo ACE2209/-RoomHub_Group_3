@@ -2,7 +2,7 @@ import authController from './authController.js';
 import accountController from './accountController.js';
 
 // import favoriteController from './favoriteController.js';
-// import ReviewController from './reviewController.js';
+import ReviewController from './reviewController.js';
 // import withdrawalRequestsController from './withdrawalRequestsController.js';
 // import reportController from './reportController.js';
 // import boardingHouseController from './boardingHouseController.js';
@@ -29,7 +29,7 @@ export {
   // withdrawalRequestsController,
   // reportController,
   // boardingHouseController,
-  // ReviewController,
+  ReviewController,
   // favoriteController,
   // appointmentController,
   // roomController,
