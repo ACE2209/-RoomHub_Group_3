@@ -9,10 +9,10 @@ class ReviewController {
           path: 'accountId',
           select: 'username _id fullname avatarImage',
         })
-        .populate({
-          path: 'boardingHouseId',
-          select: 'name',
-        })
+        // .populate({
+        //   path: 'boardingHouseId',
+        //   select: 'name',
+        // })
         .sort({ createdAt: 1 });
 
       return res.status(200).json(reviews);
@@ -31,10 +31,10 @@ class ReviewController {
           path: 'accountId',
           select: 'username _id fullname avatarImage',
         })
-        .populate({
-          path: 'boardingHouseId',
-          select: 'name',
-        })
+        // .populate({
+        //   path: 'boardingHouseId',
+        //   select: 'name',
+        // })
 ;
       if (!review) {
         return res.status(404).json({ message: 'Review not found' });
