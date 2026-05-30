@@ -3,16 +3,14 @@ import {
     Route,
 } from "react-router-dom";
 
-import Login from "../pages/Login";
-import Register from "../pages/Register";
+import Login from "../pages/auth/Login";
+import Register from "../pages/auth/Register";
+import ForgotPassword from "../pages/auth/ForgotPassword";
+import ResetPassword from "../pages/auth/ResetPassword";
 
-const Home = () => {
-    return (
-        <div className="container mt-5">
-            <h1>Welcome RoomHub</h1>
-        </div>
-    );
-};
+import HomePage from "../pages/HomePage";
+
+
 
 const AppRoutes = () => {
     return (
@@ -20,7 +18,9 @@ const AppRoutes = () => {
 
             <Route
                 path="/"
-                element={<Home />}
+                element={
+                    <HomePage />
+                }
             />
 
             <Route
@@ -33,7 +33,17 @@ const AppRoutes = () => {
                 element={<Register />}
             />
 
-        </Routes>
+            <Route
+                path="/forgot-password"
+                element={<ForgotPassword />}
+            />
+
+            <Route
+                path="/reset-password/:token"
+                element={<ResetPassword />}
+            />
+
+        </Routes >
     );
 };
 

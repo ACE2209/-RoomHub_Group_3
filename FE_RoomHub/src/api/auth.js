@@ -28,3 +28,21 @@ export const sendOTPAPI = async (data) => {
 
     return response.data;
 };
+
+export const forgotPasswordAPI = async (data) => {
+    const res = await axios.post(
+        `${API_URL}/forgot-password`,
+        data
+    );
+
+    return res.data;
+};
+
+export const resetPasswordAPI = async (data) => {
+    const res = await axios.post(
+        `${API_URL}/reset-password`,
+        data
+    );
+
+    return res.data;
+};

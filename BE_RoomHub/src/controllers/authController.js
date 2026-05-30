@@ -241,8 +241,8 @@ class AuthController {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-          user: 'todohongy@gmail.com',
-          pass: 'onbg hyaz wxcd vmgw',
+          user: 'trantnce180829@fpt.edu.vn',
+          pass: 'rjvs rqzj nsut asvr',
         },
       });
       const mailOptions = {
@@ -269,70 +269,6 @@ class AuthController {
       res.status(500).json({ message: 'An unexpected error occurred' });
     }
   }
-
-  async forgotPasswordMobile(req, res) {
-    try {
-      const { email } = req.body;
-      const user = await Account.findOne({ email });
-      if (!user) {
-        return res.status(404).json({ message: 'Email not found' });
-      }
-
-      const resetToken = generateToken({ userId: user._id }, '1h');
-
-      // const resetLink = `mobile://resetPassword/${resetToken}`;
-      const resetLink = `${process.env.NGROK_URL}/reset-password-mobile/${resetToken}`;
-
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: 'todohongy@gmail.com',
-          pass: 'onbg hyaz wxcd vmgw',
-        },
-      });
-
-      const mailOptions = {
-        from: 'support@example.com',
-        to: email,
-        subject: 'Đặt lại mật khẩu trên ứng dụng XYZ (Mobile)',
-        html: `
-  <p>Kính gửi Anh/Chị ${user.fullname},</p>
-  <p>Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn trên nền tảng XYZ.</p>
-  <p>Vui lòng nhấp vào liên kết bên dưới để đặt lại mật khẩu:</p>
-  <p><a href="${resetLink}" style="color: #2a7ae4; text-decoration: none;">Đặt lại mật khẩu</a></p>
-  <p>Lưu ý: Liên kết này chỉ có hiệu lực trong vòng 1 giờ. Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>
-  <p>Nếu bạn cần hỗ trợ thêm, vui lòng liên hệ với chúng tôi qua email <a href="mailto:support@example.com">support@example.com</a> hoặc số điện thoại 0123-456-789.</p>
-  <p>Trân trọng,<br>
-  Đội ngũ Hỗ trợ Nền tảng XYZ<br>
-  Email: <a href="mailto:support@example.com">support@example.com</a><br>
-  Hotline: 0123-456-789</p>
-  `,
-      };
-
-      await transporter.sendMail(mailOptions);
-      res.status(200).json({ message: 'Mobile reset link sent to email' });
-    } catch (error) {
-      console.error('Reset password error:', error);
-      res.status(500).json({ message: 'An unexpected error occurred' });
-    }
-  }
-
-  async resetPasswordMobile(req, res) {
-    const token = req.params.token;
-
-    const deepLink = `mobile://resetPassword/${token}`;
-
-    const userAgent = req.headers['user-agent'];
-    const isMobile = /Android|iPhone|iPad/i.test(userAgent);
-
-    if (isMobile) {
-      res.redirect(deepLink);
-    } else {
-      // Nếu không phải mobile, show thông báo hoặc redirect về trang web
-      res.send('Please open this link on your mobile device.');
-    }
-  }
-
   resetPassword = async (req, res) => {
     try {
       const { token, password } = req.body;

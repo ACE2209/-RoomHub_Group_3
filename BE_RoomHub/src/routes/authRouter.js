@@ -23,6 +23,18 @@ authRouter.get("/", (req, res) => {
 });
 
 authRouter.get("/user", authController.getAccountFromToken);
+authRouter.post("/change-password", accountController.changePassword);
+authRouter.post("/send-otp-change-email", accountController.sendOTPChangeEmail);
+authRouter.post("/verify-change-email", accountController.verifyChangeEmail);
+
+authRouter.put(
+  "/avatar",
+  upload.single("avatar"),
+  accountController.updateAvatar
+);
+// authRouter.put("/profile", accountController.updateAccountFromProfile);
+
+
 // authRouter.get("/favorites", favoriteController.getFavorites);
 // authRouter.post("/favorites/create", favoriteController.createFavorite);
 // authRouter.delete(
@@ -31,22 +43,12 @@ authRouter.get("/user", authController.getAccountFromToken);
 // );
 // authRouter.get("/allfavorites", favoriteController.getAllFavorites);
 
-authRouter.post("/change-password", accountController.changePassword);
-authRouter.put("/profile", accountController.updateAccountFromProfile);
-
-authRouter.put(
-  "/avatar",
-  upload.single("avatar"),
-  accountController.updateAvatar
-);
 // authRouter.put(
 //   "/review",
 //   upload.single("review"),
 //   ReviewController.updateReviewImage
 // );
 
-authRouter.post("/send-otp-change-email", accountController.sendOTPChangeEmail);
-authRouter.post("/verify-change-email", accountController.verifyChangeEmail);
 
 // //appointment
 // authRouter.get(

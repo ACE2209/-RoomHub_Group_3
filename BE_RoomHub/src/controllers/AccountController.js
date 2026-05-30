@@ -255,8 +255,8 @@ class accountController {
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
-          user: "todohongy@gmail.com",
-          pass: "onbg hyaz wxcd vmgw",
+          user: 'trantnce180829@fpt.edu.vn',
+          pass: 'rjvs rqzj nsut asvr',
         },
       });
 

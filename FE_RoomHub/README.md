@@ -1,7 +1,7 @@
 ## Lenh cai project
 
-npx create-react-app EDplanner
-cd edplanner
+npx create-react-app RoomHub
+cd RoomHub
 npm start
 
 ## Thư viện điều hướng trang
@@ -22,8 +22,6 @@ npm install react-icons
 npm install bootstrap
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
-
-npx json-server --watch src/data/db.json --port 3001
 
 npm install lucide-react
 
