@@ -26,6 +26,10 @@ export default function Sidebar() {
         <NavLink to="/admin/reviews">
           Review Management
         </NavLink>
+
+        <NavLink to="/admin/profile">
+          Profile
+        </NavLink>
       </nav>
 
       <div className="sidebar-bottom">‹</div>

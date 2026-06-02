@@ -3,6 +3,7 @@ import accountController from './accountController.js';
 
 // import favoriteController from './favoriteController.js';
 import ReviewController from './reviewController.js';
+import BoardingHouseController from './BoardingHouseController.js';
 // import withdrawalRequestsController from './withdrawalRequestsController.js';
 // import reportController from './reportController.js';
 // import boardingHouseController from './boardingHouseController.js';
@@ -28,7 +29,7 @@ export {
 
   // withdrawalRequestsController,
   // reportController,
-  // boardingHouseController,
+  BoardingHouseController,
   ReviewController,
   // favoriteController,
   // appointmentController,
