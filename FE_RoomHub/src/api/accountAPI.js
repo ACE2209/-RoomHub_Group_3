@@ -1,4 +1,5 @@
-import axios from "axios";
+import rawAxios from "axios";
+import axios from "./axios.config";
 
 import API_URL from "./config";
 
@@ -7,12 +8,12 @@ const authHeader = () => ({
 });
 
 export const getAllAccountsAPI = async () => {
-    const res = await axios.get(`${API_URL}/dashboard/accounts`, authHeader());
+    const res = await rawAxios.get(`${API_URL}/dashboard/accounts`, authHeader());
     return res.data;
 };
 
 export const filterAccountsAPI = async (params) => {
-    const res = await axios.get(`${API_URL}/dashboard/accounts/filter`, {
+    const res = await rawAxios.get(`${API_URL}/dashboard/accounts/filter`, {
         ...authHeader(),
         params,
     });
@@ -20,74 +21,70 @@ export const filterAccountsAPI = async (params) => {
 };
 
 export const createAccountAPI = async (data) => {
-    const res = await axios.post(`${API_URL}/dashboard/accounts/create`, data, {
+    const res = await rawAxios.post(`${API_URL}/dashboard/accounts/create`, data, {
         ...authHeader(),
     });
     return res.data;
 };
 
 export const updateAccountAPI = async (accountId, data) => {
-    const res = await axios.put(`${API_URL}/dashboard/accounts/${accountId}`, data, {
+    const res = await rawAxios.put(`${API_URL}/dashboard/accounts/${accountId}`, data, {
         ...authHeader(),
     });
     return res.data;
 };
 
 export const softDeleteAccountAPI = async (accountId) => {
-    const res = await axios.delete(`${API_URL}/dashboard/accounts/${accountId}`, {
+    const res = await rawAxios.delete(`${API_URL}/dashboard/accounts/${accountId}`, {
         ...authHeader(),
     });
     return res.data;
 };
 
-// lấy dữ liệu cho profile
 export const getProfileAPI = async () => {
-    const res = await axios.get(`${API_URL}/auth/profile`, {
-        headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-    });
+    const res = await rawAxios.get(`${API_URL}/auth/profile`, authHeader());
     return res.data;
 };
 
-// update profile
 export const updateProfileAPI = async (data) => {
-    const res = await axios.put(
-        `${API_URL}/auth/profile`,
-        data,
-        {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-        }
-    );
+    const res = await rawAxios.put(`${API_URL}/auth/profile`, data, authHeader());
     return res.data;
 };
 
-// gửi OTP đổi email
 export const sendOTPChangeEmailAPI = async (email) => {
-    const res = await axios.post(
+    const res = await rawAxios.post(
         `${API_URL}/auth/send-otp-change-email`,
         { email },
-        {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-        }
+        authHeader()
     );
     return res.data;
 };
 
-// xác thực OTP đổi email
 export const verifyChangeEmailAPI = async (data) => {
-    const res = await axios.post(
+    const res = await rawAxios.post(
         `${API_URL}/auth/verify-change-email`,
         data,
-        {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-        }
+        authHeader()
     );
     return res.data;
+};
+
+export const updateAccountFromProfile = (data) => {
+    return axios.put("auth/profile", data);
+};
+
+export const sendOTPChangeEmail = (data) => {
+    return axios.post("auth/send-otp-change-email", data);
+};
+
+export const verifyChangeEmail = (data) => {
+    return axios.post("auth/verify-change-email", data);
+};
+
+export const updateAvatar = (data) => {
+    return axios.put("auth/avatar", data, {
+        headers: {
+            "Content-Type": "multipart/form-data",
+        },
+    });
 };
