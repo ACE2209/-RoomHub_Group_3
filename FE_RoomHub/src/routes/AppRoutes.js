@@ -13,6 +13,8 @@ import AccountManagementPage from "../pages/admin/AccountManagementPage";
 import BoardingHouseManagementPage from "../pages/admin/BoardingHouseManagementPage";
 import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
+import BHDetailPage from "../pages/admin/BHDetailPage";
+import ProfilePage from "../pages/admin/ProfilePage";
 
 import BoardingHouseDetailPage from "../pages/BoardingHouseDetailPage";
 import RoomDetailPage from "../pages/RoomDetailPage";
@@ -206,6 +208,22 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <BoardingHouseReportManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/boarding-houses/:boardingHouseId"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <BHDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/profile"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <ProfilePage />
           </ProtectedRoute>
         }
       />

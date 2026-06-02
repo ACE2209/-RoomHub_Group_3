@@ -29,6 +29,7 @@ export {
 
   // withdrawalRequestsController,
   boardingHouseController,
+  boardingHouseController as BoardingHouseController,
   ReviewController,
   favoriteController,
   appointmentController,
