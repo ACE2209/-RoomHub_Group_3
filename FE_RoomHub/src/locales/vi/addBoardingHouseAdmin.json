@@ -30,6 +30,10 @@
     "preview": "Xem trước"
   },
   "otherImagesLabel": "Các ảnh khác",
+  "selectProvince": "Chọn Tỉnh/Thành phố",
+  "selectDistrict": "Chọn Quận/Huyện",
+  "selectWard": "Chọn Phường/Xã",
+  "enterDetailAddress": "Địa chỉ chi tiết",
   "errors": {
     "createFailed": "Tạo nhà trọ thất bại.",
     "fetchBoardingHouseTypesFailed": "Không thể tải loại nhà trọ."
