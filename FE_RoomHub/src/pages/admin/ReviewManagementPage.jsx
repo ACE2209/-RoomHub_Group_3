@@ -6,19 +6,24 @@ import { getReviews } from "../../api/review";
 export default function ReviewManagementPage() {
   const [reviews, setReviews] = useState([]);
 
-  useEffect(() => {
-    console.log("TOKEN:", localStorage.getItem("token"));
+useEffect(() => {
+  console.log("TOKEN:", localStorage.getItem("token"));
 
-    getReviews().then((data) => {
-      console.log("REVIEWS DATA:", data);
+  getReviews()
+    .then((res) => {
+      console.log("REVIEWS DATA:", res);
 
-      if (Array.isArray(data)) {
-        setReviews(data);
+      if (res?.success && Array.isArray(res.data)) {
+        setReviews(res.data);
       } else {
         setReviews([]);
       }
+    })
+    .catch((err) => {
+      console.error("Get reviews failed:", err);
+      setReviews([]);
     });
-  }, []);
+}, []);
 
   return (
     <AdminLayout>

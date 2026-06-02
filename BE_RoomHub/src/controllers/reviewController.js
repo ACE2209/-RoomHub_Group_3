@@ -1,23 +1,40 @@
-import Review from '../models/review.js';
+import Review from "../models/review.js";
+import paginate from "../utils/pagination.js";
 
 class ReviewController {
   // View Review in Admin
   async getReviews(req, res) {
     try {
-      const reviews = await Review.find({ parentId: null })
-        .populate({
-          path: 'accountId',
-          select: 'username _id fullname avatarImage',
-        })
-        // .populate({
-        //   path: 'boardingHouseId',
-        //   select: 'name',
-        // })
-        .sort({ createdAt: 1 });
+      const paginationOptions = {
+        defaultPage: 1,
+        defaultLimit: 10,
+        maxLimit: 100,
+        sortField: "createdAt",
+        sortOrder: "asc",
+        filter: {
+          parentId: null,
+        },
+        populate: [
+          {
+            path: "accountId",
+            select: "username _id fullname avatarImage",
+          },
+          // {
+          //   path: "boardingHouseId",
+          //   select: "name",
+          // },
+        ],
+        includeTotalData: true,
+      };
 
-      return res.status(200).json(reviews);
+      const result = await paginate(Review, paginationOptions, req);
+
+      return res.status(200).json(result);
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+      });
     }
   }
 
@@ -28,31 +45,42 @@ class ReviewController {
 
       const review = await Review.findById(reviewId)
         .populate({
-          path: 'accountId',
-          select: 'username _id fullname avatarImage',
+          path: "accountId",
+          select: "username _id fullname avatarImage",
         })
         // .populate({
-        //   path: 'boardingHouseId',
-        //   select: 'name',
+        //   path: "boardingHouseId",
+        //   select: "name",
         // })
-;
+        .lean();
+
       if (!review) {
-        return res.status(404).json({ message: 'Review not found' });
+        return res.status(404).json({
+          success: false,
+          message: "Review not found",
+        });
       }
 
       const replies = await Review.find({ parentId: reviewId })
         .populate({
-          path: 'accountId',
-          select: 'username _id fullname avatarImage',
+          path: "accountId",
+          select: "username _id fullname avatarImage",
         })
-        .sort({ createdAt: 1 });
+        .sort({ createdAt: 1 })
+        .lean();
 
       return res.status(200).json({
         success: true,
-        data: { review, replies },
+        data: {
+          review,
+          replies,
+        },
       });
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+      });
     }
   }
 }
