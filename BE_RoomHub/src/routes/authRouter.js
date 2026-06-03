@@ -32,7 +32,7 @@ authRouter.put(
   upload.single("avatar"),
   accountController.updateAvatar
 );
-// authRouter.put("/profile", accountController.updateAccountFromProfile);
+authRouter.put("/profile", accountController.updateAccountFromProfile);
 
 
 // authRouter.get("/favorites", favoriteController.getFavorites);

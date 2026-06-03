@@ -11,6 +11,8 @@ import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
 import HomePage from "../pages/HomePage";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
+import ChangePassword from "../pages/auth/ChangePassword";
+import Profile from "../pages/profile/Profile";
 
 
 const AppRoutes = () => {
@@ -43,9 +45,14 @@ const AppRoutes = () => {
                 path="/reset-password/:token"
                 element={<ResetPassword />}
             />
-<Route path="/admin/reviews" element={<ReviewManagementPage />} />
-      <Route path="/admin/reviews/:reviewId" element={<ReviewDetailPage />} />
-        <Route path="/admin" element={<AdminDashboardPage />} />
+
+            <Route path="/change-password" element={<ChangePassword />} />
+
+            <Route path="/admin/reviews" element={<ReviewManagementPage />} />
+            <Route path="/admin/reviews/:reviewId" element={<ReviewDetailPage />} />
+            <Route path="/admin" element={<AdminDashboardPage />} />
+
+            <Route path="/profile" element={<Profile />} />
         </Routes >
     );
 };

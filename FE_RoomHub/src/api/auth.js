@@ -46,3 +46,19 @@ export const resetPasswordAPI = async (data) => {
 
     return res.data;
 };
+
+export const changePasswordAPI = async (data) => {
+    const token = localStorage.getItem("token");
+
+    const res = await axios.post(
+        `${API_URL}/auth/change-password`,
+        data,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        }
+    );
+
+    return res.data;
+};
