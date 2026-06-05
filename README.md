@@ -17,6 +17,9 @@ git branch -M main
 git commit -m "first commit"
 git push -u origin main
 
+git fetch origin
+
+
 feat Thêm tính năng mới
 => feat(cart): add shopping cart checkout
 fix Sửa lỗi
