@@ -4,7 +4,7 @@ import accountController from './accountController.js';
 // import favoriteController from './favoriteController.js';
 import ReviewController from './reviewController.js';
 // import withdrawalRequestsController from './withdrawalRequestsController.js';
-// import reportController from './reportController.js';
+import reportController from './reportController .js';
 // import boardingHouseController from './boardingHouseController.js';
 // import appointmentController from './appointmentController.js';
 // import roomController from './roomController.js';
@@ -27,7 +27,7 @@ export {
   accountController,
 
   // withdrawalRequestsController,
-  // reportController,
+   reportController,
   // boardingHouseController,
   ReviewController,
   // favoriteController,
