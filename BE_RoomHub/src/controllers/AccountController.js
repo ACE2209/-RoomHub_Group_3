@@ -25,19 +25,29 @@ class accountController {
     try {
       const { accountId } = req.params;
       const accountData = await Account.findById(accountId);
+      
+      if (!accountData) {
+        return res.status(404).json({ 
+          success: false,
+          message: "Account not found" 
+        });
+      }
+
       accountData.deleted = true;
       accountData.deletedAt = new Date();
-
       await accountData.save();
 
-      return res
-        .status(200)
-        .json({ message: "Account successfully soft deleted" });
+      return res.status(200).json({ 
+        success: true,
+        message: "Account successfully soft deleted" 
+      });
     } catch (error) {
       console.error(error);
-      return res
-        .status(500)
-        .json({ message: "An error occurred", error: error.message });
+      return res.status(500).json({ 
+        success: false,
+        message: "An error occurred", 
+        error: error.message 
+      });
     }
   }
 
@@ -46,7 +56,7 @@ class accountController {
       const { gender, role, startDate, endDate, status } = req.query;
 
       // Xây dựng filter cơ bản
-      const filter = {};
+      const filter = { deleted: false }; // Thêm filter deleted
       if (gender) filter.gender = gender;
       if (role) filter.role = role;
       if (status) filter.status = status;
@@ -107,7 +117,30 @@ class accountController {
       res.status(201).json(newUser);
     } catch (error) {
       console.error("Error creating account:", error);
-      return res.status(400).json(error.errorResponse);
+      
+      // Handle Mongoose validation errors
+      if (error.name === 'ValidationError') {
+        const messages = Object.values(error.errors).map(err => err.message);
+        return res.status(400).json({ 
+          success: false,
+          message: "Validation error",
+          errors: messages 
+        });
+      }
+      
+      // Handle duplicate key errors
+      if (error.code === 11000) {
+        const field = Object.keys(error.keyPattern)[0];
+        return res.status(400).json({ 
+          success: false,
+          message: `${field} already exists` 
+        });
+      }
+
+      return res.status(400).json({ 
+        success: false,
+        message: error.message || "Error creating account" 
+      });
     }
   }
 
@@ -116,24 +149,53 @@ class accountController {
       const { phoneNumber, fullname, gender, role } = req.body;
       const { accountId } = req.params;
 
-      // Chỉ cập nhật các trường có thể thay đổi
+      if (!accountId) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Account ID is required" 
+        });
+      }
+
       const updatedAccountData = {
         phoneNumber,
         fullname,
         gender,
         role,
-        ...req.body,
       };
 
       const updatedAccount = await Account.findByIdAndUpdate(
         accountId,
         updatedAccountData,
-        { new: true }
+        { new: true, runValidators: true }
       );
 
-      res.status(200).json(updatedAccount);
+      if (!updatedAccount) {
+        return res.status(404).json({ 
+          success: false,
+          message: "Account not found" 
+        });
+      }
+
+      res.status(200).json({ 
+        success: true,
+        data: updatedAccount 
+      });
     } catch (error) {
-      next(error);
+      console.error("Error updating account:", error);
+      
+      if (error.name === 'ValidationError') {
+        const messages = Object.values(error.errors).map(err => err.message);
+        return res.status(400).json({ 
+          success: false,
+          message: "Validation error",
+          errors: messages 
+        });
+      }
+
+      return res.status(500).json({ 
+        success: false,
+        message: error.message || "Error updating account" 
+      });
     }
   }
 
