@@ -11,24 +11,29 @@ import {
 export default function ReviewManagementPage() {
   const [reviews, setReviews] = useState([]);
   const [ratingFilter, setRatingFilter] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    console.log("TOKEN:", localStorage.getItem("token"));
-
+    setLoading(true);
     getReviews()
       .then((res) => {
         console.log("REVIEWS DATA:", res);
 
         if (res?.success && Array.isArray(res.data)) {
           setReviews(res.data);
+          setError("");
         } else {
           setReviews([]);
+          setError(res?.message || res?.error || "Unable to load reviews");
         }
       })
       .catch((err) => {
         console.error("Get reviews failed:", err);
         setReviews([]);
-      });
+        setError(err.message || "Unable to load reviews");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const handleFilter = async () => {
@@ -38,6 +43,7 @@ export default function ReviewManagementPage() {
 
         if (res?.success && Array.isArray(res.data)) {
           setReviews(res.data);
+          setError("");
         }
 
         return;
@@ -51,11 +57,15 @@ export default function ReviewManagementPage() {
 
       if (res?.success && Array.isArray(res.data)) {
         setReviews(res.data);
+        setError("");
       } else {
         setReviews([]);
+        setError(res?.message || res?.error || "Filter failed");
       }
     } catch (error) {
       console.error("Filter failed:", error);
+      setReviews([]);
+      setError(error.message || "Filter failed");
     }
   };
 
@@ -177,7 +187,33 @@ export default function ReviewManagementPage() {
           </thead>
 
           <tbody>
-            {reviews.length > 0 ? (
+            {loading ? (
+              <tr>
+                <td
+                  colSpan="7"
+                  style={{
+                    textAlign: "center",
+                    padding: "40px",
+                    color: "#667085",
+                  }}
+                >
+                  Loading reviews...
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td
+                  colSpan="7"
+                  style={{
+                    textAlign: "center",
+                    padding: "40px",
+                    color: "#d92d20",
+                  }}
+                >
+                  {error}
+                </td>
+              </tr>
+            ) : reviews.length > 0 ? (
               reviews.map((review, index) => (
                 <tr
                   key={review._id}
