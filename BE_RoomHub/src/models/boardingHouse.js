@@ -119,6 +119,7 @@ const BoardingHouseSchema = new mongoose.Schema(
 
 BoardingHouseSchema.plugin(mongoose_delete, {
   deletedBy: true,
+  deletedAt: true,
   overrideMethods: true,
 });
 

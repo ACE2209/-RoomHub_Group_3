@@ -6,6 +6,7 @@ import { deleteReport, getReports } from "../../api/report";
 export default function ReportManagementPage() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchReports();
@@ -15,10 +16,13 @@ export default function ReportManagementPage() {
     try {
       const res = await getReports();
       console.log("REPORTS DATA:", res);
-      setReports(Array.isArray(res) ? res : []);
+      const reportData = Array.isArray(res) ? res : res?.data;
+      setReports(Array.isArray(reportData) ? reportData : []);
+      setError("");
     } catch (error) {
       console.error("Get reports failed:", error);
       setReports([]);
+      setError(error.message || "Unable to load reports");
     } finally {
       setLoading(false);
     }
@@ -71,6 +75,12 @@ export default function ReportManagementPage() {
               <tr>
                 <td colSpan="7" style={emptyStyle}>
                   Loading reports...
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan="7" style={{ ...emptyStyle, color: "#d92d20" }}>
+                  {error}
                 </td>
               </tr>
             ) : reports.length > 0 ? (

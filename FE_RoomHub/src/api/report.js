@@ -1,18 +1,14 @@
-const API_URL = "http://localhost:3000";
-
-const getToken = () => localStorage.getItem("token");
+import API_URL, { authHeaders, parseJsonResponse } from "./config";
 
 // ==========================
 // 1. GET ALL REPORTS
 // ==========================
 export const getReports = async () => {
   const res = await fetch(`${API_URL}/dashboard/review-reports`, {
-    headers: {
-      Authorization: `Bearer ${getToken()}`,
-    },
+    headers: authHeaders(),
   });
 
-  return res.json();
+  return parseJsonResponse(res);
 };
 
 // ==========================
@@ -22,13 +18,11 @@ export const getReportDetail = async (reportId) => {
   const res = await fetch(
     `${API_URL}/dashboard/reportReview/${reportId}`,
     {
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-      },
+      headers: authHeaders(),
     }
   );
 
-  return res.json();
+  return parseJsonResponse(res);
 };
 
 // ==========================
@@ -39,11 +33,9 @@ export const deleteReport = async (reportId) => {
     `${API_URL}/dashboard/reports/${reportId}`,
     {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-      },
+      headers: authHeaders(),
     }
   );
 
-  return res.json();
+  return parseJsonResponse(res);
 };

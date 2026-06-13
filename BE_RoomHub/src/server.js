@@ -45,7 +45,7 @@ app.use((err, req, res, next) => {
 
 // Validate environment variables
 const hostname = process.env.APP_HOST || "localhost";
-const port = process.env.APP_PORT || 3000;
+const port = process.env.APP_PORT || process.env.PORT || 3000;
 
 app.listen(port, hostname, () => {
     console.log(`Server is running at http://${hostname}:${port}/`);

@@ -2,10 +2,9 @@ import { Router } from 'express';
 
 import {
   ReviewController,
-  reportController
+  reportController,
+  boardingHouseController,
 } from '../controllers/index.js';
-
-
 
 const adminRouter = Router();
 
@@ -53,15 +52,32 @@ adminRouter.get(
   reportController.getReportReviewDetail
 );
 
-
-
 // Delete (soft delete) review report
 adminRouter.delete(
   '/reports/:reportId',
   reportController.softDeleteReport
 );
 
+/* ==================================================
+              BOARDING HOUSE MANAGEMENT
+================================================== */
 
+// Get all boarding houses
+adminRouter.get(
+  '/boardinghouses',
+  boardingHouseController.getAllBoardingHouses
+);
 
+// Filter boarding houses
+adminRouter.get(
+  '/boardinghouses/filter',
+  boardingHouseController.filterBoardingHouses
+);
+
+// Soft delete boarding house
+adminRouter.delete(
+  '/boardinghouses/:id',
+  boardingHouseController.deleteBoardingHouse
+);
 
 export { adminRouter };
