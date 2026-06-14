@@ -15,12 +15,7 @@ import HomePage from "../pages/HomePage";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 import ReportManagementPage from "../pages/admin/ReportManagementPage";
 import ReportDetailPage from "../pages/admin/ReportDetailPage";
-import ChangePassword from "../pages/auth/ChangePassword";
-import Profile from "../pages/profile/Profile";
 import BoardingHouseManagementPage from "../pages/admin/BoardingHouseManagementPage";
-
-import ReportManagementPage from "../pages/admin/ReportManagementPage";
-import ReportDetailPage from "../pages/admin/ReportDetailPage";
 
 
 const AppRoutes = () => {
