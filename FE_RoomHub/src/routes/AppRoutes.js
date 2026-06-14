@@ -13,10 +13,10 @@ import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
 import HomePage from "../pages/HomePage";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
-import ReportManagementPage from "../pages/admin/ReportManagementPage";
-import ReportDetailPage from "../pages/admin/ReportDetailPage";
+import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
 import BoardingHouseManagementPage from "../pages/admin/BoardingHouseManagementPage";
-
+import { Navigate } from "react-router-dom";
+import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
 
 const AppRoutes = () => {
     return (
@@ -35,8 +35,9 @@ const AppRoutes = () => {
 
             <Route path="/profile" element={<Profile />} />
 
-            <Route path="/admin/reports" element={<ReportManagementPage />} />
-            <Route path="/admin/reports/:reportId" element={<ReportDetailPage />} />
+<Route path="/admin/reports"element={<Navigate to="/admin/review-reports" replace />}/>
+<Route path="/admin/review-reports"element={<ReviewReportManagementPage />}/>           
+<Route path="/admin/review-reports/:reportId"element={<ReportDetailPage />}/>
             <Route path="/admin/boarding-houses" element={<BoardingHouseManagementPage />} />
         </Routes >
 
