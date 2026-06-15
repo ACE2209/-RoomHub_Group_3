@@ -80,4 +80,6 @@ adminRouter.delete(
   boardingHouseController.deleteBoardingHouse
 );
 
+//Filter multiple report reviews
+adminRouter.get('/review-reports/filter',reportController.filterReviewReports);
 export { adminRouter };

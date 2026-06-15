@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import AdminLayout from "../layout/admin/AdminLayout";
-import { getReportDetail } from "../../api/report";
+import AdminLayout from "../../layout/admin/AdminLayout";
+import { getReportDetail } from "../../../api/report";
 
 export default function ReportDetailPage() {
   const { reportId } = useParams();
