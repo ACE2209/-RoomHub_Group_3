@@ -9,8 +9,6 @@ class accountController {
   async getAllAccount(req, res) {
     try {
       const accountData = await Account.find({ deleted: false }).sort({ createdAt: -1 });
-
-
       return res.status(200).json(accountData);
     } catch (error) {
       return res.status(500).json({
@@ -160,6 +158,45 @@ class accountController {
 
       if (!isPasswordValid) {
         return res.status(400).json({ message: "Old password is incorrect" });
+      }
+
+      const isSamePassword = await bcrypt.compare(
+        newPassword,
+        account.password
+      );
+
+      if (isSamePassword) {
+        return res.status(400).json({
+          message:
+            "New password must be different from old password",
+        });
+      }
+
+      if (
+        newPassword.length < 8 ||
+        newPassword.length > 15
+      ) {
+        return res.status(400).json({
+          message:
+            "Password must be between 8 and 15 characters",
+        });
+      }
+
+      if (/\s/.test(newPassword)) {
+        return res.status(400).json({
+          message:
+            "Password cannot contain spaces",
+        });
+      }
+
+      const passwordRegex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,15}$/;
+
+      if (!passwordRegex.test(newPassword)) {
+        return res.status(400).json({
+          message:
+            "Password must contain uppercase, lowercase, number and special character",
+        });
       }
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);

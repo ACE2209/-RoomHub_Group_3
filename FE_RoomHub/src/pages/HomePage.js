@@ -1,6 +1,7 @@
 import './HomePage.css';
 import Footer from "./layout/homepage/footer";
 import Header from "./layout/homepage/header";
+import { useNavigate } from "react-router-dom";
 
 const listings = [
     {
@@ -47,6 +48,7 @@ const tours = [
 const filterLabels = ["Dưới 1 triệu", "1 - 2 triệu", "2 - 5 triệu", "Căn hộ", "Nhà trọ", "Quận 1", "Bình Thạnh", "Thủ Đức"];
 
 const HomePage = () => {
+    const navigate = useNavigate();
     return (
         <>
             <Header />
@@ -110,9 +112,17 @@ const HomePage = () => {
                                                 <div className="card-avatar">{item.avatarText}</div>
                                                 <span className="card-owner">{item.ownerName}</span>
                                             </div>
-                                            <button className="btn-detail">
+                                            <button
+                                                className="btn-detail"
+                                                onClick={() => navigate(`/boarding-house/${item.id}`)}
+                                            >
                                                 Chi tiết
-                                                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>chevron_right</span>
+                                                <span
+                                                    className="material-symbols-outlined"
+                                                    style={{ fontSize: 18 }}
+                                                >
+                                                    chevron_right
+                                                </span>
                                             </button>
                                         </div>
                                     </div>

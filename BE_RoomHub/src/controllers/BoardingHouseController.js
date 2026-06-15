@@ -50,6 +50,36 @@ class BoardingHouseController {
     }
   }
 
+
+  async getBoardingHouseDetails(req, res, next) {
+    try {
+      const { id } = req.params;
+      const boardingHouse = await BoardingHouse.findById(id)
+        .populate('boardingHouseType', 'name')
+        .populate('ownerId', 'email username fullname')
+        .exec();
+
+      if (!boardingHouse) {
+        return res.status(404).json({
+          success: false,
+          message: 'Boarding house not found',
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        data: boardingHouse,
+      });
+    } catch (error) {
+      console.error('Error fetching boarding house details:', error);
+      return res.status(500).json({
+        success: false,
+        message:
+          'Failed to fetch boarding house details. Please try again later.',
+        error: error.message,
+      });
+    }
+  }
+
   async filterBoardingHouses(req, res) {
     try {
       const {
