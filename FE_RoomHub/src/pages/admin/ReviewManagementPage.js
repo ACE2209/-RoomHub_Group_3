@@ -1,29 +1,98 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import AdminLayout from "../layout/admin/AdminLayout";
-import { getReviews } from "../../api/review";
+
+import {
+  getReviews,
+  filterReviews,
+  deleteReview,
+} from "../../api/review";
 
 export default function ReviewManagementPage() {
   const [reviews, setReviews] = useState([]);
+  const [ratingFilter, setRatingFilter] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-useEffect(() => {
-  console.log("TOKEN:", localStorage.getItem("token"));
+  useEffect(() => {
+    setLoading(true);
+    getReviews()
+      .then((res) => {
+        console.log("REVIEWS DATA:", res);
 
-  getReviews()
-    .then((res) => {
-      console.log("REVIEWS DATA:", res);
+        if (res?.success && Array.isArray(res.data)) {
+          setReviews(res.data);
+          setError("");
+        } else {
+          setReviews([]);
+          setError(res?.message || res?.error || "Unable to load reviews");
+        }
+      })
+      .catch((err) => {
+        console.error("Get reviews failed:", err);
+        setReviews([]);
+        setError(err.message || "Unable to load reviews");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleFilter = async () => {
+    try {
+      if (!ratingFilter) {
+        const res = await getReviews();
+
+        if (res?.success && Array.isArray(res.data)) {
+          setReviews(res.data);
+          setError("");
+        }
+
+        return;
+      }
+
+      const res = await filterReviews({
+        ratings: ratingFilter,
+      });
+
+      console.log("FILTER RESULT:", res);
 
       if (res?.success && Array.isArray(res.data)) {
         setReviews(res.data);
+        setError("");
       } else {
         setReviews([]);
+        setError(res?.message || res?.error || "Filter failed");
       }
-    })
-    .catch((err) => {
-      console.error("Get reviews failed:", err);
+    } catch (error) {
+      console.error("Filter failed:", error);
       setReviews([]);
-    });
-}, []);
+      setError(error.message || "Filter failed");
+    }
+  };
+
+  const handleDelete = async (reviewId) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this review?"
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      const res = await deleteReview(reviewId);
+
+      if (res?.success) {
+        alert("Review deleted successfully");
+
+        setReviews((prev) =>
+          prev.filter((item) => item._id !== reviewId)
+        );
+      } else {
+        alert(res?.message || "Delete failed");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Delete failed");
+    }
+  };
 
   return (
     <AdminLayout>
@@ -32,6 +101,7 @@ useEffect(() => {
           display: "flex",
           justifyContent: "space-between",
           marginBottom: "30px",
+          alignItems: "center",
         }}
       >
         <h2
@@ -43,19 +113,47 @@ useEffect(() => {
           Review Management
         </h2>
 
-        <button
+        <div
           style={{
-            background: "#12b76a",
-            color: "white",
-            border: "none",
-            padding: "10px 24px",
-            borderRadius: "6px",
-            fontWeight: "600",
-            cursor: "pointer",
+            display: "flex",
+            gap: "10px",
+            alignItems: "center",
           }}
         >
-          Filter
-        </button>
+          <select
+            value={ratingFilter}
+            onChange={(e) =>
+              setRatingFilter(e.target.value)
+            }
+            style={{
+              padding: "10px",
+              borderRadius: "6px",
+              border: "1px solid #d0d5dd",
+            }}
+          >
+            <option value="">All Ratings</option>
+            <option value="5">5 Stars</option>
+            <option value="4">4 Stars</option>
+            <option value="3">3 Stars</option>
+            <option value="2">2 Stars</option>
+            <option value="1">1 Star</option>
+          </select>
+
+          <button
+            onClick={handleFilter}
+            style={{
+              background: "#12b76a",
+              color: "white",
+              border: "none",
+              padding: "10px 24px",
+              borderRadius: "6px",
+              fontWeight: "600",
+              cursor: "pointer",
+            }}
+          >
+            Filter
+          </button>
+        </div>
       </div>
 
       <div
@@ -89,7 +187,33 @@ useEffect(() => {
           </thead>
 
           <tbody>
-            {reviews.length > 0 ? (
+            {loading ? (
+              <tr>
+                <td
+                  colSpan="7"
+                  style={{
+                    textAlign: "center",
+                    padding: "40px",
+                    color: "#667085",
+                  }}
+                >
+                  Loading reviews...
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td
+                  colSpan="7"
+                  style={{
+                    textAlign: "center",
+                    padding: "40px",
+                    color: "#d92d20",
+                  }}
+                >
+                  {error}
+                </td>
+              </tr>
+            ) : reviews.length > 0 ? (
               reviews.map((review, index) => (
                 <tr
                   key={review._id}
@@ -112,11 +236,7 @@ useEffect(() => {
                         }}
                       />
                     ) : (
-                      <div
-
-                      >
-
-                      </div>
+                      <div>N/A</div>
                     )}
                   </td>
 
@@ -159,23 +279,48 @@ useEffect(() => {
 
                   <td style={tdStyle}>
                     {review.createdAt
-                      ? new Date(review.createdAt).toLocaleDateString("en-GB")
+                      ? new Date(review.createdAt).toLocaleDateString(
+                          "en-GB"
+                        )
                       : "N/A"}
                   </td>
 
                   <td style={tdStyle}>
-                    <Link
-                      to={`/admin/reviews/${review._id}`}
+                    <div
                       style={{
-                        background: "#2f80ed",
-                        color: "white",
-                        padding: "8px 14px",
-                        borderRadius: "6px",
-                        textDecoration: "none",
+                        display: "flex",
+                        gap: "8px",
                       }}
                     >
-                      View Detail
-                    </Link>
+                      <Link
+                        to={`/admin/reviews/${review._id}`}
+                        style={{
+                          background: "#2f80ed",
+                          color: "white",
+                          padding: "8px 14px",
+                          borderRadius: "6px",
+                          textDecoration: "none",
+                        }}
+                      >
+                        View Detail
+                      </Link>
+
+                      <button
+                        onClick={() =>
+                          handleDelete(review._id)
+                        }
+                        style={{
+                          background: "#d92d20",
+                          color: "white",
+                          border: "none",
+                          padding: "8px 14px",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

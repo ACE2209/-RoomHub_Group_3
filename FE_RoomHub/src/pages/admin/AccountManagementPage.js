@@ -344,7 +344,6 @@ function UpdateAccountModal({ account, onSubmit, onClose }) {
     fullname:    account.fullname    || "",
     phoneNumber: account.phoneNumber || "",
     gender:      account.gender      || "male",
-    role:        account.role        || "user",
   });
 
   const handleSubmit = (e) => {
@@ -379,14 +378,6 @@ function UpdateAccountModal({ account, onSubmit, onClose }) {
               <option value="male">Male</option>
               <option value="female">Female</option>
               <option value="other">Other</option>
-            </select>
-          </div>
-          <div style={formGroup}>
-            <label style={labelStyle}>Role</label>
-            <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} style={selectStyle} disabled={account.role === "admin"}>
-              <option value="user">User</option>
-              <option value="owner">Owner</option>
-              <option value="staff">Staff</option>
             </select>
           </div>
           <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>

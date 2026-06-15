@@ -1,10 +1,11 @@
 import mongoose from 'mongoose';
+import mongooseDelete from 'mongoose-delete';
 
 const ReportSchema = new mongoose.Schema(
   {
     reportType: {
       type: String,
-      enum: ['review', 'room'],
+      enum: ['review', 'room', 'boardingHouse'],
       required: true,
     },
     targetId: {
@@ -15,7 +16,7 @@ const ReportSchema = new mongoose.Schema(
     reportTypeRef: {
       type: String,
       required: true,
-      enum: ['Review', 'Room'],
+      enum: ['Review', 'Room', 'BoardingHouse'],
     },
     reporter: {
       type: mongoose.Schema.Types.ObjectId,
@@ -42,6 +43,18 @@ const ReportSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Account',
     },
+    images: [
+      {
+        imageUrl: {
+          type: String,
+          required: true,
+        },
+        publicId: {
+          type: String,
+          default: '',
+        },
+      },
+    ],
     deleted: {
       type: Boolean,
       default: false,
@@ -49,6 +62,10 @@ const ReportSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+ReportSchema.plugin(mongooseDelete, {
+  overrideMethods: 'all',
+});
 
 const Report = mongoose.model('Report', ReportSchema);
 export default Report;

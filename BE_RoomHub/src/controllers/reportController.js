@@ -1,11 +1,12 @@
 import Report from '../models/report.js';
+import Review from '../models/review.js';
 import { Account } from '../models/account.js';
 import nodemailer from 'nodemailer';
 
 class reportController {
   async createReport(req, res) {
     try {
-      const { reportType, targetId, reason, details } = req.body;
+      const { reportType, targetId, reason, details, images = [] } = req.body;
       const reporter = req.user.userId;
 
       if (!reportType || !targetId || !reason || !details) {
@@ -15,7 +16,6 @@ class reportController {
         });
       }
 
-      // Check if already reported
       const existingReport = await Report.findOne({
         reporter,
         targetId,
@@ -29,24 +29,28 @@ class reportController {
         });
       }
 
+      const reportTypeRef = reportType === 'boardingHouse' ? 'BoardingHouse' : 'Review';
+
       const newReport = new Report({
         reportType,
         targetId,
         reason,
         details,
         reporter,
-        reportTypeRef: reportType === 'review' ? 'Review' : 'Room',
+        reportTypeRef,
+        images,
       });
 
       await newReport.save();
-      res.status(201).json({
+
+      return res.status(201).json({
         success: true,
         message: 'Report created successfully',
         data: newReport,
       });
     } catch (error) {
       console.error('Error creating report:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || 'Error creating report',
       });
@@ -55,20 +59,38 @@ class reportController {
 
   async getReportsByAdmin(req, res) {
     try {
-      const reports = await Report.find({ deleted: false })
+      const reports = await Report.find({ deleted: { $ne: true } })
         .populate('reporter', 'fullname email')
         .populate('processedBy', 'fullname')
         .sort({ createdAt: -1 });
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         data: reports,
       });
     } catch (error) {
       console.error('Error fetching reports:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || 'Error fetching reports',
+      });
+    }
+  }
+
+  async getReviewReports(req, res) {
+    try {
+      const reviewReports = await Report.find({
+        reportType: { $regex: /^review$/i },
+        deleted: { $ne: true },
+      })
+        .sort({ createdAt: -1 })
+        .populate('reporter', 'fullname email')
+        .populate('processedBy', 'fullname');
+
+      return res.status(200).json(reviewReports);
+    } catch (error) {
+      return res.status(500).json({
+        error: error.message,
       });
     }
   }
@@ -88,15 +110,49 @@ class reportController {
         });
       }
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         data: report,
       });
     } catch (error) {
       console.error('Error fetching report detail:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || 'Error fetching report detail',
+      });
+    }
+  }
+
+  async getReportReviewDetail(req, res) {
+    try {
+      const { reportId } = req.params;
+
+      const report = await Report.findById(reportId)
+        .populate('reporter', 'fullname email avatarImage')
+        .populate('processedBy', 'fullname');
+
+      if (!report) {
+        return res.status(404).json({
+          message: 'Report not found',
+        });
+      }
+
+      const review = await Review.findOne(
+        { _id: report.targetId },
+        null,
+        { withDeleted: true }
+      ).populate({
+        path: 'accountId',
+        select: 'fullname email avatarImage',
+      });
+
+      return res.status(200).json({
+        ...report.toObject(),
+        target: review,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        error: error.message,
       });
     }
   }
@@ -113,7 +169,6 @@ class reportController {
         });
       }
 
-      // Get original report
       const report = await Report.findById(reportId)
         .populate('reporter', 'fullname email')
         .populate('processedBy', 'fullname');
@@ -125,11 +180,10 @@ class reportController {
         });
       }
 
-      // Find all related reports (same targetId and reason)
       const relatedReports = await Report.find({
         targetId: report.targetId,
         reason: report.reason,
-        deleted: false,
+        deleted: { $ne: true },
       }).populate('reporter', 'fullname email');
 
       if (relatedReports.length === 0) {
@@ -139,11 +193,8 @@ class reportController {
         });
       }
 
-      // Set processedBy if not set
       if (!report.processedBy) {
-        const account = await Account.findById(req.user.userId).select(
-          'fullname'
-        );
+        const account = await Account.findById(req.user.userId).select('fullname');
         if (!account) {
           return res.status(404).json({
             success: false,
@@ -162,13 +213,11 @@ class reportController {
         ? updatedReport.processedBy.fullname
         : 'Admin';
 
-      // Update all related reports
       await Report.updateMany(
         { targetId: report.targetId, reason: report.reason },
         { $set: { status, detailReport, processedBy: report.processedBy } }
       );
 
-      // Configure email
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
@@ -177,7 +226,6 @@ class reportController {
         },
       });
 
-      // Send email to all reporters
       for (const relatedReport of relatedReports) {
         const mailOptions = {
           from: 'RoomHub Support <support@roomhub.com>',
@@ -186,11 +234,8 @@ class reportController {
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <p>Dear ${relatedReport.reporter.fullname},</p>
-
               <p>Thank you for submitting a report about <strong>"${relatedReport.reason}"</strong> on RoomHub.</p>
-              
               <p>We are pleased to inform you that your report has been processed with the following results:</p>
-              
               <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                 <tr style="background-color: #f5f5f5;">
                   <td style="padding: 10px; border: 1px solid #ddd;"><strong>Report Status:</strong></td>
@@ -215,9 +260,7 @@ class reportController {
                   <td style="padding: 10px; border: 1px solid #ddd;">${detailReport}</td>
                 </tr>
               </table>
-
               <p>If you have any further questions or need additional support, please contact us at <a href="mailto:support@roomhub.com">support@roomhub.com</a>.</p>
-
               <p>Thank you,<br>RoomHub Support Team</p>
             </div>
           `,
@@ -230,13 +273,13 @@ class reportController {
         }
       }
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         message: 'Report processed and emails sent successfully',
       });
     } catch (error) {
       console.error('Error sending report reply:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || 'Error processing report',
       });
@@ -260,13 +303,14 @@ class reportController {
         });
       }
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         message: 'Report deleted successfully',
+        report,
       });
     } catch (error) {
       console.error('Error deleting report:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: error.message || 'Error deleting report',
       });

@@ -146,7 +146,7 @@ class accountController {
 
   async updateAccount(req, res, next) {
     try {
-      const { phoneNumber, fullname, gender, role } = req.body;
+      const { phoneNumber, fullname, gender } = req.body;
       const { accountId } = req.params;
 
       if (!accountId) {
@@ -160,7 +160,6 @@ class accountController {
         phoneNumber,
         fullname,
         gender,
-        role,
       };
 
       const updatedAccount = await Account.findByIdAndUpdate(
