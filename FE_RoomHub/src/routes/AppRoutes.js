@@ -12,6 +12,7 @@ import Profile from "../pages/profile/Profile";
 
 import BoardingHouseManagementPage from "../pages/admin/BoardingHouseManagementPage";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
+import AccountManagementPage from "../pages/admin/AccountManagementPage";
 
 import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
@@ -59,6 +60,15 @@ const AppRoutes = () => {
                 element={
                     <ProtectedRoute allowedRoles={["admin"]}>
                         <AdminDashboardPage />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/admin/accounts"
+                element={
+                    <ProtectedRoute allowedRoles={["admin"]}>
+                        <AccountManagementPage />
                     </ProtectedRoute>
                 }
             />

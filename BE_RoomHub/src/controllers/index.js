@@ -1,9 +1,9 @@
 import authController from './authController.js';
 import accountController from './accountController.js';
+import reportController from './reportController.js';
 
 // import favoriteController from './favoriteController.js';
 import ReviewController from './reviewController.js';
-import reportController from "./reportController.js";
 // import withdrawalRequestsController from './withdrawalRequestsController.js';
 import boardingHouseController from './BoardingHouseController.js';
 // import appointmentController from './appointmentController.js';
@@ -25,9 +25,9 @@ import boardingHouseController from './BoardingHouseController.js';
 export {
   authController,
   accountController,
+  reportController,
 
   // withdrawalRequestsController,
-  reportController,
   boardingHouseController,
   ReviewController,
   // favoriteController,
