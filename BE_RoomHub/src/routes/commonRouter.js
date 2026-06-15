@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { authController, boardingHouseController } from '../controllers/index.js';
+import {
+  authController,
+} from '../controllers/index.js';
+import reportController from '../controllers/reportController.js';
+import { authMiddleware } from '../middlewares/index.js';
 
 const commonRouter = Router();
 
@@ -10,7 +14,7 @@ commonRouter.post('/reset-password', authController.resetPassword);
 commonRouter.post('/send-otp-register', authController.sendOTPRegister);
 commonRouter.post('/verify-register', authController.verifyRegister);
 
-// Boarding House
-commonRouter.get('/boardinghouse', boardingHouseController.getAllBoardingHouses);
-commonRouter.get('/boardinghouse/:id', boardingHouseController.getBoardingHouseDetails);
+// reports
+commonRouter.post('/reports', authMiddleware, reportController.createReport);
+
 export { commonRouter };
