@@ -111,3 +111,35 @@
   height: 200px;
   object-fit: contain;
 }
+.menu-parent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  cursor: pointer;
+  color: #344054;
+  font-weight: 500;
+}
+
+.menu-parent:hover {
+  background: #f5f7fa;
+}
+
+.submenu {
+  margin-left: 16px;
+  border-left: 2px solid #e5e7eb;
+}
+
+.submenu-item {
+  display: block;
+  padding: 10px 16px;
+  text-decoration: none;
+  color: #344054;
+  font-size: 14px;
+}
+
+.submenu-item.active {
+  background: #eef4ff;
+  color: #2563eb;
+  border-radius: 6px;
+}

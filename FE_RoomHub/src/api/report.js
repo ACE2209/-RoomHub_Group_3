@@ -39,3 +39,17 @@ export const deleteReport = async (reportId) => {
 
   return parseJsonResponse(res);
 };
+
+// Filter multiple report reviews
+export const filterReports = async (params = {}) => {
+  const query = new URLSearchParams(params).toString();
+
+  const res = await fetch(
+    `${API_URL}/dashboard/review-reports/filter?${query}`,
+    {
+      headers: authHeaders(),
+    }
+  );
+
+  return parseJsonResponse(res);
+};
