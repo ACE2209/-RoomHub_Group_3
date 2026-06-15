@@ -177,22 +177,6 @@ const Login = () => {
                             </p>
                         </div>
 
-                        <button
-                            type="button"
-                            className="btn btn-outline-secondary w-100 mb-4 d-flex align-items-center justify-content-center gap-2"
-                        >
-                            <img
-                                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                                alt="google"
-                                width="20"
-                            />
-                            Đăng nhập bằng Google
-                        </button>
-
-                        <div className="text-center text-muted mb-4">
-                            ───── hoặc ─────
-                        </div>
-
                         <form onSubmit={handleLogin}>
                             {/* Username */}
                             <div className="mb-3">
