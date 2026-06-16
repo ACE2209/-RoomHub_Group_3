@@ -23,7 +23,9 @@ import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewRe
 import BoardingHouseDetail from "../pages/boardingHouse/BoardingHouseDetail";
 
 import ProtectedRoute from "./ProtectedRoute";
-
+import AppointmentPage from "../pages/user/AppointmentPage";
+import CreateAppointmentPage from "../pages/user/CreateAppointmentPage";
+import BoardingHouseReportManagementPage from "../pages/admin/ReportManagement/BoardingHouseReportManagementPage";
 const AppRoutes = () => {
     return (
         <Routes>
@@ -129,6 +131,16 @@ const AppRoutes = () => {
                     </ProtectedRoute>
                 }
             />
+            <Route path="/appointments"element={<ProtectedRoute><AppointmentPage /></ProtectedRoute>}/>
+            <Route path="/appointments/create/:roomId"element={<ProtectedRoute><CreateAppointmentPage /></ProtectedRoute>}/>
+        <Route
+    path="/admin/boarding-house-reports"
+    element={
+        <ProtectedRoute allowedRoles={["admin"]}>
+            <BoardingHouseReportManagementPage />
+        </ProtectedRoute>
+    }
+/>
         </Routes>
     );
 };
