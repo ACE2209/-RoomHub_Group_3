@@ -1,20 +1,54 @@
-import { Router } from 'express';
+import { Router } from "express";
 import {
   authController,
-} from '../controllers/index.js';
-import reportController from '../controllers/reportController.js';
-import { authMiddleware } from '../middlewares/index.js';
+  boardingHouseController,
+  roomTypeController,
+} from "../controllers/index.js";
 
 const commonRouter = Router();
 
-//auth
-commonRouter.post('/login', authController.login);
-commonRouter.post('/forgot-password', authController.forgotPassword);
-commonRouter.post('/reset-password', authController.resetPassword);
-commonRouter.post('/send-otp-register', authController.sendOTPRegister);
-commonRouter.post('/verify-register', authController.verifyRegister);
+/* =========================
+   AUTH
+========================= */
 
-// reports
-commonRouter.post('/reports', authMiddleware, reportController.createReport);
+commonRouter.post("/login", authController.login);
+commonRouter.post("/forgot-password", authController.forgotPassword);
+commonRouter.post("/reset-password", authController.resetPassword);
+commonRouter.post("/send-otp-register", authController.sendOTPRegister);
+commonRouter.post("/verify-register", authController.verifyRegister);
+
+/* =========================
+   BOARDING HOUSE
+========================= */
+
+// View all boarding houses
+commonRouter.get(
+  "/boardinghouse",
+  boardingHouseController.getAllBoardingHousesForGuest
+);
+
+// View high rating boarding houses
+commonRouter.get(
+  "/boardinghouse/highrating",
+  boardingHouseController.getHighRatingBH
+);
+
+// View newest boarding houses
+commonRouter.get(
+  "/boardinghouse/newest",
+  boardingHouseController.getNewestBH
+);
+
+// View room types by boarding house
+commonRouter.get(
+  "/boardinghouse/room-types/:id",
+  roomTypeController.getRoomTypeByBhId
+);
+
+// View boarding house detail
+commonRouter.get(
+  "/boardinghouse/:id",
+  boardingHouseController.getBoardingHouseDetailInUser
+);
 
 export { commonRouter };

@@ -14,9 +14,21 @@ export default function Sidebar() {
           Account Management
         </NavLink>
 
-        <NavLink to="/admin/review-reports">
-          Report Management
-        </NavLink>
+        <li>
+    <span>Report Management</span>
+    <ul>
+        <li>
+            <NavLink to="/admin/review-reports">
+                Review Reports
+            </NavLink>
+        </li>
+        <li>
+            <NavLink to="/admin/boarding-house-reports">
+                Boarding House Reports
+            </NavLink>
+        </li>
+    </ul>
+</li>
 
         <NavLink to="/admin/boarding-houses">
           Boarding House Management
