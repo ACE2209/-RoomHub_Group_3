@@ -11,7 +11,7 @@ import boardingHouseController from './BoardingHouseController.js';
 // import watchLaterController from './watchLaterController.js';
 // import depositController from './depositController.js';
 // import FacilitiesController from './facilitiesController.js';
-// import roomTypeController from './roomTypeController.js';
+ import roomTypeController from './roomTypeController.js';
 // import tenantController from './tenantController.js';
 // import renewalController from './renewalController.js';
 // import bhExpenseController from './bhExpenseController.js';
@@ -36,7 +36,7 @@ export {
   // watchLaterController,
   // depositController,
   // FacilitiesController,
-  // roomTypeController,
+   roomTypeController,
   // userPaymentController,
   // tenantController,
   // renewalController,
