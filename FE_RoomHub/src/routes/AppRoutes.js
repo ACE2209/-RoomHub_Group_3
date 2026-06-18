@@ -10,6 +10,7 @@ import ResetPassword from "../pages/auth/ResetPassword";
 import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
 import HomePage from "../pages/HomePage";
+import BoardingHouseDetailPage from "../pages/BoardingHouseDetailPage";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 import ReportManagementPage from "../pages/admin/ReportManagementPage";
 import ReportDetailPage from "../pages/admin/ReportDetailPage";
@@ -28,6 +29,7 @@ const AppRoutes = () => {
                     <HomePage />
                 }
             />
+            <Route path="/boarding-houses/:boardingHouseId" element={<BoardingHouseDetailPage />} />
 
             <Route
                 path="/login"

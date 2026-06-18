@@ -226,6 +226,203 @@ class BoardingHouseController {
       });
     }
   }
+
+  // ==========================
+  // VIEW ALL BOARDING HOUSES FOR GUEST
+  // ==========================
+  async getAllBoardingHousesForGuest(req, res) {
+    try {
+      const page = parsePositiveInt(req.query.page, 1);
+      const limit = parsePositiveInt(req.query.limit, 10);
+
+      req.query.page = String(page);
+      req.query.limit = String(limit);
+
+      const filter = {
+        deleted: false,
+      };
+
+      const result = await paginate(
+        BoardingHouse,
+        {
+          filter,
+          defaultPage: 1,
+          defaultLimit: 10,
+          sortField: 'createdAt',
+          sortOrder: 'desc',
+
+          populate: [
+            {
+              path: 'boardingHouseType',
+              select: 'name codeName',
+            },
+            {
+              path: 'ownerId',
+              select:
+                'username fullname email phoneNumber avatarImage role',
+            },
+          ],
+        },
+        req
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Boarding houses fetched successfully',
+        ...result,
+      });
+    } catch (error) {
+      console.error(
+        'Error fetching boarding houses for guest:',
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch boarding houses',
+        error: error.message,
+      });
+    }
+  }
+
+  // ==========================
+// VIEW NEWEST BOARDING HOUSE
+// ==========================
+// Lấy danh sách boarding house mới nhất (createdAt DESC)
+
+async getNewestBH(req, res) {
+  try {
+    const result = await paginate(
+      BoardingHouse,
+      {
+        filter: { deleted: false },
+
+        defaultPage: 1,
+        defaultLimit: 10,
+
+        sortField: 'createdAt',
+        sortOrder: 'desc',
+
+        populate: [
+          {
+            path: 'boardingHouseType',
+            select: 'name codeName',
+          },
+          {
+            path: 'ownerId',
+            select: 'username fullname email phoneNumber avatarImage role',
+          },
+        ],
+      },
+      req
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Newest boarding houses fetched successfully',
+      ...result,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch newest boarding houses',
+      error: error.message,
+    });
+  }
 }
 
+// ==========================
+// VIEW HIGH RATING BOARDING HOUSE
+// ==========================
+// Lấy danh sách boarding house có rating cao (>= 4)
+
+async getHighRatingBH(req, res) {
+  try {
+    const filter = {
+      deleted: false,
+      rating: { $gte: 4 },
+    };
+
+    const result = await paginate(
+      BoardingHouse,
+      {
+        filter,
+
+        defaultPage: 1,
+        defaultLimit: 10,
+
+        sortField: 'rating',
+        sortOrder: 'desc',
+
+        populate: [
+          {
+            path: 'boardingHouseType',
+            select: 'name codeName',
+          },
+          {
+            path: 'ownerId',
+            select: 'username fullname email phoneNumber avatarImage role',
+          },
+        ],
+      },
+      req
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'High rating boarding houses fetched successfully',
+      ...result,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch high rating boarding houses',
+      error: error.message,
+    });
+  }
+}
+
+
+
+async getBoardingHouseDetailInUser(req, res, next) {
+  try {
+    const { id } = req.params;
+    const boardingHouse = await BoardingHouse.findById(id)
+      .populate('boardingHouseType')
+      .populate('ownerId')
+      .exec();
+
+    return res.status(200).json(boardingHouse);
+  } catch (error) {
+    console.error('Error fetching boarding house details:', error);
+    return res.status(500).json({
+      success: false,
+      message:
+        'Failed to fetch boarding house details. Please try again later.',
+      error: error.message,
+    });
+  }
+}
+
+async getBoardingHouseDetailInUser(req, res, next) {
+  try {
+    const { id } = req.params;
+    const boardingHouse = await BoardingHouse.findById(id)
+      .populate('boardingHouseType')
+      .populate('ownerId')
+      .exec();
+
+    return res.status(200).json(boardingHouse);
+  } catch (error) {
+    console.error('Error fetching boarding house details:', error);
+    return res.status(500).json({
+      success: false,
+      message:
+        'Failed to fetch boarding house details. Please try again later.',
+      error: error.message,
+    });
+  }
+}
+
+}
 export default new BoardingHouseController();
