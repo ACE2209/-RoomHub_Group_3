@@ -72,39 +72,12 @@ class AuthController {
         message: 'OTP sent successfully, please check your email.',
       });
     } catch (error) {
-      console.log(error.message);
-      res.status(500).json({ message: 'An unexpected error occurred' });
-    }
-  }
+      console.error("SEND OTP ERROR:");
+      console.error(error);
 
-  async registerWithGoogle(req, res) {
-    try {
-      const user = new Account(req.body);
-      user.password = await bcrypt.hash(user.password, 10);
-      const createdAccount = await user.save();
-      if (!createdAccount) {
-        return res.status(422).json({ message: 'Account creation failed' });
-      }
-
-      const token = generateToken({
-        userId: user._id,
-        username: user.username,
-        role: user.role,
+      return res.status(500).json({
+        message: error.message
       });
-
-      delete user.password;
-      res.status(201).json({
-        token,
-        user,
-      });
-    } catch (error) {
-      console.log(error.message);
-      if (error.code === 11000) {
-        return res.status(409).json({
-          message: 'Username or Email or Phone Number already exist!',
-        });
-      }
-      res.status(500).json({ message: 'An unexpected error occurred' });
     }
   }
 
@@ -183,49 +156,6 @@ class AuthController {
     }
   }
 
-  async loginWithGoogle(req, res) {
-    const { credential, clientId, remember } = req.body;
-    const client = new googleAuth.OAuth2Client({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-    });
-    try {
-      const ticket = await client.verifyIdToken({
-        idToken: credential,
-        audience: process.env.GOOGLE_CLIENT_ID,
-      });
-      const payload = ticket.getPayload();
-      const user = await Account.findOne({ email: payload.email }).select(
-        '-password'
-      );
-
-      if (!user) {
-        return res.status(200).json({
-          isRegistered: false,
-          message: 'User not registered. Please complete registration.',
-          user: payload,
-        });
-      }
-
-      const token = generateToken(
-        {
-          userId: user._id,
-          username: user.username,
-          role: user.role,
-        },
-        remember ? '7d' : '1d'
-      );
-
-      res.status(200).json({
-        isRegistered: true,
-        token,
-        user,
-      });
-    } catch (error) {
-      console.log(error.message);
-      res.status(401).json({ message: 'Invalid Google Token' });
-    }
-  }
-
   async forgotPassword(req, res) {
     try {
       const { email } = req.body;
@@ -269,6 +199,7 @@ class AuthController {
       res.status(500).json({ message: 'An unexpected error occurred' });
     }
   }
+
   resetPassword = async (req, res) => {
     try {
       const { token, password } = req.body;

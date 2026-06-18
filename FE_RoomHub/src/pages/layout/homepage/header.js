@@ -5,7 +5,6 @@ import {
     Search,
     MapPin,
     MessageCircle,
-    User,
     ChevronDown,
     Building2,
 } from "lucide-react";
@@ -230,25 +229,6 @@ const Header = () => {
                                         className="btn border rounded-pill d-flex align-items-center gap-2 px-2"
                                         onClick={() => setShowUserMenu(!showUserMenu)}
                                     >
-                                        {user.avatar ? (
-                                            <img
-                                                src={user.avatar}
-                                                alt="avatar"
-                                                className="rounded-circle"
-                                                style={{
-                                                    width: "40px",
-                                                    height: "40px",
-                                                    objectFit: "cover",
-                                                }}
-                                            />
-                                        ) : (
-                                            <div
-                                                className="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center"
-                                                style={{ width: "40px", height: "40px" }}
-                                            >
-                                                <User size={20} />
-                                            </div>
-                                        )}
 
                                         <span className="fw-semibold">
                                             {user.fullname || user.username}
@@ -276,19 +256,23 @@ const Header = () => {
                                                 </small>
                                             </div>
 
-                                            <Link
-                                                to={getDashboardRoute()}
-                                                className="dropdown-item py-2"
-                                            >
-                                                Dashboard
-                                            </Link>
+                                            {(user.role === "admin" || user.role === "staff") && (
+                                                <Link
+                                                    to={getDashboardRoute()}
+                                                    className="dropdown-item py-2"
+                                                >
+                                                    Dashboard
+                                                </Link>
+                                            )}
 
-                                            <Link
-                                                to="/profile"
-                                                className="dropdown-item py-2"
-                                            >
-                                                My Profile
-                                            </Link>
+                                            {user.role === "user" && (
+                                                <Link
+                                                    to="/profile"
+                                                    className="dropdown-item py-2"
+                                                >
+                                                    My Profile
+                                                </Link>
+                                            )}
 
                                             {user.role === "owner" && (
                                                 <Link
@@ -296,24 +280,6 @@ const Header = () => {
                                                     className="dropdown-item py-2"
                                                 >
                                                     My Properties
-                                                </Link>
-                                            )}
-
-                                            {user.role === "staff" && (
-                                                <Link
-                                                    to="/staff"
-                                                    className="dropdown-item py-2"
-                                                >
-                                                    Staff Panel
-                                                </Link>
-                                            )}
-
-                                            {user.role === "admin" && (
-                                                <Link
-                                                    to="/admin"
-                                                    className="dropdown-item py-2"
-                                                >
-                                                    Admin Panel
                                                 </Link>
                                             )}
 

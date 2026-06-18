@@ -32,7 +32,6 @@ const Register = () => {
         });
     };
 
-    // Gửi OTP
     const handleSendOTP = async () => {
         if (!formData.email) {
             toast.error("Please enter your email first!");
@@ -101,7 +100,6 @@ const Register = () => {
             <ToastContainer />
 
             <div className="min-vh-100 d-flex">
-                {/* Left Side */}
                 <div
                     className="d-none d-lg-flex position-relative text-white"
                     style={{
@@ -159,7 +157,6 @@ const Register = () => {
                     </div>
                 </div>
 
-                {/* Right Side */}
                 <div className="w-100 d-flex align-items-center justify-content-center bg-light">
                     <div
                         className="bg-white shadow-lg p-4 p-md-5 rounded-4"
@@ -178,7 +175,6 @@ const Register = () => {
                         </p>
 
                         <form onSubmit={handleRegister}>
-                            {/* KHU VỰC ĐIỀN THÔNG TIN (Sẽ mờ đi khi đã gửi OTP để tránh phân tâm) */}
                             <div style={{ opacity: otpSent ? 0.4 : 1, pointerEvents: otpSent ? 'none' : 'auto', transition: 'all 0.3s' }}>
                                 <div className="mb-3">
                                     <label className="form-label fw-semibold">Full Name</label>
@@ -260,7 +256,6 @@ const Register = () => {
                                 </div>
                             </div>
 
-                            {/* KHU VỰC ĐIỀU KHIỂN & OTP */}
                             {!otpSent ? (
                                 <button
                                     type="button"
@@ -284,7 +279,6 @@ const Register = () => {
                                     )}
                                 </button>
                             ) : (
-                                /* Giao diện nhập OTP cực kỳ rõ ràng */
                                 <div className="p-3 bg-light border border-primary-subtle rounded-3 animation-fade-in" style={{ borderStyle: 'dashed !important' }}>
                                     <div className="alert alert-info py-2 px-3 small mb-3 text-center border-0" role="alert">
                                         📩 We've sent a <strong>verification code</strong> to <br />

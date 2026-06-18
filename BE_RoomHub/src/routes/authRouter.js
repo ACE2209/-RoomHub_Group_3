@@ -27,9 +27,5 @@ authRouter.post("/change-password", accountController.changePassword);
 authRouter.post("/send-otp-change-email", accountController.sendOTPChangeEmail);
 authRouter.post("/verify-change-email", accountController.verifyChangeEmail);
 
-authRouter.put(
-  "/avatar",
-  upload.single("avatar"),
-  accountController.updateAvatar
-);
+authRouter.put("/avatar", upload.single("avatar"), accountController.updateAvatar);
 export { authRouter };

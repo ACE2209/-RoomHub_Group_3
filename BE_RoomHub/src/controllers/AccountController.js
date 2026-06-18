@@ -9,8 +9,6 @@ class accountController {
   async getAllAccount(req, res) {
     try {
       const accountData = await Account.find({ deleted: false }).sort({ createdAt: -1 });
-
-
       return res.status(200).json(accountData);
     } catch (error) {
       return res.status(500).json({
@@ -25,19 +23,29 @@ class accountController {
     try {
       const { accountId } = req.params;
       const accountData = await Account.findById(accountId);
+      
+      if (!accountData) {
+        return res.status(404).json({ 
+          success: false,
+          message: "Account not found" 
+        });
+      }
+
       accountData.deleted = true;
       accountData.deletedAt = new Date();
-
       await accountData.save();
 
-      return res
-        .status(200)
-        .json({ message: "Account successfully soft deleted" });
+      return res.status(200).json({ 
+        success: true,
+        message: "Account successfully soft deleted" 
+      });
     } catch (error) {
       console.error(error);
-      return res
-        .status(500)
-        .json({ message: "An error occurred", error: error.message });
+      return res.status(500).json({ 
+        success: false,
+        message: "An error occurred", 
+        error: error.message 
+      });
     }
   }
 
@@ -46,7 +54,7 @@ class accountController {
       const { gender, role, startDate, endDate, status } = req.query;
 
       // Xây dựng filter cơ bản
-      const filter = {};
+      const filter = { deleted: false }; // Thêm filter deleted
       if (gender) filter.gender = gender;
       if (role) filter.role = role;
       if (status) filter.status = status;
@@ -107,33 +115,84 @@ class accountController {
       res.status(201).json(newUser);
     } catch (error) {
       console.error("Error creating account:", error);
-      return res.status(400).json(error.errorResponse);
+      
+      // Handle Mongoose validation errors
+      if (error.name === 'ValidationError') {
+        const messages = Object.values(error.errors).map(err => err.message);
+        return res.status(400).json({ 
+          success: false,
+          message: "Validation error",
+          errors: messages 
+        });
+      }
+      
+      // Handle duplicate key errors
+      if (error.code === 11000) {
+        const field = Object.keys(error.keyPattern)[0];
+        return res.status(400).json({ 
+          success: false,
+          message: `${field} already exists` 
+        });
+      }
+
+      return res.status(400).json({ 
+        success: false,
+        message: error.message || "Error creating account" 
+      });
     }
   }
 
   async updateAccount(req, res, next) {
     try {
-      const { phoneNumber, fullname, gender, role } = req.body;
+      const { phoneNumber, fullname, gender } = req.body;
       const { accountId } = req.params;
 
-      // Chỉ cập nhật các trường có thể thay đổi
+      if (!accountId) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Account ID is required" 
+        });
+      }
+
       const updatedAccountData = {
         phoneNumber,
         fullname,
         gender,
-        role,
-        ...req.body,
       };
 
       const updatedAccount = await Account.findByIdAndUpdate(
         accountId,
         updatedAccountData,
-        { new: true }
+        { new: true, runValidators: true }
       );
 
-      res.status(200).json(updatedAccount);
+      if (!updatedAccount) {
+        return res.status(404).json({ 
+          success: false,
+          message: "Account not found" 
+        });
+      }
+
+      res.status(200).json({ 
+        success: true,
+        data: updatedAccount 
+      });
     } catch (error) {
-      next(error);
+      console.error("Error updating account:", error);
+      
+      if (error.name === 'ValidationError') {
+        const messages = Object.values(error.errors).map(err => err.message);
+        return res.status(400).json({ 
+          success: false,
+          message: "Validation error",
+          errors: messages 
+        });
+      }
+
+      return res.status(500).json({ 
+        success: false,
+        message: error.message || "Error updating account" 
+      });
     }
   }
 
@@ -160,6 +219,45 @@ class accountController {
 
       if (!isPasswordValid) {
         return res.status(400).json({ message: "Old password is incorrect" });
+      }
+
+      const isSamePassword = await bcrypt.compare(
+        newPassword,
+        account.password
+      );
+
+      if (isSamePassword) {
+        return res.status(400).json({
+          message:
+            "New password must be different from old password",
+        });
+      }
+
+      if (
+        newPassword.length < 8 ||
+        newPassword.length > 15
+      ) {
+        return res.status(400).json({
+          message:
+            "Password must be between 8 and 15 characters",
+        });
+      }
+
+      if (/\s/.test(newPassword)) {
+        return res.status(400).json({
+          message:
+            "Password cannot contain spaces",
+        });
+      }
+
+      const passwordRegex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,15}$/;
+
+      if (!passwordRegex.test(newPassword)) {
+        return res.status(400).json({
+          message:
+            "Password must contain uppercase, lowercase, number and special character",
+        });
       }
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);
