@@ -23,6 +23,10 @@ import {
 import Footer from "./layout/homepage/footer";
 import Header from "./layout/homepage/header";
 import "./BoardingHouseDetailPage.css";
+import ReviewSection from "../components/ReviewSection";
+import MapSection from "../components/MapSection";
+import { toggleFavorite, getFavorites } from "../api/favorite";
+import { useNavigate } from "react-router-dom";
 
 const formatCurrency = (value) => {
     const numberValue = Number(value);
@@ -78,6 +82,8 @@ const BoardingHouseDetailPage = () => {
     const [roomTypesLoading, setRoomTypesLoading] = useState(true);
     const [roomTypesError, setRoomTypesError] = useState("");
     const [error, setError] = useState("");
+    const navigate = useNavigate();
+    const [favorites, setFavorites] = useState([]);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -136,6 +142,47 @@ const BoardingHouseDetailPage = () => {
         return boardingHouse.images;
     }, [boardingHouse]);
 
+    useEffect(() => {
+        const loadFavorites = async () => {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            try {
+                const res = await getFavorites();
+                if (res?.favorites) {
+                    setFavorites(res.favorites.map(f => f.id));
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        loadFavorites();
+    }, []);
+
+    const handleFavorite = async () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        try {
+            const res = await toggleFavorite(boardingHouseId);
+
+            if (res.isFavorite) {
+                setFavorites(prev => [...prev, boardingHouseId]);
+            } else {
+                setFavorites(prev =>
+                    prev.filter(id => id !== boardingHouseId)
+                );
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     return (
         <>
             <Header />
@@ -167,108 +214,141 @@ const BoardingHouseDetailPage = () => {
                                 </button>
                             </div>
                         ) : (
-                            <div className="detail-shell">
-                                <div className="detail-gallery">
-                                    <div className="detail-main-image">
-                                        <img
-                                            src={selectedImage || getPrimaryImage(boardingHouse)}
-                                            alt={boardingHouse.name || "Boarding house"}
-                                        />
+                            <>
+                                <div className="detail-shell">
+                                    <div className="detail-gallery">
+                                        <div className="detail-main-image">
+                                            <img
+                                                src={selectedImage || getPrimaryImage(boardingHouse)}
+                                                alt={boardingHouse.name || "Boarding house"}
+                                            />
+                                        </div>
+
+                                        <div className="detail-thumbs" aria-label="Boarding house images">
+                                            {galleryImages.map((image) => (
+                                                <button
+                                                    type="button"
+                                                    key={image._id || image.imageUrl}
+                                                    className={image.imageUrl === selectedImage ? "active" : ""}
+                                                    onClick={() => setSelectedImage(image.imageUrl)}
+                                                >
+                                                    <img
+                                                        src={image.imageUrl}
+                                                        alt={boardingHouse.name || "Boarding house thumbnail"}
+                                                    />
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
 
-                                    <div className="detail-thumbs" aria-label="Boarding house images">
-                                        {galleryImages.map((image) => (
-                                            <button
-                                                type="button"
-                                                key={image._id || image.imageUrl}
-                                                className={image.imageUrl === selectedImage ? "active" : ""}
-                                                onClick={() => setSelectedImage(image.imageUrl)}
-                                            >
-                                                <img
-                                                    src={image.imageUrl}
-                                                    alt={boardingHouse.name || "Boarding house thumbnail"}
-                                                />
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="detail-content">
-                                    <span className="detail-type">
-                                        {boardingHouse.boardingHouseType?.name || "Boarding house"}
-                                    </span>
-
-                                    <div className="detail-title-row">
-                                        <h1>{boardingHouse.name || "Unnamed boarding house"}</h1>
-                                        <span className="detail-rating">
-                                            <Star size={17} fill="currentColor" />
-                                            {boardingHouse.rating ?? "N/A"}
+                                    <div className="detail-content">
+                                        <span className="detail-type">
+                                            {boardingHouse.boardingHouseType?.name || "Boarding house"}
                                         </span>
-                                    </div>
 
-                                    <p className="detail-address">
-                                        <MapPin size={18} />
-                                        <span>{formatAddress(boardingHouse.address)}</span>
-                                    </p>
+                                        <div className="detail-title-row">
+                                            <h1>{boardingHouse.name || "Unnamed boarding house"}</h1>
 
-                                    <div className="detail-price">{formatCurrency(boardingHouse.priceRange)}</div>
+                                            <div className="d-flex align-items-center gap-2">
+                                                <span className="detail-rating">
+                                                    <Star size={17} fill="currentColor" />
+                                                    {boardingHouse.rating ?? "N/A"}
+                                                </span>
 
-                                    <div className="detail-stats">
-                                        <div>
-                                            <BedDouble size={20} />
-                                            <span>Available rooms</span>
-                                            <strong>
-                                                {boardingHouse.availableRooms ?? 0}/{boardingHouse.totalRooms ?? 0}
-                                            </strong>
-                                        </div>
-                                        <div>
-                                            <Zap size={20} />
-                                            <span>Electricity</span>
-                                            <strong>{formatCurrency(boardingHouse.electricityPrice)}</strong>
-                                        </div>
-                                        <div>
-                                            <Droplets size={20} />
-                                            <span>Water</span>
-                                            <strong>{formatCurrency(boardingHouse.waterPrice)}</strong>
-                                        </div>
-                                        <div>
-                                            <Heart size={20} />
-                                            <span>Likes</span>
-                                            <strong>{boardingHouse.likes ?? 0}</strong>
-                                        </div>
-                                    </div>
-
-                                    <section className="detail-section">
-                                        <h2>Description</h2>
-                                        <p>
-                                            {boardingHouse.description ||
-                                                "This boarding house is updating its detailed description."}
-                                        </p>
-                                    </section>
-
-                                    <section className="detail-section detail-owner">
-                                        <h2>Owner contact</h2>
-                                        <div className="detail-owner-grid">
-                                            <div>
-                                                <User size={18} />
-                                                <span>{getOwnerName(boardingHouse.ownerId)}</span>
+                                                <button
+                                                    onClick={handleFavorite}
+                                                    className="btn p-0 border-0 bg-transparent"
+                                                >
+                                                    <Heart
+                                                        size={22}
+                                                        color={
+                                                            favorites.includes(boardingHouseId)
+                                                                ? "red"
+                                                                : "black"
+                                                        }
+                                                        fill={
+                                                            favorites.includes(boardingHouseId)
+                                                                ? "red"
+                                                                : "none"
+                                                        }
+                                                    />
+                                                </button>
                                             </div>
-                                            {boardingHouse.ownerId?.phoneNumber && (
-                                                <a href={`tel:${boardingHouse.ownerId.phoneNumber}`}>
-                                                    <Phone size={18} />
-                                                    <span>{boardingHouse.ownerId.phoneNumber}</span>
-                                                </a>
-                                            )}
-                                            {boardingHouse.ownerId?.email && (
-                                                <a href={`mailto:${boardingHouse.ownerId.email}`}>
-                                                    <Mail size={18} />
-                                                    <span>{boardingHouse.ownerId.email}</span>
-                                                </a>
-                                            )}
                                         </div>
-                                    </section>
+
+                                        <p className="detail-address">
+                                            <MapPin size={18} />
+                                            <span>{formatAddress(boardingHouse.address)}</span>
+                                        </p>
+
+                                        <div className="detail-price">{formatCurrency(boardingHouse.priceRange)}</div>
+
+                                        <div className="detail-stats">
+                                            <div>
+                                                <BedDouble size={20} />
+                                                <span>Available rooms</span>
+                                                <strong>
+                                                    {boardingHouse.availableRooms ?? 0}/{boardingHouse.totalRooms ?? 0}
+                                                </strong>
+                                            </div>
+                                            <div>
+                                                <Zap size={20} />
+                                                <span>Electricity</span>
+                                                <strong>{formatCurrency(boardingHouse.electricityPrice)}</strong>
+                                            </div>
+                                            <div>
+                                                <Droplets size={20} />
+                                                <span>Water</span>
+                                                <strong>{formatCurrency(boardingHouse.waterPrice)}</strong>
+                                            </div>
+                                            <div>
+                                                <Heart size={20} />
+                                                <span>Likes</span>
+                                                <strong>{boardingHouse.likes ?? 0}</strong>
+                                            </div>
+                                        </div>
+
+                                        <section className="detail-section">
+                                            <h2>Description</h2>
+                                            <p>
+                                                {boardingHouse.description ||
+                                                    "This boarding house is updating its detailed description."}
+                                            </p>
+                                        </section>
+
+                                        <section className="detail-section detail-owner">
+                                            <h2>Owner contact</h2>
+                                            <div className="detail-owner-grid">
+                                                <div>
+                                                    <User size={18} />
+                                                    <span>{getOwnerName(boardingHouse.ownerId)}</span>
+                                                </div>
+                                                {boardingHouse.ownerId?.phoneNumber && (
+                                                    <a href={`tel:${boardingHouse.ownerId.phoneNumber}`}>
+                                                        <Phone size={18} />
+                                                        <span>{boardingHouse.ownerId.phoneNumber}</span>
+                                                    </a>
+                                                )}
+                                                {boardingHouse.ownerId?.email && (
+                                                    <a href={`mailto:${boardingHouse.ownerId.email}`}>
+                                                        <Mail size={18} />
+                                                        <span>{boardingHouse.ownerId.email}</span>
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </section>
+                                    </div>
                                 </div>
-                            </div>
+                                {/* bảng máp */}
+                                <MapSection
+                                    latitude={boardingHouse?.location?.lat}
+                                    longitude={boardingHouse?.location?.lon}
+                                    address={formatAddress(boardingHouse?.address)}
+                                />
+                                {/* bảng đánh giá */}
+                                <ReviewSection boardingHouseId={boardingHouseId} />
+
+                            </>
                         )}
 
                         {!loading && !error && (

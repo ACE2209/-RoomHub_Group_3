@@ -9,7 +9,7 @@ import {
     Building2,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-
+import { getFavorites } from "../../../api/favorite";
 const Header = () => {
     const navigate = useNavigate();
 
@@ -18,6 +18,31 @@ const Header = () => {
 
     const [user, setUser] = useState(null);
     const [showUserMenu, setShowUserMenu] = useState(false);
+
+    const [favorites, setFavorites] = useState([]);
+
+    useEffect(() => {
+        const userData = localStorage.getItem("user");
+        if (userData) setUser(JSON.parse(userData));
+    }, []);
+
+    useEffect(() => {
+        const loadFavorites = async () => {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            try {
+                const res = await getFavorites();
+                if (res?.favorites) {
+                    setFavorites(res.favorites.map(f => f.id));
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        loadFavorites();
+    }, [user]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -51,6 +76,17 @@ const Header = () => {
             default:
                 return "/profile";
         }
+    };
+
+    const handleFavoriteClick = () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        navigate("/favorites");
     };
 
     return (
@@ -192,8 +228,24 @@ const Header = () => {
                         {/* RIGHT */}
                         <div className="d-flex align-items-center gap-3">
 
-                            <button className="btn border-0 p-0">
-                                <Heart size={24} />
+                            <button
+                                className="btn border-0 p-0 position-relative"
+                                onClick={handleFavoriteClick}
+                            >
+                                <Heart
+                                    size={24}
+                                    fill={favorites.length > 0 ? "red" : "none"}
+                                    color={favorites.length > 0 ? "red" : "black"}
+                                />
+
+                                {favorites.length > 0 && (
+                                    <span
+                                        className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                        style={{ fontSize: "10px" }}
+                                    >
+                                        {favorites.length}
+                                    </span>
+                                )}
                             </button>
 
                             <button className="btn border-0 p-0">

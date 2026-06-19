@@ -2,7 +2,7 @@ import authController from './authController.js';
 import accountController from './accountController.js';
 import reportController from './reportController.js';
 
-// import favoriteController from './favoriteController.js';
+import favoriteController from './favoriteController.js';
 import ReviewController from './reviewController.js';
 // import withdrawalRequestsController from './withdrawalRequestsController.js';
 import boardingHouseController from './BoardingHouseController.js';
@@ -30,7 +30,7 @@ export {
   // withdrawalRequestsController,
   boardingHouseController,
   ReviewController,
-  // favoriteController,
+  favoriteController,
   appointmentController,
   roomController,
   // watchLaterController,
