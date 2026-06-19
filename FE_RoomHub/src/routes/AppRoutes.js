@@ -18,11 +18,11 @@ import AccountManagementPage from "../pages/admin/AccountManagementPage";
 import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
 
+import BoardingHouseDetailPage from "../pages/BoardingHouseDetailPage";
+
 import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
 import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
 import BoardingHouseReportManagementPage from "../pages/admin/ReportManagement/BoardingHouseReportManagementPage";
-
-import BoardingHouseDetail from "../pages/boardingHouse/BoardingHouseDetail";
 
 import AppointmentPage from "../pages/user/AppointmentPage";
 import CreateAppointmentPage from "../pages/user/CreateAppointmentPage";
@@ -51,7 +51,7 @@ const AppRoutes = () => {
       {/* Boarding House Detail */}
       <Route
         path="/boarding-houses/:boardingHouseId"
-        element={<BoardingHouseDetail />}
+        element={<BoardingHouseDetailPage />}
       />
 
       {/* User Routes */}

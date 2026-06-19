@@ -3,8 +3,9 @@ import {
   authController,
   boardingHouseController,
   roomTypeController,
+  appointmentController
 } from "../controllers/index.js";
-
+import { authMiddleware } from "../middlewares/index.js";
 const commonRouter = Router();
 
 /* =========================
@@ -50,5 +51,7 @@ commonRouter.get(
   "/boardinghouse/:id",
   boardingHouseController.getBoardingHouseDetailInUser
 );
-
+commonRouter.post("/appointments", authMiddleware, appointmentController.createAppointment);
+commonRouter.get("/appointments/my", authMiddleware, appointmentController.getAppointmentByUserId);
+commonRouter.patch("/appointments/:appointmentId/cancel", authMiddleware, appointmentController.cancelAppointment);
 export { commonRouter };

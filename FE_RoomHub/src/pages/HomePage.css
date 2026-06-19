@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 .guest-home {
     background: #f6f7f9;
     color: #1f2933;
@@ -413,7 +413,7 @@
         align-items: flex-start;
         flex-direction: column;
     }
-=======
+
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap");
 
@@ -1189,5 +1189,5 @@ body {
 }
 .nav-btn.inactive span.nav-label {
   font-weight: 400;
->>>>>>> 84d223bca6ed5242c47a561fa1e3a69d491e323c
+}
 }
