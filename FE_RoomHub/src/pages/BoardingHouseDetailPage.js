@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 import {
-    getBoardingHouseDetailForGuest,
+    getBoardingHouseDetail,
     getRoomTypesByBoardingHouseForGuest,
 } from "../api/boardingHouse";
 import Footer from "./layout/homepage/footer";
@@ -85,7 +85,7 @@ const BoardingHouseDetailPage = () => {
                 setLoading(true);
                 setError("");
 
-                const res = await getBoardingHouseDetailForGuest(boardingHouseId);
+                const res = await getBoardingHouseDetail(boardingHouseId);
                 const detail = res?.data || res;
 
                 if (!detail?._id) {
