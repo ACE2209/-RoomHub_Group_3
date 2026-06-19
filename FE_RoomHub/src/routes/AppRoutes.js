@@ -28,25 +28,17 @@ import AppointmentPage from "../pages/user/AppointmentPage";
 import CreateAppointmentPage from "../pages/user/CreateAppointmentPage";
 
 import ProtectedRoute from "./ProtectedRoute";
+import FavoritesPage from "../pages/user/FavoritesPage";
 
 const AppRoutes = () => {
   return (
     <Routes>
       {/* Public Routes */}
       <Route path="/" element={<HomePage />} />
-
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-
-      <Route
-        path="/forgot-password"
-        element={<ForgotPassword />}
-      />
-
-      <Route
-        path="/reset-password/:token"
-        element={<ResetPassword />}
-      />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
 
       {/* Boarding House Detail */}
       <Route
@@ -87,6 +79,15 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <CreateAppointmentPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/favorites"
+        element={
+          <ProtectedRoute>
+            <FavoritesPage />
           </ProtectedRoute>
         }
       />
