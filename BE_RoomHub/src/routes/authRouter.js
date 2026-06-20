@@ -26,7 +26,6 @@ authRouter.get("/user", authController.getAccountFromToken);
 authRouter.post("/change-password", accountController.changePassword);
 authRouter.post("/send-otp-change-email", accountController.sendOTPChangeEmail);
 authRouter.post("/verify-change-email", accountController.verifyChangeEmail);
-
 authRouter.put("/avatar", upload.single("avatar"), accountController.updateAvatar);
 
 //review
@@ -38,7 +37,11 @@ authRouter.get('/review/:reviewId', ReviewController.getReviewDetail);
 
 // Favorites
 authRouter.get("/favorites", favoriteController.getFavorites);
-authRouter.get("/favorites/all",favoriteController.getAllFavorites);
-authRouter.post("/favorites",favoriteController.createFavorite);
-authRouter.delete("/favorites/:boardingHouseId",favoriteController.deleteFavorite);
+authRouter.get("/favorites/all", favoriteController.getAllFavorites);
+authRouter.post("/favorites", favoriteController.createFavorite);
+authRouter.delete("/favorites/:boardingHouseId", favoriteController.deleteFavorite);
+
+// profile
+authRouter.get("/profile", accountController.getProfile);
+authRouter.put("/profile", accountController.updateAccountFromProfile);
 export { authRouter };

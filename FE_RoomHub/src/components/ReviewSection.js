@@ -368,10 +368,8 @@ const ReviewSection = ({ boardingHouseId }) => {
                                             Owner
                                             Reply
                                         </strong>
-
                                         <p>
-                                            {
-                                                review
+                                            {review
                                                     .replyContent
                                                     .content
                                             }
