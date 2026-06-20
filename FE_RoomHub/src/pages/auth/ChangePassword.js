@@ -1,27 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast, ToastContainer } from "react-toastify";
-import { Lock, Eye, EyeOff } from "lucide-react";
-
+import { Eye, EyeOff } from "lucide-react";
 import { changePasswordAPI } from "../../api/auth";
 import { useNavigate } from "react-router-dom";
 
+import Header from "../layout/homepage/header";
+import Footer from "../layout/homepage/footer";
+import ProfileSidebar from "../profile/ProfileSidebar";
+import { getProfileAPI } from "../../api/accountAPI";
+
 const ChangePassword = () => {
     const [loading, setLoading] = useState(false);
-    const Navigate = useNavigate();
-    const [showOldPassword, setShowOldPassword] =
-        useState(false);
-    const [showNewPassword, setShowNewPassword] =
-        useState(false);
-    const [
-        showConfirmPassword,
-        setShowConfirmPassword,
-    ] = useState(false);
+    const navigate = useNavigate();
+
+    const [user, setUser] = useState(null);
+    const [active] = useState("security");
+
+    const [showOldPassword, setShowOldPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const [formData, setFormData] = useState({
         oldPassword: "",
         newPassword: "",
         confirmPassword: "",
     });
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const data = await getProfileAPI();
+                setUser(data);
+            } catch (err) {
+                console.log(err);
+            }
+        })();
+    }, []);
 
     const handleChange = (e) => {
         setFormData({
@@ -33,31 +47,20 @@ const ChangePassword = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (
-            formData.newPassword !==
-            formData.confirmPassword
-        ) {
-            toast.error(
-                "Confirm password does not match"
-            );
+        if (formData.newPassword !== formData.confirmPassword) {
+            toast.error("Confirm password does not match");
             return;
         }
 
         try {
             setLoading(true);
 
-            const res =
-                await changePasswordAPI({
-                    oldPassword:
-                        formData.oldPassword,
-                    newPassword:
-                        formData.newPassword,
-                });
+            const res = await changePasswordAPI({
+                oldPassword: formData.oldPassword,
+                newPassword: formData.newPassword,
+            });
 
-            toast.success(
-                res.message ||
-                "Password changed successfully"
-            );
+            toast.success(res.message || "Password changed successfully");
 
             setFormData({
                 oldPassword: "",
@@ -68,14 +71,9 @@ const ChangePassword = () => {
             localStorage.removeItem("token");
             localStorage.removeItem("user");
 
-            setTimeout(() => {
-                Navigate("/login");
-            }, 1500);
+            setTimeout(() => navigate("/login"), 1200);
         } catch (error) {
-            toast.error(
-                error.response?.data?.message ||
-                "Change password failed"
-            );
+            toast.error(error.response?.data?.message || "Change password failed");
         } finally {
             setLoading(false);
         }
@@ -83,188 +81,134 @@ const ChangePassword = () => {
 
     return (
         <>
+            <Header />
             <ToastContainer />
 
-            <div
-                className="bg-light d-flex justify-content-center align-items-center"
-                style={{ minHeight: "100vh" }}
-            >
+            <div style={{ minHeight: "100vh", background: "#f6f7f9", padding: "40px 20px" }}>
+
+                {/* GRID LAYOUT */}
                 <div
-                    className="bg-white shadow-lg p-4 p-md-5 rounded-4"
                     style={{
-                        width: "100%",
-                        maxWidth: "500px",
+                        maxWidth: "1200px",
+                        margin: "0 auto",
+                        display: "flex",
+                        gap: "24px",
+                        alignItems: "flex-start",
                     }}
                 >
-                    <div className="mb-4">
-                        <h2 className="fw-bold">
+
+                    {/* SIDEBAR */}
+                    <ProfileSidebar user={user} active={active} />
+
+                    {/* CONTENT */}
+                    <div
+                        style={{
+                            flex: 1,
+                            background: "#fff",
+                            borderRadius: "16px",
+                            padding: "30px",
+                            boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+                        }}
+                    >
+                        <h2 style={{ fontWeight: 800, marginBottom: 20 }}>
                             Change Password
                         </h2>
 
-                        <p className="text-muted mb-0">
-                            Update your account password
-                        </p>
+                        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
+
+                            {/* OLD */}
+                            <InputPassword
+                                label="Old Password"
+                                name="oldPassword"
+                                value={formData.oldPassword}
+                                onChange={handleChange}
+                                show={showOldPassword}
+                                setShow={setShowOldPassword}
+                            />
+
+                            {/* NEW */}
+                            <InputPassword
+                                label="New Password"
+                                name="newPassword"
+                                value={formData.newPassword}
+                                onChange={handleChange}
+                                show={showNewPassword}
+                                setShow={setShowNewPassword}
+                            />
+
+                            {/* CONFIRM */}
+                            <InputPassword
+                                label="Confirm Password"
+                                name="confirmPassword"
+                                value={formData.confirmPassword}
+                                onChange={handleChange}
+                                show={showConfirmPassword}
+                                setShow={setShowConfirmPassword}
+                            />
+
+                            {/* BUTTON */}
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                style={{
+                                    marginTop: 10,
+                                    padding: "12px",
+                                    borderRadius: 10,
+                                    background: "#ff6b00",
+                                    color: "#fff",
+                                    fontWeight: 700,
+                                    border: "none",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                {loading ? "Changing..." : "Change Password"}
+                            </button>
+
+                        </form>
                     </div>
-
-                    <form onSubmit={handleSubmit}>
-                        {/* Old Password */}
-                        <div className="mb-3">
-                            <label className="form-label">
-                                Old Password
-                            </label>
-
-                            <div className="input-group">
-                                <span className="input-group-text">
-                                    <Lock size={18} />
-                                </span>
-
-                                <input
-                                    type={
-                                        showOldPassword
-                                            ? "text"
-                                            : "password"
-                                    }
-                                    className="form-control"
-                                    name="oldPassword"
-                                    value={
-                                        formData.oldPassword
-                                    }
-                                    onChange={
-                                        handleChange
-                                    }
-                                    required
-                                />
-
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-secondary"
-                                    onClick={() =>
-                                        setShowOldPassword(
-                                            !showOldPassword
-                                        )
-                                    }
-                                >
-                                    {showOldPassword ? (
-                                        <EyeOff size={18} />
-                                    ) : (
-                                        <Eye size={18} />
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* New Password */}
-                        <div className="mb-3">
-                            <label className="form-label">
-                                New Password
-                            </label>
-
-                            <div className="input-group">
-                                <span className="input-group-text">
-                                    <Lock size={18} />
-                                </span>
-
-                                <input
-                                    type={
-                                        showNewPassword
-                                            ? "text"
-                                            : "password"
-                                    }
-                                    className="form-control"
-                                    name="newPassword"
-                                    value={
-                                        formData.newPassword
-                                    }
-                                    onChange={
-                                        handleChange
-                                    }
-                                    required
-                                />
-
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-secondary"
-                                    onClick={() =>
-                                        setShowNewPassword(
-                                            !showNewPassword
-                                        )
-                                    }
-                                >
-                                    {showNewPassword ? (
-                                        <EyeOff size={18} />
-                                    ) : (
-                                        <Eye size={18} />
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Confirm Password */}
-                        <div className="mb-4">
-                            <label className="form-label">
-                                Confirm Password
-                            </label>
-
-                            <div className="input-group">
-                                <span className="input-group-text">
-                                    <Lock size={18} />
-                                </span>
-
-                                <input
-                                    type={
-                                        showConfirmPassword
-                                            ? "text"
-                                            : "password"
-                                    }
-                                    className="form-control"
-                                    name="confirmPassword"
-                                    value={
-                                        formData.confirmPassword
-                                    }
-                                    onChange={
-                                        handleChange
-                                    }
-                                    required
-                                />
-
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-secondary"
-                                    onClick={() =>
-                                        setShowConfirmPassword(
-                                            !showConfirmPassword
-                                        )
-                                    }
-                                >
-                                    {showConfirmPassword ? (
-                                        <EyeOff size={18} />
-                                    ) : (
-                                        <Eye size={18} />
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-
-                        <button
-                            type="submit"
-                            className="btn w-100 py-2 text-white"
-                            style={{
-                                backgroundColor:
-                                    "rgb(255, 107, 0)",
-                                borderColor:
-                                    "rgb(255, 107, 0)",
-                            }}
-                            disabled={loading}
-                        >
-                            {loading
-                                ? "Changing..."
-                                : "Change Password"}
-                        </button>
-                    </form>
                 </div>
             </div>
+
+            <Footer />
         </>
     );
 };
+
+const InputPassword = ({ label, name, value, onChange, show, setShow }) => (
+    <div>
+        <label style={{ fontWeight: 600 }}>{label}</label>
+
+        <div style={{ display: "flex", marginTop: 6 }}>
+            <input
+                type={show ? "text" : "password"}
+                name={name}
+                value={value}
+                onChange={onChange}
+                style={{
+                    flex: 1,
+                    padding: "10px",
+                    border: "1px solid #ddd",
+                    borderRadius: "10px 0 0 10px",
+                    outline: "none",
+                }}
+            />
+
+            <button
+                type="button"
+                onClick={() => setShow(!show)}
+                style={{
+                    padding: "0 12px",
+                    border: "1px solid #ddd",
+                    borderLeft: "none",
+                    background: "#f5f5f5",
+                    borderRadius: "0 10px 10px 0",
+                    cursor: "pointer",
+                }}
+            >
+                {show ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+        </div>
+    </div>
+);
 
 export default ChangePassword;
