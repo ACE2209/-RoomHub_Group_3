@@ -32,6 +32,7 @@ import AppointmentPage from "../pages/user/AppointmentPage";
 import CreateAppointmentPage from "../pages/user/CreateAppointmentPage";
 import CreateDepositPage from "../pages/user/CreateDepositPage";
 import FavoritesPage from "../pages/user/FavoritesPage";
+import WatchLaterPage from "../pages/user/WatchLaterPage";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -134,6 +135,15 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <MyReportsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/watchlater"
+        element={
+          <ProtectedRoute>
+            <WatchLaterPage />
           </ProtectedRoute>
         }
       />

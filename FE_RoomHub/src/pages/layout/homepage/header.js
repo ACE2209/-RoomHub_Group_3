@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
     Heart,
+    Clock,
     Bell,
     Search,
     MapPin,
@@ -86,6 +87,17 @@ const Header = () => {
         }
 
         navigate("/favorites");
+    };
+
+    const handleWatchLaterClick = () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        navigate("/watchlater");
     };
 
     const menuItemStyle = {
@@ -245,6 +257,13 @@ const Header = () => {
                                         {favorites.length}
                                     </span>
                                 )}
+                            </button>
+
+                            <button
+                                className="btn border-0 p-0"
+                                onClick={handleWatchLaterClick}
+                            >
+                                <Clock size={24} />
                             </button>
 
                             <button className="btn border-0 p-0">
