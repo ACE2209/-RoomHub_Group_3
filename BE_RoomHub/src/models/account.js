@@ -32,6 +32,10 @@ const AccountSchema = new Schema({
     required: true,
     trim: true
   },
+  phoneNumber: {
+    type: String,
+    trim: true
+  },
   gender: {
     type: String,
     enum: ['male', 'female', 'other'],

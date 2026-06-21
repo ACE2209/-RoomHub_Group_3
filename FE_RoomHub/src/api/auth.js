@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:3000";
+import API_URL from "./config";
 
 export const loginAPI = async (data) => {
     const response = await axios.post(
@@ -42,6 +42,22 @@ export const resetPasswordAPI = async (data) => {
     const res = await axios.post(
         `${API_URL}/reset-password`,
         data
+    );
+
+    return res.data;
+};
+
+export const changePasswordAPI = async (data) => {
+    const token = localStorage.getItem("token");
+
+    const res = await axios.post(
+        `${API_URL}/auth/change-password`,
+        data,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        }
     );
 
     return res.data;

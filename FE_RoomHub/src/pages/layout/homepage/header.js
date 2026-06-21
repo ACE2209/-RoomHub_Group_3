@@ -5,12 +5,11 @@ import {
     Search,
     MapPin,
     MessageCircle,
-    User,
     ChevronDown,
     Building2,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-
+import { getFavorites } from "../../../api/favorite";
 const Header = () => {
     const navigate = useNavigate();
 
@@ -19,6 +18,31 @@ const Header = () => {
 
     const [user, setUser] = useState(null);
     const [showUserMenu, setShowUserMenu] = useState(false);
+
+    const [favorites, setFavorites] = useState([]);
+
+    useEffect(() => {
+        const userData = localStorage.getItem("user");
+        if (userData) setUser(JSON.parse(userData));
+    }, []);
+
+    useEffect(() => {
+        const loadFavorites = async () => {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            try {
+                const res = await getFavorites();
+                if (res?.favorites) {
+                    setFavorites(res.favorites.map(f => f.id));
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        loadFavorites();
+    }, [user]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -54,6 +78,28 @@ const Header = () => {
         }
     };
 
+    const handleFavoriteClick = () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        navigate("/favorites");
+    };
+
+    const menuItemStyle = {
+        display: "block",
+        padding: "10px 12px",
+        borderRadius: "10px",
+        textDecoration: "none",
+        color: "#1f2937",
+        fontWeight: 600,
+        fontSize: "14px",
+        transition: "0.2s",
+    };
+
     return (
         <>
             <header
@@ -64,11 +110,8 @@ const Header = () => {
                         className="d-flex align-items-center justify-content-between"
                         style={{ height: "80px" }}
                     >
-                        {/* LEFT */}
                         <div className="d-flex align-items-center gap-3 position-relative">
-
-                            {/* Logo */}
-                            <a href="/home" className="d-flex align-items-center">
+                            <a href="/" className="d-flex align-items-center">
                                 <img
                                     src="/image/logo.png"
                                     alt="Logo"
@@ -76,8 +119,6 @@ const Header = () => {
                                     style={{ maxWidth: "220px", maxHeight: "160px" }}
                                 />
                             </a>
-
-                            {/* Location */}
                             <button
                                 onClick={() => setShowLocation(!showLocation)}
                                 className="btn border rounded-pill d-flex align-items-center gap-2 px-3"
@@ -95,8 +136,6 @@ const Header = () => {
 
                                 <ChevronDown size={16} />
                             </button>
-
-                            {/* Dropdown */}
                             {showLocation && (
                                 <div
                                     className="position-absolute bg-white shadow rounded-4 p-4"
@@ -158,8 +197,6 @@ const Header = () => {
                                 </div>
                             )}
                         </div>
-
-                        {/* SEARCH */}
                         <div
                             className="flex-grow-1 mx-4 d-none d-md-block"
                             style={{ maxWidth: "800px" }}
@@ -189,12 +226,26 @@ const Header = () => {
                                 </button>
                             </div>
                         </div>
-
-                        {/* RIGHT */}
                         <div className="d-flex align-items-center gap-3">
 
-                            <button className="btn border-0 p-0">
-                                <Heart size={24} />
+                            <button
+                                className="btn border-0 p-0 position-relative"
+                                onClick={handleFavoriteClick}
+                            >
+                                <Heart
+                                    size={24}
+                                    fill={favorites.length > 0 ? "red" : "none"}
+                                    color={favorites.length > 0 ? "red" : "black"}
+                                />
+
+                                {favorites.length > 0 && (
+                                    <span
+                                        className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                        style={{ fontSize: "10px" }}
+                                    >
+                                        {favorites.length}
+                                    </span>
+                                )}
                             </button>
 
                             <button className="btn border-0 p-0">
@@ -230,31 +281,12 @@ const Header = () => {
                                         className="btn border rounded-pill d-flex align-items-center gap-2 px-2"
                                         onClick={() => setShowUserMenu(!showUserMenu)}
                                     >
-                                        {user.avatar ? (
-                                            <img
-                                                src={user.avatar}
-                                                alt="avatar"
-                                                className="rounded-circle"
-                                                style={{
-                                                    width: "40px",
-                                                    height: "40px",
-                                                    objectFit: "cover",
-                                                }}
-                                            />
-                                        ) : (
-                                            <div
-                                                className="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center"
-                                                style={{ width: "40px", height: "40px" }}
-                                            >
-                                                <User size={20} />
-                                            </div>
-                                        )}
 
                                         <span className="fw-semibold">
                                             {user.fullname || user.username}
                                         </span>
 
-                                        <span className="badge bg-primary">
+                                        <span className="badge" style={{ backgroundColor: "#ff6b00" }}>
                                             {user.role}
                                         </span>
 
@@ -263,66 +295,86 @@ const Header = () => {
 
                                     {showUserMenu && (
                                         <div
-                                            className="position-absolute end-0 mt-2 bg-white shadow rounded-3 overflow-hidden"
-                                            style={{ width: "260px", zIndex: 9999 }}
+                                            style={{
+                                                position: "absolute",
+                                                right: 0,
+                                                top: "calc(100% + 10px)",
+                                                width: "280px",
+                                                background: "#fff",
+                                                borderRadius: "14px",
+                                                boxShadow: "0 12px 35px rgba(0,0,0,0.12)",
+                                                overflow: "hidden",
+                                                zIndex: 9999,
+                                                border: "1px solid #eee",
+                                            }}
                                         >
-                                            <div className="p-3 border-bottom">
-                                                <div className="fw-bold">
-                                                    {user.fullname || user.username}
-                                                </div>
+                                            <div style={{ padding: "8px" }}>
+                                                {(user.role === "admin" || user.role === "staff") && (
+                                                    <Link
+                                                        to={getDashboardRoute()}
+                                                        style={menuItemStyle}
+                                                        onMouseEnter={(e) =>
+                                                            (e.currentTarget.style.background = "#f5f5f5")
+                                                        }
+                                                        onMouseLeave={(e) =>
+                                                            (e.currentTarget.style.background = "transparent")
+                                                        }
+                                                    >
+                                                        Dashboard
+                                                    </Link>
+                                                )}
 
-                                                <small className="text-muted">
-                                                    {user.email}
-                                                </small>
+                                                {user.role === "user" && (
+                                                    <Link
+                                                        to="/profile"
+                                                        style={menuItemStyle}
+                                                        onMouseEnter={(e) =>
+                                                            (e.currentTarget.style.background = "#f5f5f5")
+                                                        }
+                                                        onMouseLeave={(e) =>
+                                                            (e.currentTarget.style.background = "transparent")
+                                                        }
+                                                    >
+                                                        My Profile
+                                                    </Link>
+                                                )}
+
+                                                {user.role === "owner" && (
+                                                    <Link
+                                                        to="/my-properties"
+                                                        style={menuItemStyle}
+                                                        onMouseEnter={(e) =>
+                                                            (e.currentTarget.style.background = "#f5f5f5")
+                                                        }
+                                                        onMouseLeave={(e) =>
+                                                            (e.currentTarget.style.background = "transparent")
+                                                        }
+                                                    >
+                                                        My Properties
+                                                    </Link>
+                                                )}
+
+                                                <button
+                                                    onClick={handleLogout}
+                                                    style={{
+                                                        ...menuItemStyle,
+                                                        color: "#dc2626",
+                                                        width: "100%",
+                                                        textAlign: "left",
+                                                        border: "none",
+                                                        background: "transparent",
+                                                        cursor: "pointer",
+                                                    }}
+                                                    onMouseEnter={(e) =>
+                                                        (e.currentTarget.style.background = "#fef2f2")
+                                                    }
+                                                    onMouseLeave={(e) =>
+                                                        (e.currentTarget.style.background = "transparent")
+                                                    }
+                                                >
+                                                    Logout
+                                                </button>
                                             </div>
-
-                                            <Link
-                                                to={getDashboardRoute()}
-                                                className="dropdown-item py-2"
-                                            >
-                                                Dashboard
-                                            </Link>
-
-                                            <Link
-                                                to="/profile"
-                                                className="dropdown-item py-2"
-                                            >
-                                                My Profile
-                                            </Link>
-
-                                            {user.role === "owner" && (
-                                                <Link
-                                                    to="/my-properties"
-                                                    className="dropdown-item py-2"
-                                                >
-                                                    My Properties
-                                                </Link>
-                                            )}
-
-                                            {user.role === "staff" && (
-                                                <Link
-                                                    to="/staff"
-                                                    className="dropdown-item py-2"
-                                                >
-                                                    Staff Panel
-                                                </Link>
-                                            )}
-
-                                            {user.role === "admin" && (
-                                                <Link
-                                                    to="/admin"
-                                                    className="dropdown-item py-2"
-                                                >
-                                                    Admin Panel
-                                                </Link>
-                                            )}
-
-                                            <button
-                                                onClick={handleLogout}
-                                                className="dropdown-item text-danger py-2"
-                                            >
-                                                Logout
-                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -331,7 +383,6 @@ const Header = () => {
                     </div>
                 </div>
             </header>
-
             <div style={{ height: "68px" }} />
         </>
     );
