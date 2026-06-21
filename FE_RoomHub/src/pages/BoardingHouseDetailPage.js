@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import {
     ArrowLeft,
     BedDouble,
+    Clock,
     Droplets,
     Heart,
     Home,
@@ -26,6 +27,7 @@ import "./BoardingHouseDetailPage.css";
 import ReviewSection from "../components/ReviewSection";
 import MapSection from "../components/MapSection";
 import { toggleFavorite, getFavorites } from "../api/favorite";
+import { toggleWatchLater } from "../api/watchLater";
 import { useNavigate } from "react-router-dom";
 
 const formatCurrency = (value) => {
@@ -84,6 +86,7 @@ const BoardingHouseDetailPage = () => {
     const [error, setError] = useState("");
     const navigate = useNavigate();
     const [favorites, setFavorites] = useState([]);
+    const [isWatchLater, setIsWatchLater] = useState(false);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -183,6 +186,22 @@ const BoardingHouseDetailPage = () => {
         }
     };
 
+    const handleWatchLater = async () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        try {
+            const res = await toggleWatchLater(boardingHouseId);
+            setIsWatchLater(Boolean(res?.isWatchLater));
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     return (
         <>
             <Header />
@@ -271,6 +290,17 @@ const BoardingHouseDetailPage = () => {
                                                                 ? "red"
                                                                 : "none"
                                                         }
+                                                    />
+                                                </button>
+
+                                                <button
+                                                    onClick={handleWatchLater}
+                                                    className="btn p-0 border-0 bg-transparent"
+                                                >
+                                                    <Clock
+                                                        size={22}
+                                                        color={isWatchLater ? "#ff6b00" : "black"}
+                                                        fill={isWatchLater ? "#ff6b00" : "none"}
                                                     />
                                                 </button>
                                             </div>

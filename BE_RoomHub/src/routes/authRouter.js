@@ -7,7 +7,7 @@ import {
   // appointmentController,
   // reportController,
   ReviewController,
-  // watchLaterController,
+  watchLaterController,
   // depositController,
   // renewalController,
   // userPaymentController,
@@ -40,6 +40,9 @@ authRouter.get("/favorites", favoriteController.getFavorites);
 authRouter.get("/favorites/all", favoriteController.getAllFavorites);
 authRouter.post("/favorites", favoriteController.createFavorite);
 authRouter.delete("/favorites/:boardingHouseId", favoriteController.deleteFavorite);
+
+// Watch later
+authRouter.post("/watchlater", watchLaterController.createWatchLater);
 
 // profile
 authRouter.get("/profile", accountController.getProfile);
