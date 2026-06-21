@@ -48,6 +48,7 @@ authRouter.delete("/favorites/:boardingHouseId", favoriteController.deleteFavori
 // Watch later
 authRouter.get("/watchlater", watchLaterController.getWatchLater);
 authRouter.post("/watchlater", watchLaterController.createWatchLater);
+authRouter.delete("/watchlater/:boardingHouseId", watchLaterController.deleteWatchLater);
 
 // profile
 authRouter.get("/profile", accountController.getProfile);

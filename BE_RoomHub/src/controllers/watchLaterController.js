@@ -87,6 +87,33 @@ class watchLaterController {
       return res.status(500).json({ error: error.message });
     }
   }
+
+  async deleteWatchLater(req, res) {
+    try {
+      const account = await Account.findById(req.user.userId);
+      if (!account) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      const { boardingHouseId } = req.params;
+      if (!boardingHouseId) {
+        return res.status(400).json({ message: 'Missing boardingHouseId' });
+      }
+      const watchLater = await WatchLater.findOne({
+        accountId: account._id,
+        boardingHouseId,
+      });
+      if (!watchLater) {
+        return res.status(404).json({ message: 'Watch later not found' });
+      }
+      await WatchLater.deleteOne({ _id: watchLater._id });
+
+      return res
+        .status(200)
+        .json({ message: 'Deleted from watch later', isWatchLater: false });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
 }
 
 export default new watchLaterController();
