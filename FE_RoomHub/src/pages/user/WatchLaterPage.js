@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getWatchLater } from "../../api/watchLater";
-import { Clock, Star, MapPin, BedDouble } from "lucide-react";
+import { getWatchLater, deleteWatchLater } from "../../api/watchLater";
+import { Clock, Star, MapPin, BedDouble, X } from "lucide-react";
 import Footer from "../layout/homepage/footer";
 import Header from "../layout/homepage/header";
 
@@ -39,6 +39,21 @@ const WatchLaterPage = () => {
         ].filter(Boolean).join(", ");
     };
 
+    // REMOVE FROM WATCH LATER
+    const handleRemoveWatchLater = async (e, id) => {
+        e.stopPropagation();
+
+        try {
+            await deleteWatchLater(id);
+
+            setWatchLater(prev =>
+                prev.filter(item => (item.id || item._id) !== id)
+            );
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     return (
         <>
             <Header />
@@ -66,6 +81,28 @@ const WatchLaterPage = () => {
                                         navigate(`/boarding-houses/${id}`)
                                     }
                                 >
+                                    {/* REMOVE BUTTON */}
+                                    <button
+                                        onClick={(e) => handleRemoveWatchLater(e, id)}
+                                        style={{
+                                            position: "absolute",
+                                            top: 10,
+                                            right: 10,
+                                            zIndex: 10,
+                                            border: "none",
+                                            background: "rgba(255,255,255,0.9)",
+                                            borderRadius: "50%",
+                                            width: 32,
+                                            height: 32,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        <X size={16} color="#ff3b30" />
+                                    </button>
+
                                     {/* IMAGE */}
                                     <div style={{ height: "180px" }}>
                                         <img
