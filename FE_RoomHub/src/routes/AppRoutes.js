@@ -32,6 +32,7 @@ import CreateAppointmentPage from "../pages/user/CreateAppointmentPage";
 
 import ProtectedRoute from "./ProtectedRoute";
 import FavoritesPage from "../pages/user/FavoritesPage";
+import WatchLaterPage from "../pages/user/WatchLaterPage";
 
 const AppRoutes = () => {
   return (
@@ -91,6 +92,15 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <FavoritesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/watchlater"
+        element={
+          <ProtectedRoute>
+            <WatchLaterPage />
           </ProtectedRoute>
         }
       />
