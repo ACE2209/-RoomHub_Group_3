@@ -15,6 +15,7 @@ import {
   filterBoardingHouses,
   getBoardingHouses,
 } from "../../api/boardingHouse";
+import { getImageSource, setFallbackImage } from "../../api/config";
 
 const initialFilters = {
   name: "",
@@ -345,6 +346,7 @@ export default function BoardingHouseManagementPage() {
                       <img
                         src={getPrimaryImage(house)}
                         alt={house.name || "Boarding house"}
+                        onError={(event) => setFallbackImage(event, "/image/logo.png")}
                         style={thumbStyle}
                       />
                       <div style={houseInfoStyle}>
@@ -489,8 +491,7 @@ export default function BoardingHouseManagementPage() {
 }
 
 const getPrimaryImage = (house) => {
-  const primary = house.images?.find((image) => image.isPrimary);
-  return primary?.imageUrl || house.images?.[0]?.imageUrl || "/image/logo.png";
+  return getImageSource(house?.images || house?.image, "/image/logo.png");
 };
 
 const formatCurrency = (value) => {
