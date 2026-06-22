@@ -85,4 +85,3 @@ class RoomTypeController {
 }
 
 export default new RoomTypeController();
-

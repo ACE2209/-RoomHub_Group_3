@@ -4,9 +4,7 @@ import path from "path";
 var storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const path = "public/images";
-    if (file.fieldname === "avatar") {
-      cb(null, `${path}/avatars`);
-    } else if (file.fieldname === "product_image") {
+    if (file.fieldname === "product_image") {
       cb(null, `${path}/products`);
     } else if (file.fieldname === "product_variant_img") {
       cb(null, `${path}/productVariants`);

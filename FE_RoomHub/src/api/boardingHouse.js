@@ -1,22 +1,10 @@
-
-import API_URL, {
-  authHeaders,
-  parseJsonResponse,
-} from "./config";
-
-// ========================================
-// COMMON UTILS
-// ========================================
+import API_URL, { authHeaders, parseJsonResponse } from "./config";
 
 const buildQuery = (params = {}) => {
   const query = new URLSearchParams();
 
   Object.entries(params).forEach(([key, value]) => {
-    if (
-      value !== undefined &&
-      value !== null &&
-      value !== ""
-    ) {
+    if (value !== undefined && value !== null && value !== "") {
       query.append(key, value);
     }
   });
@@ -24,112 +12,125 @@ const buildQuery = (params = {}) => {
   return query.toString();
 };
 
-// ========================================
-// GUEST APIs
-// ========================================
-
-// View all boarding houses
-export const getAllBoardingHousesForGuest = async ({
-  page = 1,
-  limit = 10,
-} = {}) => {
+export const getBoardingHouses = async ({ page = 1, limit = 10 } = {}) => {
   const query = buildQuery({ page, limit });
-
-  const res = await fetch(
-    `${API_URL}/boardinghouse?${query}`
-  );
+  const res = await fetch(`${API_URL}/dashboard/boardinghouses?${query}`, {
+    headers: authHeaders(),
+  });
 
   return parseJsonResponse(res);
 };
 
-// View newest boarding houses
+export const getAllBoardingHousesForGuest = async ({ page = 1, limit = 10 } = {}) => {
+  const query = buildQuery({ page, limit });
+  const res = await fetch(`${API_URL}/boardinghouse?${query}`);
+
+  return parseJsonResponse(res);
+};
+
 export const getNewestBH = async () => {
-  const res = await fetch(
-    `${API_URL}/boardinghouse/newest`
-  );
+  const res = await fetch(`${API_URL}/boardinghouse/newest`);
 
   return parseJsonResponse(res);
 };
 
-// View high rating boarding houses
 export const getHighRatingBH = async () => {
-  const res = await fetch(
-    `${API_URL}/boardinghouse/highrating`
-  );
+  const res = await fetch(`${API_URL}/boardinghouse/highrating`);
 
   return parseJsonResponse(res);
 };
 
-// View boarding house detail
+// xem chi tiết nhà trọ 
 export const getBoardingHouseDetail = async (id) => {
-  const res = await fetch(
-    `${API_URL}/boardinghouse/${id}`
-  );
+  const res = await fetch(`${API_URL}/boardinghouse/${id}`);
 
   return parseJsonResponse(res);
 };
 
-// View room types by boarding house
 export const getRoomTypesByBoardingHouseForGuest = async (
   boardingHouseId,
   { page = 1, limit = 100 } = {}
 ) => {
   const query = buildQuery({ page, limit });
-
-  const res = await fetch(
-    `${API_URL}/boardinghouse/room-types/${boardingHouseId}?${query}`
-  );
+  const res = await fetch(`${API_URL}/boardinghouse/room-types/${boardingHouseId}?${query}`);
 
   return parseJsonResponse(res);
 };
 
-// ========================================
-// DASHBOARD APIs
-// ========================================
-
-// Get all boarding houses
-export const getBoardingHouses = async ({
-  page = 1,
-  limit = 10,
-} = {}) => {
-  const query = buildQuery({ page, limit });
-
-  const res = await fetch(
-    `${API_URL}/dashboard/boardinghouses?${query}`,
-    {
-      headers: authHeaders(),
-    }
-  );
-
-  return parseJsonResponse(res);
-};
-
-// Filter boarding houses
-export const filterBoardingHouses = async (
-  filters = {}
-) => {
+export const filterBoardingHouses = async (filters = {}) => {
   const query = buildQuery(filters);
-
-  const res = await fetch(
-    `${API_URL}/dashboard/boardinghouses/filter?${query}`,
-    {
-      headers: authHeaders(),
-    }
-  );
+  const res = await fetch(`${API_URL}/dashboard/boardinghouses/filter?${query}`, {
+    headers: authHeaders(),
+  });
 
   return parseJsonResponse(res);
 };
 
-// Delete boarding house
 export const deleteBoardingHouse = async (id) => {
-  const res = await fetch(
-    `${API_URL}/dashboard/boardinghouses/${id}`,
-    {
-      method: "DELETE",
-      headers: authHeaders(),
-    }
-  );
+  const res = await fetch(`${API_URL}/dashboard/boardinghouses/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
 
   return parseJsonResponse(res);
 };
 
+export const getBoardingHouseTypes = async () => {
+  const res = await fetch(`${API_URL}/staff/types`, {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const getOwnBoardingHouses = async ({ page = 1, limit = 10 } = {}) => {
+  const query = buildQuery({ page, limit });
+  const res = await fetch(`${API_URL}/staff/boardinghouses?${query}`, {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const getOwnBoardingHouseDetail = async (id) => {
+  const res = await fetch(`${API_URL}/staff/boardinghouses/${id}`, {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const createOwnBoardingHouse = async (data) => {
+  const res = await fetch(`${API_URL}/staff/boardinghouses`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: data,
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const updateOwnBoardingHouse = async (id, data) => {
+  const res = await fetch(`${API_URL}/staff/boardinghouses/${id}`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: data,
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const deleteOwnBoardingHouse = async (id) => {
+  const res = await fetch(`${API_URL}/staff/boardinghouses/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const getBoardingHouseReviews = async (id) => {
+  const res = await fetch(`${API_URL}/boardinghouse/${id}/reviews`);
+
+  return parseJsonResponse(res);
+};

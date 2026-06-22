@@ -138,7 +138,6 @@ const tours = [
 const filterLabels = ["Dưới 1 triệu", "1 - 2 triệu", "2 - 5 triệu", "Căn hộ", "Nhà trọ", "Quận 1", "Bình Thạnh", "Thủ Đức"];
 
 const HomePage = () => {
-    // ==================== States ====================
     const [boardingHouses, setBoardingHouses] = useState([]);
     const [pagination, setPagination] = useState({
         currentPage: 1,
@@ -156,7 +155,6 @@ const HomePage = () => {
     const [newestLoading, setNewestLoading] = useState(true);
     const [highRatingLoading, setHighRatingLoading] = useState(true);
 
-    // ==================== Fetch Functions ====================
     const fetchBoardingHouses = useCallback(async (page = 1) => {
         try {
             setLoading(true);
@@ -213,7 +211,6 @@ const HomePage = () => {
         }
     }, []);
 
-    // ==================== Filtered Houses ====================
     const filteredBoardingHouses = useMemo(() => {
         const keyword = searchValue.trim().toLowerCase();
         if (!keyword) return boardingHouses;
@@ -228,8 +225,6 @@ const HomePage = () => {
         });
     }, [boardingHouses, searchValue]);
 
-
-    // THÊM ĐOẠN NÀY
     const visiblePages = useMemo(() => {
         const totalPages = pagination.totalPages || 1;
         const currentPage = pagination.currentPage || 1;
@@ -246,8 +241,6 @@ const HomePage = () => {
         return pages;
     }, [pagination.currentPage, pagination.totalPages]);
 
-
-    // ==================== Effects ====================
     useEffect(() => {
         fetchBoardingHouses(1);
         fetchNewestHouses();
@@ -276,7 +269,6 @@ const HomePage = () => {
             <Header />
 
             <main className="guest-home">
-                {/* Hero Section */}
                 <section className="guest-hero">
                     <div className="container">
                         <div className="guest-hero__content">
@@ -296,8 +288,6 @@ const HomePage = () => {
                         </div>
                     </div>
                 </section>
-
-                {/* ALL BOARDING HOUSES - ĐƯA LÊN TRÊN */}
                 <section className="container guest-listing-section">
                     <div className="guest-section-header">
                         <div>
@@ -377,8 +367,6 @@ const HomePage = () => {
                         </div>
                     )}
                 </section>
-
-                {/* NEWEST BOARDING HOUSES */}
                 <section className="container guest-listing-section">
                     <div className="guest-section-header">
                         <div>
@@ -408,8 +396,6 @@ const HomePage = () => {
                         </div>
                     )}
                 </section>
-
-                {/* HIGH RATING BOARDING HOUSES */}
                 <section className="container guest-listing-section">
                     <div className="guest-section-header">
                         <div>

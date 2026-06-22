@@ -1,9 +1,12 @@
 import API_URL, { authHeaders, parseJsonResponse } from "./config";
 
-export const getMyAppointments = async () => {
-  const res = await fetch(`${API_URL}/appointments/my`, {
-    headers: authHeaders(),
-  });
+export const getMyAppointments = async (page = 1, limit = 10) => {
+  const res = await fetch(
+    `${API_URL}/appointments/my?page=${page}&limit=${limit}`,
+    {
+      headers: authHeaders(),
+    }
+  );
 
   return parseJsonResponse(res);
 };

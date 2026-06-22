@@ -24,6 +24,10 @@ import Footer from "./layout/homepage/footer";
 import Header from "./layout/homepage/header";
 import "./BoardingHouseDetailPage.css";
 import { getImageSource, setFallbackImage } from "../api/config";
+import ReviewSection from "../components/ReviewSection";
+import MapSection from "../components/MapSection";
+import { toggleFavorite, getFavorites } from "../api/favorite";
+import { useNavigate } from "react-router-dom";
 
 const formatCurrency = (value) => {
     const numberValue = Number(value);
@@ -85,6 +89,8 @@ const BoardingHouseDetailPage = () => {
     const [roomTypesLoading, setRoomTypesLoading] = useState(false);
     const [roomTypesError, setRoomTypesError] = useState("");
     const [error, setError] = useState("");
+    const navigate = useNavigate();
+    const [favorites, setFavorites] = useState([]);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -163,6 +169,45 @@ const BoardingHouseDetailPage = () => {
                 roomTypeName: roomType.typeName,
             },
         });
+    useEffect(() => {
+        const loadFavorites = async () => {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            try {
+                const res = await getFavorites();
+                if (res?.favorites) {
+                    setFavorites(res.favorites.map(f => f.id));
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        loadFavorites();
+    }, []);
+
+    const handleFavorite = async () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        try {
+            const res = await toggleFavorite(boardingHouseId);
+
+            if (res.isFavorite) {
+                setFavorites(prev => [...prev, boardingHouseId]);
+            } else {
+                setFavorites(prev =>
+                    prev.filter(id => id !== boardingHouseId)
+                );
+            }
+        } catch (err) {
+            console.error(err);
+        }
     };
 
     return (
@@ -219,6 +264,13 @@ const BoardingHouseDetailPage = () => {
                                                         src={getImageSource(image)}
                                                         alt={boardingHouse.name || "Boarding house thumbnail"}
                                                         onError={setFallbackImage}
+                                                    key={image._id || image.imageUrl}
+                                                    className={image.imageUrl === selectedImage ? "active" : ""}
+                                                    onClick={() => setSelectedImage(image.imageUrl)}
+                                                >
+                                                    <img
+                                                        src={image.imageUrl}
+                                                        alt={boardingHouse.name || "Boarding house thumbnail"}
                                                     />
                                                 </button>
                                             ))}
@@ -236,6 +288,32 @@ const BoardingHouseDetailPage = () => {
                                                 <Star size={17} fill="currentColor" />
                                                 {boardingHouse.rating ?? "N/A"}
                                             </span>
+
+                                            <div className="d-flex align-items-center gap-2">
+                                                <span className="detail-rating">
+                                                    <Star size={17} fill="currentColor" />
+                                                    {boardingHouse.rating ?? "N/A"}
+                                                </span>
+
+                                                <button
+                                                    onClick={handleFavorite}
+                                                    className="btn p-0 border-0 bg-transparent"
+                                                >
+                                                    <Heart
+                                                        size={22}
+                                                        color={
+                                                            favorites.includes(boardingHouseId)
+                                                                ? "red"
+                                                                : "black"
+                                                        }
+                                                        fill={
+                                                            favorites.includes(boardingHouseId)
+                                                                ? "red"
+                                                                : "none"
+                                                        }
+                                                    />
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <p className="detail-address">
@@ -246,6 +324,24 @@ const BoardingHouseDetailPage = () => {
                                         <div className="detail-price">{formatCurrency(boardingHouse.priceRange)}</div>
 
                                         <div className="detail-stats">
+                                            <div>
+                                                <BedDouble size={20} />
+                                                <span>Available rooms</span>
+                                                <strong>
+                                                    {boardingHouse.availableRooms ?? 0}/{boardingHouse.totalRooms ?? 0}
+                                                </strong>
+                                            </div>
+                                            <div>
+                                                <Zap size={20} />
+                                                <span>Electricity</span>
+                                                <strong>{formatCurrency(boardingHouse.electricityPrice)}</strong>
+                                            </div>
+                                            <div>
+                                                <Droplets size={20} />
+                                                <span>Water</span>
+                                                <strong>{formatCurrency(boardingHouse.waterPrice)}</strong>
+                                            </div>
+                                            <div>
                                             <div>
                                                 <BedDouble size={20} />
                                                 <span>Available rooms</span>
@@ -301,6 +397,14 @@ const BoardingHouseDetailPage = () => {
                                         </section>
                                     </div>
                                 </div>
+                                {/* bảng máp */}
+                                <MapSection
+                                    latitude={boardingHouse?.location?.lat}
+                                    longitude={boardingHouse?.location?.lon}
+                                    address={formatAddress(boardingHouse?.address)}
+                                />
+                                {/* bảng đánh giá */}
+                                <ReviewSection boardingHouseId={boardingHouseId} />
 
                             </>
                         )}

@@ -2,12 +2,12 @@ import authController from './authController.js';
 import accountController from './accountController.js';
 import reportController from './reportController.js';
 
-// import favoriteController from './favoriteController.js';
+import favoriteController from './favoriteController.js';
 import ReviewController from './reviewController.js';
 // import withdrawalRequestsController from './withdrawalRequestsController.js';
 import boardingHouseController from './BoardingHouseController.js';
-// import appointmentController from './appointmentController.js';
-// import roomController from './roomController.js';
+import appointmentController from './appointmentController.js';
+import roomController from './roomController.js';
 // import watchLaterController from './watchLaterController.js';
 // import depositController from './depositController.js';
 // import FacilitiesController from './facilitiesController.js';
@@ -30,9 +30,9 @@ export {
   // withdrawalRequestsController,
   boardingHouseController,
   ReviewController,
-  // favoriteController,
-  // appointmentController,
-  // roomController,
+  favoriteController,
+  appointmentController,
+  roomController,
   // watchLaterController,
   // depositController,
   // FacilitiesController,

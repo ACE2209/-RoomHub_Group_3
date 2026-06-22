@@ -1,265 +1,311 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";import Header from "../layout/homepage/header";
+import ProfileSidebar from "../profile/ProfileSidebar";
+import { getProfileAPI } from "../../api/accountAPI";
 import { cancelAppointment, getMyAppointments } from "../../api/appointment";
 
 export default function AppointmentPage() {
+  const [user, setUser] = useState(null);
   const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState(null);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const loadAppointments = useCallback(async () => {
+  try {
+    setLoading(true);
+    const profileRes = await getProfileAPI();
+    const appointmentRes = await getMyAppointments(page, 8);
 
-  useEffect(() => {
-    fetchAppointments();
-  }, []);
+    setUser(profileRes?.data || profileRes);
 
-  const fetchAppointments = async () => {
-    try {
-      setLoading(true);
-      const res = await getMyAppointments();
-      setAppointments(Array.isArray(res?.data) ? res.data : []);
-    } catch (error) {
-      console.error("Get appointments failed:", error);
-      setAppointments([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const sortedAppointments = [...(appointmentRes?.data || [])].sort(
+      (a, b) => {
+        if (a.status === "pending" && b.status !== "pending") return -1;
+        if (a.status !== "pending" && b.status === "pending") return 1;
 
-  const handleCancel = async (appointmentId) => {
-    const reasonForCancel = window.prompt("Enter cancel reason:");
-
-    if (reasonForCancel === null) return;
-
-    const confirmCancel = window.confirm(
-      "Are you sure you want to cancel this appointment?"
+        return new Date(b.appointmentDate) - new Date(a.appointmentDate);
+      }
     );
 
-    if (!confirmCancel) return;
+    setAppointments(sortedAppointments);
+    setPagination(appointmentRes?.pagination || null);
+  } catch (error) {
+    console.error("Get appointments failed:", error);
+    setAppointments([]);
+  } finally {
+    setLoading(false);
+  }
+}, [page]);
+
+useEffect(() => {
+  loadAppointments();
+}, [loadAppointments]);
+
+  const handleCancel = async (id) => {
+    const reason = window.prompt("Enter cancel reason:");
+    if (reason === null) return;
+
+    if (!window.confirm("Cancel this appointment?")) return;
 
     try {
-      const res = await cancelAppointment(appointmentId, {
-        reasonForCancel: reasonForCancel || "Canceled by user",
+      const res = await cancelAppointment(id, {
+        reasonForCancel: reason.trim() || "Canceled by user",
       });
 
       if (res?.success) {
-        alert("Appointment canceled successfully");
-        fetchAppointments();
+        alert("Appointment canceled");
+        loadAppointments();
       } else {
         alert(res?.message || "Cancel failed");
       }
     } catch (error) {
-      console.error("Cancel appointment failed:", error);
       alert(error.message || "Cancel failed");
     }
   };
 
   const formatDate = (date) => {
     if (!date) return "N/A";
-
-    return new Date(date).toLocaleString("en-GB", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
+    return new Date(date).toLocaleString();
   };
 
   return (
-    <div style={pageStyle}>
-      <div style={topStyle}>
-        <h2 style={titleStyle}>My Appointments</h2>
-      </div>
+    <>
+      <Header />
 
-      {loading ? (
-        <div style={emptyStyle}>Loading appointments...</div>
-      ) : appointments.length > 0 ? (
-        <div style={gridStyle}>
-          {appointments.map((item) => (
-            <div key={item._id} style={cardStyle}>
-              <div style={cardHeaderStyle}>
-                <span style={getStatusStyle(item.status)}>
-                  {item.status || "pending"}
-                </span>
+      <div style={styles.page}>
+        <div style={styles.wrapper}>
+          <ProfileSidebar user={user} />
 
-                <span style={dateStyle}>
-                  {formatDate(item.appointmentDate)}
-                </span>
+          <main style={styles.content}>
+            <div style={styles.header}>
+              <div>
+                <h2 style={styles.title}>My Appointments</h2>
+                <p style={styles.desc}>Manage your room viewing requests.</p>
               </div>
 
-              <div style={sectionStyle}>
-                <div style={labelStyle}>Owner</div>
-                <div style={valueStyle}>{item.ownerName || "N/A"}</div>
+              <div style={styles.total}>
+                {pagination?.totalItems || appointments.length} total
               </div>
-
-              <div style={sectionStyle}>
-                <div style={labelStyle}>Boarding House</div>
-                <div style={valueStyle}>
-                  {item.boardingHouseName || "N/A"}
-                </div>
-              </div>
-
-              <div style={sectionStyle}>
-                <div style={labelStyle}>Room Number</div>
-                <div style={valueStyle}>
-                  #{item.roomNumber || "N/A"}
-                </div>
-              </div>
-
-              {item.note && (
-                <div style={noteStyle}>
-                  <div style={labelStyle}>Note</div>
-                  <div style={textStyle}>{item.note}</div>
-                </div>
-              )}
-
-              {item.reasonForCancel && (
-                <div style={reasonStyle}>
-                  <div style={labelStyle}>Reason for Cancel</div>
-                  <div style={textStyle}>{item.reasonForCancel}</div>
-                </div>
-              )}
-
-              {item.status === "pending" && (
-                <button
-                  type="button"
-                  style={cancelBtnStyle}
-                  onClick={() => handleCancel(item._id)}
-                >
-                  Cancel Appointment
-                </button>
-              )}
             </div>
-          ))}
+
+            {loading ? (
+              <div style={styles.empty}>Loading...</div>
+            ) : appointments.length === 0 ? (
+              <div style={styles.empty}>No appointments found.</div>
+            ) : (
+              <>
+                {appointments.map((item, index) => (
+                  <div key={item._id} style={styles.card}>
+                    <div style={styles.cardHeader}>
+                      <div>
+<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+  <h3 style={styles.room}>
+    Room {item.roomNumber || "N/A"}
+  </h3>
+
+  {index === 0 && item.status === "pending" && (
+    <span style={styles.badge}>
+      Upcoming
+    </span>
+  )}
+</div>                        <p style={styles.house}>
+                          {item.boardingHouseName || "No boarding house"}
+                        </p>
+                      </div>
+
+                      <span style={getStatusStyle(item.status)}>
+                        {item.status || "pending"}
+                      </span>
+                    </div>
+
+                    <div style={styles.info}>
+                      <p>
+                        <b>Date:</b> {formatDate(item.appointmentDate)}
+                      </p>
+                      <p>
+                        <b>Owner:</b> {item.ownerName || "N/A"}
+                      </p>
+                      {item.note && (
+                        <p>
+                          <b>Note:</b> {item.note}
+                        </p>
+                      )}
+                      {item.status === "canceled" && (
+                        <p>
+                          <b>Cancel reason:</b>{" "}
+                          {item.reasonForCancel || "No reason"}
+                        </p>
+                      )}
+                    </div>
+
+                    {item.status === "pending" && (
+                      <button
+                        style={styles.cancelBtn}
+                        onClick={() => handleCancel(item._id)}
+                      >
+                        Cancel Appointment
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                <div style={styles.pagination}>
+                  <button
+                    style={styles.pageBtn}
+                    disabled={!pagination?.hasPrevPage}
+                    onClick={() => setPage(page - 1)}
+                  >
+                    Previous
+                  </button>
+
+                  <span>
+                    Page {pagination?.currentPage || page} /{" "}
+                    {pagination?.totalPages || 1}
+                  </span>
+
+                  <button
+                    style={styles.pageBtn}
+                    disabled={!pagination?.hasNextPage}
+                    onClick={() => setPage(page + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              </>
+            )}
+          </main>
         </div>
-      ) : (
-        <div style={emptyStyle}>No appointment data found</div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
 
-const pageStyle = {
-  padding: "40px",
-  background: "#f8fafc",
-  minHeight: "100vh",
-};
-
-const topStyle = {
-  marginBottom: "28px",
-};
-
-const titleStyle = {
-  fontSize: "28px",
-  fontWeight: "700",
-  color: "#27364a",
-};
-
-const gridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))",
-  gap: "22px",
-};
-
-const cardStyle = {
-  background: "white",
-  borderRadius: "16px",
-  padding: "22px",
-  boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
-  border: "1px solid #e5e7eb",
-};
-
-const cardHeaderStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: "20px",
-  gap: "10px",
-};
-
-const dateStyle = {
-  background: "#f3f4f6",
-  color: "#344054",
-  padding: "8px 12px",
-  borderRadius: "8px",
-  fontSize: "14px",
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#f5f6f8",
+    padding: "32px 0",
+  },
+  wrapper: {
+    width: "1080px",
+    margin: "0 auto",
+    display: "flex",
+    gap: "20px",
+    alignItems: "flex-start",
+  },
+  content: {
+    flex: 1,
+    background: "#fff",
+    borderRadius: "14px",
+    padding: "26px",
+    boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "22px",
+  },
+  title: {
+    margin: "0 0 6px",
+    fontSize: "26px",
+    color: "#1f2937",
+  },
+  desc: {
+    margin: 0,
+    color: "#667085",
+  },
+  total: {
+    background: "#fff7ed",
+    color: "#ff5a00",
+    border: "1px solid #fed7aa",
+    borderRadius: "20px",
+    padding: "8px 14px",
+    height: "fit-content",
+    fontWeight: "600",
+  },
+  card: {
+    border: "1px solid #e5e7eb",
+    borderRadius: "12px",
+    padding: "18px",
+    marginBottom: "14px",
+  },
+  cardHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "12px",
+  },
+  room: {
+    margin: 0,
+    fontSize: "18px",
+    color: "#111827",
+  },
+  house: {
+    margin: "4px 0 0",
+    color: "#667085",
+  },
+  info: {
+    background: "#f9fafb",
+    borderRadius: "10px",
+    padding: "12px 14px",
+    color: "#344054",
+    fontSize: "14px",
+  },
+  cancelBtn: {
+    marginTop: "12px",
+    background: "#ff5a00",
+    color: "#fff",
+    border: "none",
+    borderRadius: "8px",
+    padding: "9px 14px",
+    cursor: "pointer",
+    fontWeight: "600",
+  },
+  empty: {
+    padding: "40px",
+    textAlign: "center",
+    background: "#f9fafb",
+    color: "#667085",
+    borderRadius: "10px",
+  },
+  pagination: {
+    marginTop: "18px",
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "12px",
+    alignItems: "center",
+  },
+  pageBtn: {
+    padding: "8px 12px",
+    border: "1px solid #d0d5dd",
+    background: "#fff",
+    borderRadius: "7px",
+    cursor: "pointer",
+  },
+  badge: {
+  background: "#ff5a00",
+  color: "#fff",
+  fontSize: "12px",
+  padding: "4px 8px",
+  borderRadius: "12px",
   fontWeight: "600",
+},
 };
 
-const sectionStyle = {
-  background: "#f8fafc",
-  borderRadius: "12px",
-  padding: "14px",
-  marginBottom: "12px",
-};
-
-const noteStyle = {
-  background: "#fff7e6",
-  borderRadius: "12px",
-  padding: "14px",
-  marginBottom: "12px",
-};
-
-const reasonStyle = {
-  background: "#fff1f3",
-  borderRadius: "12px",
-  padding: "14px",
-  marginBottom: "12px",
-};
-
-const labelStyle = {
+const getStatusStyle = (status) => ({
+  background:
+    status === "pending"
+      ? "#fff7ed"
+      : status === "canceled"
+      ? "#fff1f2"
+      : "#ecfdf3",
+  color:
+    status === "pending"
+      ? "#ff5a00"
+      : status === "canceled"
+      ? "#be123c"
+      : "#027a48",
+  borderRadius: "20px",
+  padding: "6px 12px",
   fontSize: "13px",
   fontWeight: "700",
-  color: "#667085",
-  textTransform: "uppercase",
-  marginBottom: "6px",
-};
-
-const valueStyle = {
-  fontSize: "17px",
-  fontWeight: "700",
-  color: "#111827",
-};
-
-const textStyle = {
-  color: "#344054",
-  lineHeight: "1.5",
-};
-
-const cancelBtnStyle = {
-  width: "100%",
-  background: "#d92d20",
-  color: "white",
-  border: "none",
-  padding: "12px",
-  borderRadius: "10px",
-  fontWeight: "700",
-  cursor: "pointer",
-  marginTop: "8px",
-};
-
-const emptyStyle = {
-  background: "white",
-  padding: "40px",
-  textAlign: "center",
-  borderRadius: "12px",
-  color: "#667085",
-};
-
-const getStatusStyle = (status) => {
-  const base = {
-    color: "white",
-    padding: "8px 14px",
-    borderRadius: "20px",
-    fontWeight: "700",
-    textTransform: "capitalize",
-    fontSize: "14px",
-  };
-
-  switch (status) {
-    case "accepted":
-      return { ...base, background: "#2563eb" };
-    case "rejected":
-      return { ...base, background: "#d92d20" };
-    case "canceled":
-      return { ...base, background: "#dc2626" };
-    case "completed":
-      return { ...base, background: "#16a34a" };
-    default:
-      return { ...base, background: "#f59e0b" };
-  }
-};
+  textTransform: "capitalize",
+});

@@ -1,18 +1,21 @@
+```js
 import { Router } from "express";
 import {
   authController,
   boardingHouseController,
   roomTypeController,
+  appointmentController,
   ReviewController,
+  reportController,
 } from "../controllers/index.js";
-import appointmentController from "../controllers/appointmentController.js";
+
 import roomController from "../controllers/roomController.js";
 import { authMiddleware } from "../middlewares/index.js";
 
 const commonRouter = Router();
 
 /* =========================
-   AUTH
+   AUTHENTICATION
 ========================= */
 
 commonRouter.post("/login", authController.login);
@@ -20,6 +23,16 @@ commonRouter.post("/forgot-password", authController.forgotPassword);
 commonRouter.post("/reset-password", authController.resetPassword);
 commonRouter.post("/send-otp-register", authController.sendOTPRegister);
 commonRouter.post("/verify-register", authController.verifyRegister);
+
+/* =========================
+   REPORT
+========================= */
+
+commonRouter.post(
+  "/reports",
+  authMiddleware,
+  reportController.createReport
+);
 
 /* =========================
    BOARDING HOUSE
@@ -41,13 +54,27 @@ commonRouter.get(
 );
 
 commonRouter.get(
+  "/boardinghouse/:id",
+  boardingHouseController.getBoardingHouseDetailInUser
+);
+
+commonRouter.get(
   "/boardinghouse/room-types/:id",
   roomTypeController.getRoomTypeByBhId
 );
 
+/* =========================
+   REVIEW
+========================= */
+
 commonRouter.get(
-  "/boardinghouse/:id",
-  boardingHouseController.getBoardingHouseDetailInUser
+  "/boardinghouse/:boardingHouseId/reviews",
+  ReviewController.getReviewsByBoardingHouse
+);
+
+commonRouter.get(
+  "/boardinghouse/reviews/:id",
+  ReviewController.getReviewByBhId
 );
 
 /* =========================
@@ -59,24 +86,17 @@ commonRouter.post(
   authMiddleware,
   appointmentController.createAppointment
 );
+
 commonRouter.get(
   "/appointments/my",
   authMiddleware,
   appointmentController.getAppointmentByUserId
 );
+
 commonRouter.patch(
   "/appointments/:appointmentId/cancel",
   authMiddleware,
   appointmentController.cancelAppointment
-);
-
-/* =========================
-   REVIEW
-========================= */
-
-commonRouter.get(
-  "/boardinghouse/reviews/:id",
-  ReviewController.getReviewByBhId
 );
 
 /* =========================
@@ -94,3 +114,4 @@ commonRouter.get(
 );
 
 export { commonRouter };
+```

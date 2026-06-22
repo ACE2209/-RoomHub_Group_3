@@ -194,7 +194,7 @@ const ReportManagementPage = () => {
                   <td style={tdStyle}>{i + 1}</td>
                   <td style={tdStyle}>{report.reporter?.fullname || 'N/A'}</td>
                   <td style={tdStyle}>{report.reason || 'N/A'}</td>
-                  <td style={tdStyle}>{report.reportType === 'review' ? 'Review' : 'Room'}</td>
+                  <td style={tdStyle}>{formatReportType(report.reportType)}</td>
                   <td style={tdStyle}>
                     <span style={statusBadgeStyle(report.status)}>{report.status}</span>
                   </td>
@@ -233,7 +233,7 @@ const ReportManagementPage = () => {
                 <strong>Reason:</strong> {selectedReport.reason}
               </p>
               <p style={{ margin: '8px 0', color: '#374151', fontSize: 13 }}>
-                <strong>Type:</strong> {selectedReport.reportType === 'review' ? 'Review' : 'Room'}
+                <strong>Type:</strong> {formatReportType(selectedReport.reportType)}
               </p>
               <p style={{ margin: '8px 0', color: '#374151', fontSize: 13 }}>
                 <strong>Status:</strong> <span style={statusBadgeStyle(selectedReport.status)}>{selectedReport.status}</span>
@@ -297,3 +297,10 @@ const ReportManagementPage = () => {
 };
 
 export default ReportManagementPage;
+
+const formatReportType = (type) => {
+  if (type === 'review') return 'Review';
+  if (type === 'boardingHouse') return 'Boarding House';
+  if (type === 'room') return 'Room';
+  return 'N/A';
+};

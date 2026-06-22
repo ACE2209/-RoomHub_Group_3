@@ -1,13 +1,36 @@
 import Report from '../models/report.js';
 import Review from '../models/review.js';
+import BoardingHouse from '../models/boardingHouse.js';
 import { Account } from '../models/account.js';
 import nodemailer from 'nodemailer';
+import paginate from '../utils/pagination.js';
+import mongoose from 'mongoose';
+
+const ACTIVE_REPORT_STATUSES = ['pending', 'processing'];
+const VALID_REPORT_STATUSES = ['pending', 'processing', 'resolved', 'rejected'];
+const VALID_REPORT_REASONS = [
+  'Spam',
+  'Misleading information',
+  'Privacy violation',
+  'Inappropriate content',
+  'Offensive language',
+  'Other',
+];
+
+const reportTypeRefMap = {
+  review: 'Review',
+  boardingHouse: 'BoardingHouse',
+};
 
 class reportController {
   async createReport(req, res) {
     try {
-      const { reportType, targetId, reason, details, images = [] } = req.body;
+      const { reportType, targetId, reason, details } = req.body;
       const reporter = req.user.userId;
+      const images = (req.files || []).map((file) => ({
+        imageUrl: file.path,
+        publicId: file.filename || file.public_id || '',
+      }));
 
       if (!reportType || !targetId || !reason || !details) {
         return res.status(400).json({
@@ -16,10 +39,41 @@ class reportController {
         });
       }
 
+      if (!reportTypeRefMap[reportType]) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid or unsupported report type',
+        });
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(targetId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid report target',
+        });
+      }
+
+      if (!VALID_REPORT_REASONS.includes(reason)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid report reason',
+        });
+      }
+
+      const target = await this.resolveReportTarget({ reportType, targetId });
+      if (!target) {
+        return res.status(404).json({
+          success: false,
+          message: 'Report target not found',
+        });
+      }
+
       const existingReport = await Report.findOne({
         reporter,
+        reportType,
         targetId,
-        status: 'pending',
+        status: { $in: ACTIVE_REPORT_STATUSES },
+        deleted: { $ne: true },
       });
 
       if (existingReport) {
@@ -29,7 +83,7 @@ class reportController {
         });
       }
 
-      const reportTypeRef = reportType === 'boardingHouse' ? 'BoardingHouse' : 'Review';
+      const reportTypeRef = reportTypeRefMap[reportType];
 
       const newReport = new Report({
         reportType,
@@ -157,6 +211,154 @@ class reportController {
     }
   }
 
+  async getOwnReports(req, res) {
+    try {
+      const reporter = req.user.userId;
+      req.query.page = req.query.page || '1';
+      req.query.limit = req.query.limit || '10';
+
+      const result = await paginate(
+        Report,
+        {
+          defaultPage: 1,
+          defaultLimit: 10,
+          sortField: 'createdAt',
+          filter: {
+            reporter,
+            deleted: { $ne: true },
+          },
+          populate: [
+            { path: 'reporter', select: 'fullname email avatarImage' },
+            { path: 'processedBy', select: 'fullname' },
+          ],
+        },
+        req
+      );
+
+      const data = await Promise.all(
+        result.data.map(async (report) => {
+          const target = await this.resolveReportTarget(report);
+          return {
+            ...report,
+            target,
+            targetName: target?.name || target?.content || target?.accountId?.fullname || 'N/A',
+          };
+        })
+      );
+
+      return res.status(200).json({
+        ...result,
+        data,
+      });
+    } catch (error) {
+      console.error('Error fetching own reports:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Error fetching own reports',
+      });
+    }
+  }
+
+  async getOwnReportDetail(req, res) {
+    try {
+      const { reportId } = req.params;
+
+      const report = await Report.findOne({
+        _id: reportId,
+        reporter: req.user.userId,
+        deleted: { $ne: true },
+      })
+        .populate('reporter', 'fullname email avatarImage')
+        .populate('processedBy', 'fullname')
+        .lean();
+
+      if (!report) {
+        return res.status(404).json({
+          success: false,
+          message: 'Report not found',
+        });
+      }
+
+      const target = await this.resolveReportTarget(report);
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...report,
+          target,
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching own report detail:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Error fetching own report detail',
+      });
+    }
+  }
+
+  async checkReportExist(req, res) {
+    try {
+      const { reviewIds, boardingHouseId } = req.query;
+      const reporter = req.user.userId;
+      const ids = Array.isArray(reviewIds)
+        ? reviewIds
+        : String(reviewIds || '')
+            .split(',')
+            .filter(Boolean);
+
+      const reportedReviews = ids.length
+        ? await Report.find({
+            reporter,
+            reportType: 'review',
+            targetId: { $in: ids },
+            status: { $in: ACTIVE_REPORT_STATUSES },
+            deleted: { $ne: true },
+          }).distinct('targetId')
+        : [];
+
+      const boardingHouseReport = boardingHouseId
+        ? await Report.exists({
+            reporter,
+            reportType: 'boardingHouse',
+            targetId: boardingHouseId,
+            status: { $in: ACTIVE_REPORT_STATUSES },
+            deleted: { $ne: true },
+          })
+        : null;
+
+      return res.status(200).json({
+        success: true,
+        reportedReviews: reportedReviews.map(String),
+        reportedBoardingHouse: Boolean(boardingHouseReport),
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Error checking report status',
+      });
+    }
+  }
+
+  async resolveReportTarget(report) {
+    if (!report?.targetId) return null;
+
+    if (report.reportType === 'review') {
+      return Review.findOne({ _id: report.targetId }, null, { withDeleted: true })
+        .populate('accountId', 'fullname email avatarImage')
+        .lean();
+    }
+
+    if (report.reportType === 'boardingHouse') {
+      return BoardingHouse.findOne({ _id: report.targetId }, null, { withDeleted: true })
+        .populate('boardingHouseType', 'name codeName')
+        .populate('ownerId', 'fullname email')
+        .lean();
+    }
+
+    return null;
+  }
+
   async sendReportReplyByEmail(req, res) {
     try {
       const { reportId } = req.params;
@@ -166,6 +368,13 @@ class reportController {
         return res.status(400).json({
           success: false,
           message: 'Status and detail report are required',
+        });
+      }
+
+      if (!VALID_REPORT_STATUSES.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid report status',
         });
       }
 
@@ -214,7 +423,12 @@ class reportController {
         : 'Admin';
 
       await Report.updateMany(
-        { targetId: report.targetId, reason: report.reason },
+        {
+          targetId: report.targetId,
+          reportType: report.reportType,
+          reason: report.reason,
+          deleted: { $ne: true },
+        },
         { $set: { status, detailReport, processedBy: report.processedBy } }
       );
 
@@ -322,17 +536,9 @@ class reportController {
   try {
     const { startDate, endDate, reason, status } = req.query;
 
-    const validReasons = [
-      "Spam",
-      "Misleading information",
-      "Privacy violation",
-      "Inappropriate content",
-    ];
-
-    const validStatuses = ["pending", "processed", "rejected"];
-
     const filter = {
       reportType: { $regex: /^review$/i },
+      deleted: { $ne: true },
     };
 
     const today = new Date();
@@ -378,7 +584,7 @@ class reportController {
     if (status) {
       const normalizedStatus = status.trim().toLowerCase();
 
-      const matchedStatus = validStatuses.find(
+      const matchedStatus = VALID_REPORT_STATUSES.find(
         (item) => item.toLowerCase() === normalizedStatus
       );
 
@@ -392,7 +598,7 @@ class reportController {
     if (reason) {
       const normalizedReason = reason.trim().toLowerCase();
 
-      const matchedReason = validReasons.find(
+      const matchedReason = VALID_REPORT_REASONS.find(
         (item) => item.toLowerCase() === normalizedReason
       );
 
