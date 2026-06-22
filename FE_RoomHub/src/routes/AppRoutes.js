@@ -1,4 +1,3 @@
-
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import HomePage from "../pages/HomePage";
@@ -18,14 +17,17 @@ import AccountManagementPage from "../pages/admin/AccountManagementPage";
 import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
 
+import BoardingHouseDetailPage from "../pages/BoardingHouseDetailPage";
+import RoomDetailPage from "../pages/RoomDetailPage";
+import RoomTypeRoomsPage from "../pages/RoomTypeRoomsPage";
+
 import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
 import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
 import BoardingHouseReportManagementPage from "../pages/admin/ReportManagement/BoardingHouseReportManagementPage";
 
-import BoardingHouseDetail from "../pages/boardingHouse/BoardingHouseDetail";
-
 import AppointmentPage from "../pages/user/AppointmentPage";
 import CreateAppointmentPage from "../pages/user/CreateAppointmentPage";
+import CreateDepositPage from "../pages/user/CreateDepositPage";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -51,7 +53,17 @@ const AppRoutes = () => {
       {/* Boarding House Detail */}
       <Route
         path="/boarding-houses/:boardingHouseId"
-        element={<BoardingHouseDetail />}
+        element={<BoardingHouseDetailPage />}
+      />
+
+      <Route
+        path="/room-types/:roomTypeId/rooms"
+        element={<RoomTypeRoomsPage />}
+      />
+
+      <Route
+        path="/rooms/:roomId"
+        element={<RoomDetailPage />}
       />
 
       {/* User Routes */}
@@ -87,6 +99,15 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <CreateAppointmentPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/deposits/create/:roomId"
+        element={
+          <ProtectedRoute>
+            <CreateDepositPage />
           </ProtectedRoute>
         }
       />

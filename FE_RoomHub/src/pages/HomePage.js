@@ -16,6 +16,7 @@ import {
     getNewestBH,
     getHighRatingBH
 } from "../api/boardingHouse";
+import { getImageSource, setFallbackImage } from "../api/config";
 
 import Footer from "./layout/homepage/footer";
 import Header from "./layout/homepage/header";
@@ -45,12 +46,7 @@ const formatAddress = (address) => {
 };
 
 const getPrimaryImage = (house) => {
-    const primaryImage = house.images?.find((image) => image.isPrimary);
-    return (
-        primaryImage?.imageUrl ||
-        house.images?.[0]?.imageUrl ||
-        "/image/logoconen.png"
-    );
+    return getImageSource(house?.images || house?.image);
 };
 
 // Component Card
@@ -60,6 +56,7 @@ const BoardingHouseCard = ({ house }) => (
             <img
                 src={getPrimaryImage(house)}
                 alt={house.name || "Boarding house"}
+                onError={setFallbackImage}
             />
             <span className="guest-card__type">
                 {house.boardingHouseType?.name || "Boarding house"}

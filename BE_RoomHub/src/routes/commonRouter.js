@@ -3,7 +3,11 @@ import {
   authController,
   boardingHouseController,
   roomTypeController,
+  ReviewController,
 } from "../controllers/index.js";
+import appointmentController from "../controllers/appointmentController.js";
+import roomController from "../controllers/roomController.js";
+import { authMiddleware } from "../middlewares/index.js";
 
 const commonRouter = Router();
 
@@ -21,34 +25,72 @@ commonRouter.post("/verify-register", authController.verifyRegister);
    BOARDING HOUSE
 ========================= */
 
-// View all boarding houses
 commonRouter.get(
   "/boardinghouse",
   boardingHouseController.getAllBoardingHousesForGuest
 );
 
-// View high rating boarding houses
 commonRouter.get(
   "/boardinghouse/highrating",
   boardingHouseController.getHighRatingBH
 );
 
-// View newest boarding houses
 commonRouter.get(
   "/boardinghouse/newest",
   boardingHouseController.getNewestBH
 );
 
-// View room types by boarding house
 commonRouter.get(
   "/boardinghouse/room-types/:id",
   roomTypeController.getRoomTypeByBhId
 );
 
-// View boarding house detail
 commonRouter.get(
   "/boardinghouse/:id",
   boardingHouseController.getBoardingHouseDetailInUser
+);
+
+/* =========================
+   APPOINTMENT
+========================= */
+
+commonRouter.post(
+  "/appointments",
+  authMiddleware,
+  appointmentController.createAppointment
+);
+commonRouter.get(
+  "/appointments/my",
+  authMiddleware,
+  appointmentController.getAppointmentByUserId
+);
+commonRouter.patch(
+  "/appointments/:appointmentId/cancel",
+  authMiddleware,
+  appointmentController.cancelAppointment
+);
+
+/* =========================
+   REVIEW
+========================= */
+
+commonRouter.get(
+  "/boardinghouse/reviews/:id",
+  ReviewController.getReviewByBhId
+);
+
+/* =========================
+   ROOM
+========================= */
+
+commonRouter.get(
+  "/room-types/:roomTypeId/rooms",
+  roomController.getRoomsByRoomType
+);
+
+commonRouter.get(
+  "/rooms/:roomId",
+  roomController.getRoomDetails
 );
 
 export { commonRouter };

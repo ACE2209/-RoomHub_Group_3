@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
     ArrowLeft,
     BedDouble,
@@ -17,12 +17,13 @@ import {
 } from "lucide-react";
 
 import {
-    getBoardingHouseDetailForGuest,
+    getBoardingHouseDetail,
     getRoomTypesByBoardingHouseForGuest,
 } from "../api/boardingHouse";
 import Footer from "./layout/homepage/footer";
 import Header from "./layout/homepage/header";
 import "./BoardingHouseDetailPage.css";
+import { getImageSource, setFallbackImage } from "../api/config";
 
 const formatCurrency = (value) => {
     const numberValue = Number(value);
@@ -45,8 +46,7 @@ const formatAddress = (address) => {
 };
 
 const getPrimaryImage = (house) => {
-    const primaryImage = house?.images?.find((image) => image.isPrimary);
-    return primaryImage?.imageUrl || house?.images?.[0]?.imageUrl || "/image/logoconen.png";
+    return getImageSource(house?.images || house?.image);
 };
 
 const getOwnerName = (owner) => (
@@ -57,7 +57,7 @@ const getOwnerName = (owner) => (
 );
 
 const getRoomTypeImage = (roomType) => (
-    roomType?.image?.imageUrl || "/image/logoconen.png"
+    getImageSource(roomType?.image || roomType?.images)
 );
 
 const getFacilityText = (facilities = []) => {
@@ -69,13 +69,20 @@ const getFacilityText = (facilities = []) => {
         .join(", ");
 };
 
+const getListData = (res) => {
+    if (Array.isArray(res?.data)) return res.data;
+    if (Array.isArray(res)) return res;
+    return [];
+};
+
 const BoardingHouseDetailPage = () => {
     const { boardingHouseId } = useParams();
+    const navigate = useNavigate();
     const [boardingHouse, setBoardingHouse] = useState(null);
     const [roomTypes, setRoomTypes] = useState([]);
     const [selectedImage, setSelectedImage] = useState("");
     const [loading, setLoading] = useState(true);
-    const [roomTypesLoading, setRoomTypesLoading] = useState(true);
+    const [roomTypesLoading, setRoomTypesLoading] = useState(false);
     const [roomTypesError, setRoomTypesError] = useState("");
     const [error, setError] = useState("");
 
@@ -85,7 +92,7 @@ const BoardingHouseDetailPage = () => {
                 setLoading(true);
                 setError("");
 
-                const res = await getBoardingHouseDetailForGuest(boardingHouseId);
+                const res = await getBoardingHouseDetail(boardingHouseId);
                 const detail = res?.data || res;
 
                 if (!detail?._id) {
@@ -109,13 +116,19 @@ const BoardingHouseDetailPage = () => {
     }, [boardingHouseId]);
 
     useEffect(() => {
+        if (!boardingHouse?._id) {
+            setRoomTypes([]);
+            setRoomTypesLoading(false);
+            return;
+        }
+
         const fetchRoomTypes = async () => {
             try {
                 setRoomTypesLoading(true);
                 setRoomTypesError("");
 
-                const res = await getRoomTypesByBoardingHouseForGuest(boardingHouseId);
-                setRoomTypes(Array.isArray(res?.data) ? res.data : []);
+                const res = await getRoomTypesByBoardingHouseForGuest(boardingHouse._id);
+                setRoomTypes(getListData(res));
             } catch (err) {
                 console.error("Get room types failed:", err);
                 setRoomTypes([]);
@@ -126,15 +139,31 @@ const BoardingHouseDetailPage = () => {
         };
 
         fetchRoomTypes();
-    }, [boardingHouseId]);
+    }, [boardingHouse]);
 
     const galleryImages = useMemo(() => {
-        if (!boardingHouse?.images?.length) {
+        const images = Array.isArray(boardingHouse?.images)
+            ? boardingHouse.images
+            : boardingHouse?.images
+                ? [boardingHouse.images]
+                : [];
+
+        if (!images.length) {
             return [{ imageUrl: "/image/logoconen.png", _id: "fallback" }];
         }
 
-        return boardingHouse.images;
+        return images;
     }, [boardingHouse]);
+
+    const handleRoomTypeClick = (roomType) => {
+        navigate(`/room-types/${roomType._id}/rooms`, {
+            state: {
+                boardingHouseId,
+                boardingHouseName: boardingHouse?.name,
+                roomTypeName: roomType.typeName,
+            },
+        });
+    };
 
     return (
         <>
@@ -167,108 +196,113 @@ const BoardingHouseDetailPage = () => {
                                 </button>
                             </div>
                         ) : (
-                            <div className="detail-shell">
-                                <div className="detail-gallery">
-                                    <div className="detail-main-image">
-                                        <img
-                                            src={selectedImage || getPrimaryImage(boardingHouse)}
-                                            alt={boardingHouse.name || "Boarding house"}
-                                        />
+                            <>
+                                <div className="detail-shell">
+                                    <div className="detail-gallery">
+                                        <div className="detail-main-image">
+                                            <img
+                                                src={selectedImage || getPrimaryImage(boardingHouse)}
+                                                alt={boardingHouse.name || "Boarding house"}
+                                                onError={setFallbackImage}
+                                            />
+                                        </div>
+
+                                        <div className="detail-thumbs" aria-label="Boarding house images">
+                                            {galleryImages.map((image) => (
+                                                <button
+                                                    type="button"
+                                                    key={image._id || getImageSource(image)}
+                                                    className={getImageSource(image) === selectedImage ? "active" : ""}
+                                                    onClick={() => setSelectedImage(getImageSource(image))}
+                                                >
+                                                    <img
+                                                        src={getImageSource(image)}
+                                                        alt={boardingHouse.name || "Boarding house thumbnail"}
+                                                        onError={setFallbackImage}
+                                                    />
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
 
-                                    <div className="detail-thumbs" aria-label="Boarding house images">
-                                        {galleryImages.map((image) => (
-                                            <button
-                                                type="button"
-                                                key={image._id || image.imageUrl}
-                                                className={image.imageUrl === selectedImage ? "active" : ""}
-                                                onClick={() => setSelectedImage(image.imageUrl)}
-                                            >
-                                                <img
-                                                    src={image.imageUrl}
-                                                    alt={boardingHouse.name || "Boarding house thumbnail"}
-                                                />
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="detail-content">
-                                    <span className="detail-type">
-                                        {boardingHouse.boardingHouseType?.name || "Boarding house"}
-                                    </span>
-
-                                    <div className="detail-title-row">
-                                        <h1>{boardingHouse.name || "Unnamed boarding house"}</h1>
-                                        <span className="detail-rating">
-                                            <Star size={17} fill="currentColor" />
-                                            {boardingHouse.rating ?? "N/A"}
+                                    <div className="detail-content">
+                                        <span className="detail-type">
+                                            {boardingHouse.boardingHouseType?.name || "Boarding house"}
                                         </span>
-                                    </div>
 
-                                    <p className="detail-address">
-                                        <MapPin size={18} />
-                                        <span>{formatAddress(boardingHouse.address)}</span>
-                                    </p>
+                                        <div className="detail-title-row">
+                                            <h1>{boardingHouse.name || "Unnamed boarding house"}</h1>
+                                            <span className="detail-rating">
+                                                <Star size={17} fill="currentColor" />
+                                                {boardingHouse.rating ?? "N/A"}
+                                            </span>
+                                        </div>
 
-                                    <div className="detail-price">{formatCurrency(boardingHouse.priceRange)}</div>
-
-                                    <div className="detail-stats">
-                                        <div>
-                                            <BedDouble size={20} />
-                                            <span>Available rooms</span>
-                                            <strong>
-                                                {boardingHouse.availableRooms ?? 0}/{boardingHouse.totalRooms ?? 0}
-                                            </strong>
-                                        </div>
-                                        <div>
-                                            <Zap size={20} />
-                                            <span>Electricity</span>
-                                            <strong>{formatCurrency(boardingHouse.electricityPrice)}</strong>
-                                        </div>
-                                        <div>
-                                            <Droplets size={20} />
-                                            <span>Water</span>
-                                            <strong>{formatCurrency(boardingHouse.waterPrice)}</strong>
-                                        </div>
-                                        <div>
-                                            <Heart size={20} />
-                                            <span>Likes</span>
-                                            <strong>{boardingHouse.likes ?? 0}</strong>
-                                        </div>
-                                    </div>
-
-                                    <section className="detail-section">
-                                        <h2>Description</h2>
-                                        <p>
-                                            {boardingHouse.description ||
-                                                "This boarding house is updating its detailed description."}
+                                        <p className="detail-address">
+                                            <MapPin size={18} />
+                                            <span>{formatAddress(boardingHouse.address)}</span>
                                         </p>
-                                    </section>
 
-                                    <section className="detail-section detail-owner">
-                                        <h2>Owner contact</h2>
-                                        <div className="detail-owner-grid">
+                                        <div className="detail-price">{formatCurrency(boardingHouse.priceRange)}</div>
+
+                                        <div className="detail-stats">
                                             <div>
-                                                <User size={18} />
-                                                <span>{getOwnerName(boardingHouse.ownerId)}</span>
+                                                <BedDouble size={20} />
+                                                <span>Available rooms</span>
+                                                <strong>
+                                                    {boardingHouse.availableRooms ?? 0}/{boardingHouse.totalRooms ?? 0}
+                                                </strong>
                                             </div>
-                                            {boardingHouse.ownerId?.phoneNumber && (
-                                                <a href={`tel:${boardingHouse.ownerId.phoneNumber}`}>
-                                                    <Phone size={18} />
-                                                    <span>{boardingHouse.ownerId.phoneNumber}</span>
-                                                </a>
-                                            )}
-                                            {boardingHouse.ownerId?.email && (
-                                                <a href={`mailto:${boardingHouse.ownerId.email}`}>
-                                                    <Mail size={18} />
-                                                    <span>{boardingHouse.ownerId.email}</span>
-                                                </a>
-                                            )}
+                                            <div>
+                                                <Zap size={20} />
+                                                <span>Electricity</span>
+                                                <strong>{formatCurrency(boardingHouse.electricityPrice)}</strong>
+                                            </div>
+                                            <div>
+                                                <Droplets size={20} />
+                                                <span>Water</span>
+                                                <strong>{formatCurrency(boardingHouse.waterPrice)}</strong>
+                                            </div>
+                                            <div>
+                                                <Heart size={20} />
+                                                <span>Likes</span>
+                                                <strong>{boardingHouse.likes ?? 0}</strong>
+                                            </div>
                                         </div>
-                                    </section>
+
+                                        <section className="detail-section">
+                                            <h2>Description</h2>
+                                            <p>
+                                                {boardingHouse.description ||
+                                                    "This boarding house is updating its detailed description."}
+                                            </p>
+                                        </section>
+
+                                        <section className="detail-section detail-owner">
+                                            <h2>Owner contact</h2>
+                                            <div className="detail-owner-grid">
+                                                <div>
+                                                    <User size={18} />
+                                                    <span>{getOwnerName(boardingHouse.ownerId)}</span>
+                                                </div>
+                                                {boardingHouse.ownerId?.phoneNumber && (
+                                                    <a href={`tel:${boardingHouse.ownerId.phoneNumber}`}>
+                                                        <Phone size={18} />
+                                                        <span>{boardingHouse.ownerId.phoneNumber}</span>
+                                                    </a>
+                                                )}
+                                                {boardingHouse.ownerId?.email && (
+                                                    <a href={`mailto:${boardingHouse.ownerId.email}`}>
+                                                        <Mail size={18} />
+                                                        <span>{boardingHouse.ownerId.email}</span>
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </section>
+                                    </div>
                                 </div>
-                            </div>
+
+                            </>
                         )}
 
                         {!loading && !error && (
@@ -300,11 +334,17 @@ const BoardingHouseDetailPage = () => {
                                 ) : roomTypes.length ? (
                                     <div className="room-types-grid">
                                         {roomTypes.map((roomType) => (
-                                            <article className="room-type-card" key={roomType._id}>
+                                            <button
+                                                type="button"
+                                                className="room-type-card room-flow-card"
+                                                key={roomType._id}
+                                                onClick={() => handleRoomTypeClick(roomType)}
+                                            >
                                                 <div className="room-type-image">
                                                     <img
                                                         src={getRoomTypeImage(roomType)}
                                                         alt={roomType.typeName || "Room type"}
+                                                        onError={setFallbackImage}
                                                     />
                                                     <span>{roomType.availableRoom ?? 0} available</span>
                                                 </div>
@@ -328,7 +368,7 @@ const BoardingHouseDetailPage = () => {
 
                                                     <p>{getFacilityText(roomType.facilities)}</p>
                                                 </div>
-                                            </article>
+                                            </button>
                                         ))}
                                     </div>
                                 ) : (
