@@ -1,5 +1,3 @@
-// src/api/review.js
-
 import API_URL, { authHeaders, parseJsonResponse } from "./config";
 
 // Get all reviews
@@ -76,6 +74,72 @@ export const deleteReview = async (reviewId) => {
     {
       method: "DELETE",
       headers: authHeaders(),
+    }
+  );
+
+  return parseJsonResponse(res);
+};
+
+// Xem review của boarding house
+export const getBoardingHouseReviews = async (
+  boardingHouseId,
+  page = 1,
+  limit = 10
+) => {
+  const res = await fetch(
+    `${API_URL}/boardinghouse/reviews/${boardingHouseId}?page=${page}&limit=${limit}`
+  );
+
+  return parseJsonResponse(res);
+};
+
+// Thêm review
+export const addReview = async (data) => {
+  const res = await fetch(
+    `${API_URL}/auth/reviews`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({
+        boardingHouseId: data.boardingHouseId,
+        rating: data.rating,
+        content: data.content,
+      }),
+    }
+  );
+
+  return parseJsonResponse(res);
+};
+
+// Update review
+export const updateReview = async (
+  reviewId,
+  data
+) => {
+  const formData = new FormData();
+
+  formData.append("content", data.content);
+  formData.append("rating", data.rating);
+
+  if (data.images?.length) {
+    data.images.forEach((file) => {
+      formData.append("images", file);
+    });
+  }
+
+  const res = await fetch(
+    `${API_URL}/auth/reviews/${reviewId}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem(
+          "token"
+        )}`,
+      },
+      body: formData,
     }
   );
 

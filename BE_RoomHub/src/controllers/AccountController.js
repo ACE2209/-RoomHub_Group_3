@@ -6,6 +6,7 @@ import { v2 as cloudinary } from "cloudinary";
 import paginate from "../utils/pagination.js";
 
 class accountController {
+
   async getAllAccount(req, res) {
     try {
       const accountData = await Account.find({ deleted: false }).sort({ createdAt: -1 });
@@ -23,11 +24,11 @@ class accountController {
     try {
       const { accountId } = req.params;
       const accountData = await Account.findById(accountId);
-      
+
       if (!accountData) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          message: "Account not found" 
+          message: "Account not found"
         });
       }
 
@@ -35,16 +36,16 @@ class accountController {
       accountData.deletedAt = new Date();
       await accountData.save();
 
-      return res.status(200).json({ 
+      return res.status(200).json({
         success: true,
-        message: "Account successfully soft deleted" 
+        message: "Account successfully soft deleted"
       });
     } catch (error) {
       console.error(error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         success: false,
-        message: "An error occurred", 
-        error: error.message 
+        message: "An error occurred",
+        error: error.message
       });
     }
   }
@@ -115,29 +116,29 @@ class accountController {
       res.status(201).json(newUser);
     } catch (error) {
       console.error("Error creating account:", error);
-      
+
       // Handle Mongoose validation errors
       if (error.name === 'ValidationError') {
         const messages = Object.values(error.errors).map(err => err.message);
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           message: "Validation error",
-          errors: messages 
-        });
-      }
-      
-      // Handle duplicate key errors
-      if (error.code === 11000) {
-        const field = Object.keys(error.keyPattern)[0];
-        return res.status(400).json({ 
-          success: false,
-          message: `${field} already exists` 
+          errors: messages
         });
       }
 
-      return res.status(400).json({ 
+      // Handle duplicate key errors
+      if (error.code === 11000) {
+        const field = Object.keys(error.keyPattern)[0];
+        return res.status(400).json({
+          success: false,
+          message: `${field} already exists`
+        });
+      }
+
+      return res.status(400).json({
         success: false,
-        message: error.message || "Error creating account" 
+        message: error.message || "Error creating account"
       });
     }
   }
@@ -148,9 +149,9 @@ class accountController {
       const { accountId } = req.params;
 
       if (!accountId) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          message: "Account ID is required" 
+          message: "Account ID is required"
         });
       }
 
@@ -167,145 +168,80 @@ class accountController {
       );
 
       if (!updatedAccount) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          message: "Account not found" 
+          message: "Account not found"
         });
       }
 
-      res.status(200).json({ 
+      res.status(200).json({
         success: true,
-        data: updatedAccount 
+        data: updatedAccount
       });
     } catch (error) {
       console.error("Error updating account:", error);
-      
+
       if (error.name === 'ValidationError') {
         const messages = Object.values(error.errors).map(err => err.message);
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
           message: "Validation error",
-          errors: messages 
+          errors: messages
         });
       }
 
-      return res.status(500).json({ 
+      return res.status(500).json({
         success: false,
-        message: error.message || "Error updating account" 
+        message: error.message || "Error updating account"
       });
     }
   }
 
-  async changePassword(req, res) {
+  async updateAvatar(req, res) {
     try {
-      const { oldPassword, newPassword } = req.body;
-
-      if (!oldPassword || !newPassword) {
-        return res.status(400).json({ message: "All fields are required" });
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
       }
 
-      const account = await Account.findOne({
-        _id: req.user.userId,
-      });
-
-      if (!account) {
-        return res.status(404).json({ error: "Old password is incorrect" });
-      }
-
-      const isPasswordValid = await bcrypt.compare(
-        oldPassword,
-        account.password
-      );
-
-      if (!isPasswordValid) {
-        return res.status(400).json({ message: "Old password is incorrect" });
-      }
-
-      const isSamePassword = await bcrypt.compare(
-        newPassword,
-        account.password
-      );
-
-      if (isSamePassword) {
-        return res.status(400).json({
-          message:
-            "New password must be different from old password",
-        });
-      }
-
-      if (
-        newPassword.length < 8 ||
-        newPassword.length > 15
-      ) {
-        return res.status(400).json({
-          message:
-            "Password must be between 8 and 15 characters",
-        });
-      }
-
-      if (/\s/.test(newPassword)) {
-        return res.status(400).json({
-          message:
-            "Password cannot contain spaces",
-        });
-      }
-
-      const passwordRegex =
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,15}$/;
-
-      if (!passwordRegex.test(newPassword)) {
-        return res.status(400).json({
-          message:
-            "Password must contain uppercase, lowercase, number and special character",
-        });
-      }
-
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      account.password = hashedPassword;
-      await account.save();
-
-      const token = generateToken({
-        userId: account._id,
-        username: account.username,
-        role: account.role,
-      });
-
-      delete account.password;
-
-      res.status(200).json({ message: "Password changed successfully", token });
-    } catch (error) {
-      console.error("Error changing password:", error);
-      res.status(500).json({ message: "Server Error" });
-    }
-  }
-
-  async updateAccountFromProfile(req, res) {
-    try {
-      const { fullname, phoneNumber, gender } = req.body;
       const account = await Account.findById(req.user.userId);
 
-      account.fullname = fullname.trim();
-      account.phoneNumber = phoneNumber;
-      account.gender = gender;
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      if (!account.avatarImage) {
+        account.avatarImage = {
+          url: req.file.path,
+          publicId: req.file.filename,
+        };
+
+        await account.save();
+
+        return res.status(200).json({ message: "Avatar updated successfully" });
+      }
+
+      cloudinary.uploader.destroy(account.avatarImage.publicId);
+
+      account.avatarImage.url = req.file.path;
+      account.avatarImage.publicId = req.file.filename;
+
       await account.save();
 
-      res.status(200).json({ message: "Profile updated successfully" });
+      res.status(200).json({ message: "Avatar updated successfully" });
     } catch (error) {
+      console.log("Error updating avatar:", error);
       res.status(500).json({ message: "Server Error" });
     }
   }
-
-
 
   async sendOTPChangeEmail(req, res) {
     try {
       const { email } = req.body;
 
       const existingEmail = await Account.findOne({ email });
-      if (existingEmail) {
+      if (existingEmail && existingEmail._id.toString() !== req.user.userId) {
         return res.status(400).json({ message: "Email is already registered" });
       }
-
       const account = await Account.findById(req.user.userId);
       if (!account) {
         return res.status(404).json({ message: "Account not found" });
@@ -391,5 +327,106 @@ class accountController {
       res.status(500).json({ message: "Lỗi server", error: error.message });
     }
   }
+
+  // đổi passwod profile
+  async changePassword(req, res) {
+    try {
+      const { oldPassword, newPassword } = req.body;
+
+      if (!oldPassword || !newPassword) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      const account = await Account.findOne({
+        _id: req.user.userId,
+      });
+
+      if (!account) {
+        return res.status(404).json({ error: "Old password is incorrect" });
+      }
+
+      const isPasswordValid = await bcrypt.compare(
+        oldPassword,
+        account.password
+      );
+
+      if (!isPasswordValid) {
+        return res.status(400).json({ message: "Old password is incorrect" });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      account.password = hashedPassword;
+      await account.save();
+
+      const token = generateToken({
+        userId: account._id,
+        username: account.username,
+        role: account.role,
+      });
+
+      delete account.password;
+
+      res.status(200).json({ message: "Password changed successfully", token });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "Server Error" });
+    }
+  }
+  // lấy dữ liệu profile
+  async getProfile(req, res) {
+    try {
+      const account = await Account.findById(req.user.userId).select("-password");
+
+      if (!account) {
+        return res.status(404).json({
+          success: false,
+          message: "Account not found",
+        });
+      }
+
+      return res.status(200).json(account);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
+  }
+  // cập nhật profile
+  async updateAccountFromProfile(req, res) {
+    try {
+      const { fullname, phoneNumber, gender } = req.body;
+
+      const account = await Account.findById(req.user.userId);
+
+      if (!account) {
+        return res.status(404).json({
+          success: false,
+          message: "Account not found",
+        });
+      }
+
+      account.fullname = fullname;
+      account.phoneNumber = phoneNumber;
+      account.gender = gender;
+
+      await account.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        data: account,
+      });
+
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+      });
+    }
+  }
 }
+
 export default new accountController();

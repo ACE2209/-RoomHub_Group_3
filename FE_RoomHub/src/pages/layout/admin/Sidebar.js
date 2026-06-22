@@ -1,4 +1,4 @@
-import { NavLink, Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 
 export default function Sidebar() {
   const user = JSON.parse(localStorage.getItem("user") || "null");
@@ -14,40 +14,22 @@ export default function Sidebar() {
 
       <nav className="menu">
         {isAdmin && <NavLink to="/admin">Dashboard</NavLink>}
+        {isAdmin && <NavLink to="/admin/accounts">Account Management</NavLink>}
 
         {isAdmin && (
-          <NavLink to="/admin/accounts">
-            Account Management
-          </NavLink>
-        )}
-
-        {isAdmin && (
-          <NavLink to="/admin/review-reports">
-            Report Management
-          </NavLink>
-        )}
-
-        {isAdmin && (
-          <NavLink to="/admin/boarding-houses">
-            Boarding House Management
-          </NavLink>
-        )}
-
-        {isAdmin && (
-          <NavLink to="/admin/reviews">
-            Review Management
-          </NavLink>
+          <>
+            <NavLink to="/admin/review-reports">Review Reports</NavLink>
+            <NavLink to="/admin/boarding-house-reports">Boarding House Reports</NavLink>
+            <NavLink to="/admin/boarding-houses">Boarding House Management</NavLink>
+            <NavLink to="/admin/reviews">Review Management</NavLink>
+          </>
         )}
 
         {canManageOwnBoardingHouses && (
-          <NavLink to="/my-boarding-houses">
-            My Boarding Houses
-          </NavLink>
+          <NavLink to="/my-boarding-houses">My Boarding Houses</NavLink>
         )}
 
-        <NavLink to="/my-reports">
-          My Reports
-        </NavLink>
+        {!isAdmin && <NavLink to="/my-reports">My Reports</NavLink>}
       </nav>
 
       <div className="sidebar-bottom">‹</div>

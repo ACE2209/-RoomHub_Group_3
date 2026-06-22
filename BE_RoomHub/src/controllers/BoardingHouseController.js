@@ -394,6 +394,132 @@ class BoardingHouseController {
     }
   }
 
+  async getAllBoardingHousesForGuest(req, res) {
+    try {
+      req.query.page = String(parsePositiveInt(req.query.page, 1));
+      req.query.limit = String(parsePositiveInt(req.query.limit, 10));
+
+      const result = await paginate(
+        BoardingHouse,
+        {
+          filter: { deleted: false },
+          defaultPage: 1,
+          defaultLimit: 10,
+          sortField: 'createdAt',
+          sortOrder: 'desc',
+          populate: [
+            { path: 'boardingHouseType', select: 'name codeName' },
+            { path: 'ownerId', select: 'username fullname email phoneNumber avatarImage role' },
+          ],
+        },
+        req
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Boarding houses fetched successfully',
+        ...result,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch boarding houses',
+        error: error.message,
+      });
+    }
+  }
+
+  async getNewestBH(req, res) {
+    try {
+      const result = await paginate(
+        BoardingHouse,
+        {
+          filter: { deleted: false },
+          defaultPage: 1,
+          defaultLimit: 10,
+          sortField: 'createdAt',
+          sortOrder: 'desc',
+          populate: [
+            { path: 'boardingHouseType', select: 'name codeName' },
+            { path: 'ownerId', select: 'username fullname email phoneNumber avatarImage role' },
+          ],
+        },
+        req
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Newest boarding houses fetched successfully',
+        ...result,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch newest boarding houses',
+        error: error.message,
+      });
+    }
+  }
+
+  async getHighRatingBH(req, res) {
+    try {
+      const result = await paginate(
+        BoardingHouse,
+        {
+          filter: { deleted: false, rating: { $gte: 4 } },
+          defaultPage: 1,
+          defaultLimit: 10,
+          sortField: 'rating',
+          sortOrder: 'desc',
+          populate: [
+            { path: 'boardingHouseType', select: 'name codeName' },
+            { path: 'ownerId', select: 'username fullname email phoneNumber avatarImage role' },
+          ],
+        },
+        req
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'High rating boarding houses fetched successfully',
+        ...result,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch high rating boarding houses',
+        error: error.message,
+      });
+    }
+  }
+
+  async getBoardingHouseDetailInUser(req, res) {
+    try {
+      const { id } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ success: false, message: 'Invalid boarding house id' });
+      }
+
+      const boardingHouse = await BoardingHouse.findById(id)
+        .populate('boardingHouseType')
+        .populate('ownerId')
+        .exec();
+
+      if (!boardingHouse) {
+        return res.status(404).json({ success: false, message: 'Boarding house not found' });
+      }
+
+      return res.status(200).json(boardingHouse);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch boarding house details',
+        error: error.message,
+      });
+    }
+  }
+
   async getOwnBoardingHouses(req, res) {
     try {
       req.query.page = req.query.page || '1';
