@@ -40,7 +40,7 @@ export const softDeleteAccountAPI = async (accountId) => {
     return res.data;
 };
 
-// lấy dữ liệu cho profile 
+// lấy dữ liệu cho profile
 export const getProfileAPI = async () => {
     const res = await axios.get(`${API_URL}/auth/profile`, {
         headers: {
@@ -50,7 +50,7 @@ export const getProfileAPI = async () => {
     return res.data;
 };
 
-// update profile 
+// update profile
 export const updateProfileAPI = async (data) => {
     const res = await axios.put(
         `${API_URL}/auth/profile`,

@@ -51,7 +51,6 @@ class accountController {
   }
 
   async filterAccounts(req, res) {
-    a
     try {
       const { gender, role, startDate, endDate, status } = req.query;
 

@@ -29,9 +29,7 @@ const storage = new CloudinaryStorage({
   params: async (req, file) => {
     let folderName = "uploads";
 
-    if (file.fieldname === "avatar") {
-      folderName = "Avatar";
-    } else if (file.fieldname === "boardingHouse") {
+    if (file.fieldname === "boardingHouse") {
       folderName = "BoardingHouse";
     } else if (file.fieldname === "review") {
       folderName = "Review";

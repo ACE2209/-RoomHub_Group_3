@@ -4,15 +4,8 @@ import {
   authController,
   accountController,
   favoriteController,
-  // appointmentController,
-  // reportController,
+  reportController,
   ReviewController,
-  // watchLaterController,
-  // depositController,
-  // renewalController,
-  // userPaymentController,
-  // refundRequestController,
-  // paymentBillController,
 } from "../controllers/index.js";
 import { upload } from "../config/cloudinary.config.js";
 
@@ -28,14 +21,24 @@ authRouter.post("/send-otp-change-email", accountController.sendOTPChangeEmail);
 authRouter.post("/verify-change-email", accountController.verifyChangeEmail);
 authRouter.put("/avatar", upload.single("avatar"), accountController.updateAvatar);
 
-//review
+// reports
+authRouter.get("/reports", reportController.getOwnReports.bind(reportController));
+authRouter.get("/reports/exist", reportController.checkReportExist.bind(reportController));
+authRouter.get("/reports/:reportId", reportController.getOwnReportDetail.bind(reportController));
+authRouter.post("/reports", upload.array("report", 5), reportController.createReport);
+
+// reviews
 authRouter.post("/reviews", ReviewController.addReview);
-authRouter.put("/reviews/:reviewId", upload.fields([{ name: "images", maxCount: 5 }]), ReviewController.updateReview);
+authRouter.put(
+  "/reviews/:reviewId",
+  upload.fields([{ name: "images", maxCount: 5 }]),
+  ReviewController.updateReview
+);
 authRouter.get("/reviews", ReviewController.getReviewsUser);
 authRouter.delete("/reviews/:reviewId", ReviewController.softDeleteReview);
-authRouter.get('/review/:reviewId', ReviewController.getReviewDetail);
+authRouter.get("/review/:reviewId", ReviewController.getReviewDetail);
 
-// Favorites
+// favorites
 authRouter.get("/favorites", favoriteController.getFavorites);
 authRouter.get("/favorites/all", favoriteController.getAllFavorites);
 authRouter.post("/favorites", favoriteController.createFavorite);
@@ -44,4 +47,5 @@ authRouter.delete("/favorites/:boardingHouseId", favoriteController.deleteFavori
 // profile
 authRouter.get("/profile", accountController.getProfile);
 authRouter.put("/profile", accountController.updateAccountFromProfile);
+
 export { authRouter };

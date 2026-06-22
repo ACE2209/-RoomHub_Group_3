@@ -3,6 +3,32 @@ import paginate from "../utils/pagination.js";
 import BoardingHouse from "../models/boardingHouse.js";
 
 class ReviewController {
+  async getReviewsByBoardingHouse(req, res) {
+    try {
+      const { boardingHouseId } = req.params;
+
+      const reviews = await Review.find({
+        boardingHouseId,
+        parentId: null,
+      })
+        .populate({
+          path: "accountId",
+          select: "username _id fullname avatarImage",
+        })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      return res.status(200).json({
+        success: true,
+        data: reviews,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
 
   // View Review in Admin
   async getReviews(req, res) {

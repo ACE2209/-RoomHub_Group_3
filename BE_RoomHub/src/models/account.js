@@ -46,13 +46,6 @@ const AccountSchema = new Schema({
     enum: ['user', 'staff', 'owner', 'admin'],
     required: true
   },
-  avatarImage: {
-    publicId: String,
-    url: {
-      type: String,
-      default: 'https://res.cloudinary.com/dcknewpzx/image/upload/v1716733369/default-avatar.png'
-    }
-  },
   deleted: {
     type: Boolean,
     default: false
