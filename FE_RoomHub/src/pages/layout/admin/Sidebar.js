@@ -26,8 +26,14 @@ export default function Sidebar() {
         )}
 
         {canManageOwnBoardingHouses && (
-          <NavLink to="/my-boarding-houses">My Boarding Houses</NavLink>
-        )}
+  <>
+    <NavLink to="/my-boarding-houses">My Boarding Houses</NavLink>
+
+    <NavLink to="/managed-appointments">
+      Appointment Management
+    </NavLink>
+  </>
+)}
 
         {!isAdmin && <NavLink to="/my-reports">My Reports</NavLink>}
       </nav>

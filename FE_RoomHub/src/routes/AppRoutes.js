@@ -27,11 +27,11 @@ import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewRe
 import BoardingHouseReportManagementPage from "../pages/admin/ReportManagement/BoardingHouseReportManagementPage";
 
 import AppointmentPage from "../pages/user/AppointmentPage";
-import CreateAppointmentPage from "../pages/user/CreateAppointmentPage";
 import CreateDepositPage from "../pages/user/CreateDepositPage";
 import FavoritesPage from "../pages/user/FavoritesPage";
 
 import ProtectedRoute from "./ProtectedRoute";
+import AppointmentManagementPage from "../pages/owner/AppointmentManagementPage";
 
 const AppRoutes = () => {
   return (
@@ -84,14 +84,6 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <AppointmentPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/appointments/create/:roomId"
-        element={
-          <ProtectedRoute>
-            <CreateAppointmentPage />
           </ProtectedRoute>
         }
       />
@@ -209,6 +201,15 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+            {/* Staff/Owner Routes */}
+<Route
+  path="/managed-appointments"
+  element={
+    <ProtectedRoute allowedRoles={["owner", "staff"]}>
+      <AppointmentManagementPage />
+    </ProtectedRoute>
+  }
+/>
     </Routes>
   );
 };
