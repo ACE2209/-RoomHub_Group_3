@@ -1,4 +1,3 @@
-```js
 import { Router } from "express";
 import {
   authController,
@@ -114,4 +113,3 @@ commonRouter.get(
 );
 
 export { commonRouter };
-```
