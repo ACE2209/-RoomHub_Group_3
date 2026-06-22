@@ -3,36 +3,6 @@ import { deleteFile } from '../utils/fileUtils.js';
 import User from '../models/userModel.js';
 import bcrypt from "bcrypt";
 
-export const avatarImageValidator = (isRequired) => (req, res, next) => {
-  console.log(req.file);
-  if (isRequired && !req.file) {
-    return res
-      .status(422)
-      .json({ errors: [{ msg: 'Avatar image is required' }] });
-  }
-
-  if (req.file) {
-    const validImageTypes = ['image/jpeg', 'image/png', 'image/gif'];
-    if (!validImageTypes.includes(req.file.mimetype)) {
-      deleteFile(req.file.path);
-      return res.status(422).json({
-        errors: [
-          { msg: 'Avatar image must be a valid image (JPEG, PNG, GIF)' },
-        ],
-      });
-    }
-
-    if (req.file.size > 5 * 1024 * 1024) {
-      deleteFile(req.file.path);
-      return res.status(422).json({
-        errors: [{ msg: 'Avatar image must be less than 5MB' }],
-      });
-    }
-  }
-
-  next();
-};
-
 export const createUserValidator = [
   body('username')
     .isString()

@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
   authController,
   accountController,
+  reportController,
   // favoriteController,
   // appointmentController,
   // reportController,
@@ -26,6 +27,9 @@ authRouter.get("/user", authController.getAccountFromToken);
 authRouter.post("/change-password", accountController.changePassword);
 authRouter.post("/send-otp-change-email", accountController.sendOTPChangeEmail);
 authRouter.post("/verify-change-email", accountController.verifyChangeEmail);
+authRouter.get("/reports", reportController.getOwnReports.bind(reportController));
+authRouter.get("/reports/exist", reportController.checkReportExist.bind(reportController));
+authRouter.get("/reports/:reportId", reportController.getOwnReportDetail.bind(reportController));
+authRouter.post("/reports", upload.array("report", 5), reportController.createReport);
 
-authRouter.put("/avatar", upload.single("avatar"), accountController.updateAvatar);
 export { authRouter };

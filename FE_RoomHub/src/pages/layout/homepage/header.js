@@ -45,9 +45,8 @@ const Header = () => {
             case "admin":
                 return "/admin";
             case "staff":
-                return "/staff";
             case "owner":
-                return "/owner";
+                return "/my-boarding-houses";
             default:
                 return "/profile";
         }
@@ -205,9 +204,9 @@ const Header = () => {
                                 Contact
                             </button>
 
-                            {(user?.role === "owner" || user?.role === "admin") && (
+                            {(user?.role === "owner" || user?.role === "staff") && (
                                 <Link
-                                    to="/post-room"
+                                    to="/my-boarding-houses/new"
                                     className="btn rounded-pill text-white fw-semibold"
                                     style={{ backgroundColor: "#ff6b00" }}
                                 >
@@ -260,8 +259,9 @@ const Header = () => {
                                                 <Link
                                                     to={getDashboardRoute()}
                                                     className="dropdown-item py-2"
+                                                    onClick={() => setShowUserMenu(false)}
                                                 >
-                                                    Dashboard
+                                                    {user.role === "staff" ? "My Boarding Houses" : "Dashboard"}
                                                 </Link>
                                             )}
 
@@ -269,6 +269,7 @@ const Header = () => {
                                                 <Link
                                                     to="/profile"
                                                     className="dropdown-item py-2"
+                                                    onClick={() => setShowUserMenu(false)}
                                                 >
                                                     My Profile
                                                 </Link>
@@ -276,8 +277,9 @@ const Header = () => {
 
                                             {user.role === "owner" && (
                                                 <Link
-                                                    to="/my-properties"
+                                                    to="/my-boarding-houses"
                                                     className="dropdown-item py-2"
+                                                    onClick={() => setShowUserMenu(false)}
                                                 >
                                                     My Properties
                                                 </Link>

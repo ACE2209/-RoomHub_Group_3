@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import {
   authController,
+  boardingHouseController,
+  ReviewController,
 } from '../controllers/index.js';
 import reportController from '../controllers/reportController.js';
 import { authMiddleware } from '../middlewares/index.js';
@@ -16,5 +18,9 @@ commonRouter.post('/verify-register', authController.verifyRegister);
 
 // reports
 commonRouter.post('/reports', authMiddleware, reportController.createReport);
+
+// boarding houses
+commonRouter.get('/boardinghouse/:id', boardingHouseController.getBoardingHouseDetails);
+commonRouter.get('/boardinghouse/:boardingHouseId/reviews', ReviewController.getReviewsByBoardingHouse);
 
 export { commonRouter };

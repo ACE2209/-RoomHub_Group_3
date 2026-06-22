@@ -21,6 +21,9 @@ import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
 import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
 
 import BoardingHouseDetail from "../pages/boardingHouse/BoardingHouseDetail";
+import MyBoardingHousesPage from "../pages/owner/MyBoardingHousesPage";
+import OwnerBoardingHouseDetailPage from "../pages/owner/OwnerBoardingHouseDetailPage";
+import MyReportsPage from "../pages/report/MyReportsPage";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -34,6 +37,7 @@ const AppRoutes = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/boardinghouse/:id" element={<BoardingHouseDetail />} />
+            <Route path="/boarding-house/:id" element={<BoardingHouseDetail />} />
 
             {/* User Routes */}
             <Route
@@ -50,6 +54,33 @@ const AppRoutes = () => {
                 element={
                     <ProtectedRoute>
                         <ChangePassword />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/my-boarding-houses"
+                element={
+                    <ProtectedRoute allowedRoles={["owner", "staff"]}>
+                        <MyBoardingHousesPage />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/my-boarding-houses/:id"
+                element={
+                    <ProtectedRoute allowedRoles={["owner", "staff"]}>
+                        <OwnerBoardingHouseDetailPage />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/my-reports"
+                element={
+                    <ProtectedRoute>
+                        <MyReportsPage />
                     </ProtectedRoute>
                 }
             />

@@ -23,11 +23,11 @@ const ImagesSchema = new mongoose.Schema({
 const LocationSchema = new mongoose.Schema({
   lat: {
     type: Number,
-    required: true,
+    default: 0,
   },
   lon: {
     type: Number,
-    required: true,
+    default: 0,
   },
 });
 

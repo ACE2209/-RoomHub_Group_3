@@ -16,9 +16,6 @@ const ROLE_COLORS = {
   user:   { bg: "#d1fae5", color: "#065f46" },
 };
 
-const DEFAULT_AVATAR =
-  "https://res.cloudinary.com/dcknewpzx/image/upload/v1716733369/default-avatar.png";
-
 // ── main component ────────────────────────────────────────────────────────────
 export default function AccountManagementPage() {
   const [accounts, setAccounts]         = useState([]);
@@ -26,12 +23,18 @@ export default function AccountManagementPage() {
   const [pagination, setPagination]     = useState({ currentPage: 1, totalPages: 1, totalItems: 0, limit: 10 });
   const [filterValue, setFilterValue]   = useState({});
   const [paginationOpts, setPaginationOpts] = useState({ page: 1, limit: 10, sortField: "createdAt", sortOrder: "desc" });
+  const [currentUserRole, setCurrentUserRole] = useState('admin');
 
   // modals
   const [showFilter, setShowFilter]     = useState(false);
   const [showAdd, setShowAdd]           = useState(false);
   const [editAccount, setEditAccount]   = useState(null);   // UpdateModal
   const [confirmId, setConfirmId]       = useState(null);   // DeleteModal
+
+  useEffect(() => {
+    const role = localStorage.getItem('userRole') || 'admin';
+    setCurrentUserRole(role);
+  }, []);
 
   // ── data fetching ───────────────────────────────────────────────────────────
   const fetchAccounts = useCallback(() => {
@@ -122,7 +125,7 @@ export default function AccountManagementPage() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
-              {["No.", "Avatar", "Full Name", "Username", "Email", "Gender", "Role", "Joined", "Actions"].map((h) => (
+              {["No.", "Full Name", "Username", "Email", "Gender", "Role", "Joined", "Actions"].map((h) => (
                 <th key={h} style={thStyle}>{h}</th>
               ))}
             </tr>
@@ -138,9 +141,6 @@ export default function AccountManagementPage() {
                 return (
                   <tr key={acc._id} style={{ borderBottom: "1px solid #f3f4f6" }}>
                     <td style={tdStyle}>{(paginationOpts.page - 1) * paginationOpts.limit + i + 1}</td>
-                    <td style={tdStyle}>
-                      <img src={acc.avatarImage?.url || DEFAULT_AVATAR} alt="" style={avatarStyle} />
-                    </td>
                     <td style={{ ...tdStyle, fontWeight: 600 }}>{acc.fullname || "N/A"}</td>
                     <td style={tdStyle}>{acc.username || "N/A"}</td>
                     <td style={tdStyle}>{acc.email || "N/A"}</td>
@@ -187,7 +187,7 @@ export default function AccountManagementPage() {
       </div>
 
       {/* ── modals ── */}
-      {showAdd    && <AddAccountModal onSubmit={handleCreate} onClose={() => setShowAdd(false)} />}
+      {showAdd    && <AddAccountModal onSubmit={handleCreate} onClose={() => setShowAdd(false)} currentUserRole={currentUserRole} />}
       {editAccount && <UpdateAccountModal account={editAccount} onSubmit={handleUpdate} onClose={() => setEditAccount(null)} />}
       {confirmId  && <ConfirmModal onConfirm={handleDelete} onCancel={() => setConfirmId(null)} />}
     </AdminLayout>
@@ -237,20 +237,27 @@ function FilterPanel({ onApply, onClear }) {
         <label style={labelStyle}>To</label>
         <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={selectStyle} />
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <button type="submit" style={filterBtnStyle}>Apply</button>
-        <button type="button" onClick={onClear} style={deleteBtnStyle}>Clear</button>
+        <button type="button" onClick={onClear} style={clearBtnStyle}>Clear</button>
       </div>
     </form>
   );
 }
 
 // ── AddAccountModal (2-step) ──────────────────────────────────────────────────
-function AddAccountModal({ onSubmit, onClose }) {
+function AddAccountModal({ onSubmit, onClose, currentUserRole = 'admin' }) {
   const [step, setStep]       = useState(1);
   const [step1, setStep1]     = useState({ fullname: "", email: "", gender: "male", phoneNumber: "" });
   const [step2, setStep2]     = useState({ username: "", password: "", confirmPassword: "", role: "user" });
   const [errors, setErrors]   = useState({});
+
+  const getRoleOptions = () => {
+    if (currentUserRole === 'admin') {
+      return ['user', 'owner', 'staff'];
+    }
+    return ['user', 'owner'];
+  };
 
   const validateStep1 = () => {
     const e = {};
@@ -322,8 +329,9 @@ function AddAccountModal({ onSubmit, onClose }) {
             <div style={formGroup}>
               <label style={labelStyle}>Role</label>
               <select value={step2.role} onChange={(e) => setStep2({ ...step2, role: e.target.value })} style={selectStyle}>
-                <option value="user">User</option>
-                <option value="owner">Owner</option>
+                {getRoleOptions().map(role => (
+                  <option key={role} value={role}>{role.charAt(0).toUpperCase() + role.slice(1)}</option>
+                ))}
               </select>
               {errors.role && <span style={errStyle}>{errors.role}</span>}
             </div>
@@ -356,13 +364,6 @@ function UpdateAccountModal({ account, onSubmit, onClose }) {
   return (
     <div style={overlayStyle}>
       <div style={{ ...modalStyle, width: 480 }}>
-        {/* avatar */}
-        <div style={{ textAlign: "center", marginBottom: 16 }}>
-          <img src={account.avatarImage?.url || DEFAULT_AVATAR} alt="" style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: "2px solid #0284c7" }} />
-          <p style={{ margin: "6px 0 0", fontWeight: 600, color: "#27364a" }}>{account.username}</p>
-          <p style={{ margin: 0, fontSize: 13, color: "#667085" }}>{account.email}</p>
-        </div>
-
         <form onSubmit={handleSubmit}>
           <div style={formGroup}>
             <label style={labelStyle}>Full Name</label>
@@ -407,11 +408,9 @@ function ConfirmModal({ onConfirm, onCancel }) {
 }
 
 // ── styles ────────────────────────────────────────────────────────────────────
-const DEFAULT_AVATAR_LOCAL = DEFAULT_AVATAR; // re-export for inner components
 const thStyle    = { padding: "16px 18px", textAlign: "left", color: "#344054", fontWeight: 700, fontSize: 14 };
 const tdStyle    = { padding: "14px 18px", color: "#344054", fontSize: 14 };
 const emptyStyle = { textAlign: "center", padding: 48, color: "#667085" };
-const avatarStyle = { width: 42, height: 42, borderRadius: "50%", objectFit: "cover" };
 const formGroup  = { display: "flex", flexDirection: "column", gap: 4, marginBottom: 14, flex: "1 1 160px" };
 const labelStyle = { fontSize: 13, fontWeight: 600, color: "#344054" };
 const errStyle   = { fontSize: 12, color: "#dc2626" };
@@ -419,6 +418,7 @@ const inputStyle = { padding: "9px 14px", border: "1px solid #e5e7eb", borderRad
 const selectStyle= { ...inputStyle, cursor: "pointer", background: "white" };
 const addBtnStyle    = { background: "#12b76a", color: "white", border: "none", padding: "9px 20px", borderRadius: 8, fontWeight: 600, cursor: "pointer", fontSize: 14 };
 const filterBtnStyle = { background: "#2f80ed", color: "white", border: "none", padding: "9px 20px", borderRadius: 8, fontWeight: 600, cursor: "pointer", fontSize: 14 };
+const clearBtnStyle  = { background: "#fee2e2", color: "#dc2626", border: "none", padding: "9px 20px", borderRadius: 8, fontWeight: 600, cursor: "pointer", fontSize: 14 };
 const editBtnStyle   = { background: "#2f80ed", color: "white", border: "none", padding: "7px 14px", borderRadius: 6, fontWeight: 600, cursor: "pointer", fontSize: 13 };
 const deleteBtnStyle = { background: "#fee2e2", color: "#dc2626", border: "none", padding: "7px 14px", borderRadius: 6, fontWeight: 600, cursor: "pointer", fontSize: 13 };
 const disabledBtnStyle = { background: "#e5e7eb", color: "#9ca3af", border: "none", padding: "7px 14px", borderRadius: 6, fontWeight: 600, cursor: "not-allowed", fontSize: 13 };

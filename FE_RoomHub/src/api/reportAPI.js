@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_URL = 'http://localhost:3000';
+import API_URL, { authHeaders, parseJsonResponse } from './config';
 
 const authHeader = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
@@ -45,4 +44,53 @@ export const deleteReportAPI = async (reportId) => {
     ...authHeader(),
   });
   return res.data;
+};
+
+export const createReport = async (data) => {
+  const isFormData = data instanceof FormData;
+  const res = await fetch(`${API_URL}/auth/reports`, {
+    method: 'POST',
+    headers: {
+      ...authHeaders(),
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    },
+    body: isFormData ? data : JSON.stringify(data),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const getMyReports = async ({ page = 1, limit = 10 } = {}) => {
+  const query = new URLSearchParams({ page, limit }).toString();
+  const res = await fetch(`${API_URL}/auth/reports?${query}`, {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const getMyReportDetail = async (reportId) => {
+  const res = await fetch(`${API_URL}/auth/reports/${reportId}`, {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const checkReportExist = async ({ reviewIds = [], boardingHouseId }) => {
+  const query = new URLSearchParams();
+
+  if (reviewIds.length) {
+    query.set('reviewIds', reviewIds.join(','));
+  }
+
+  if (boardingHouseId) {
+    query.set('boardingHouseId', boardingHouseId);
+  }
+
+  const res = await fetch(`${API_URL}/auth/reports/exist?${query.toString()}`, {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
 };
