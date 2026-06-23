@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { boardingHouseController, appointmentController } from '../controllers/index.js';
+import { boardingHouseController } from '../controllers/index.js';
 import { upload } from '../config/cloudinary.config.js';
 
 const staffRouter = Router();
@@ -19,8 +19,4 @@ staffRouter.put(
 );
 staffRouter.delete('/boardinghouses/:id', boardingHouseController.deleteOwnBoardingHouse.bind(boardingHouseController));
 
-// APPOINTMENT MANAGEMENT//
-staffRouter.get("/appointments",appointmentController.getManagedAppointments);
-staffRouter.get("/appointments/:appointmentId",appointmentController.getManagedAppointmentDetail);
-staffRouter.patch("/appointments/:appointmentId/status",appointmentController.updateManagedAppointmentStatus);
 export { staffRouter };

@@ -28,6 +28,7 @@ import AppointmentManagementPage from "../pages/owner/AppointmentManagementPage"
 import MyReportsPage from "../pages/report/MyReportsPage";
 
 import AppointmentPage from "../pages/user/AppointmentPage";
+import CreateAppointmentPage from "../pages/user/CreateAppointmentPage";
 import CreateDepositPage from "../pages/user/CreateDepositPage";
 import FavoritesPage from "../pages/user/FavoritesPage";
 
@@ -84,6 +85,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <AppointmentPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/appointments/create/:roomId"
+        element={
+          <ProtectedRoute>
+            <CreateAppointmentPage />
           </ProtectedRoute>
         }
       />

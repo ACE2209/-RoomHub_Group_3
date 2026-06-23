@@ -4,7 +4,6 @@ import { ArrowLeft, BedDouble } from "lucide-react";
 
 import { getRoomsByRoomType } from "../api/room";
 import { getImageSource, setFallbackImage } from "../api/config";
-import CreateAppointmentModal from "../components/CreateAppointmentModal";
 import Footer from "./layout/homepage/footer";
 import Header from "./layout/homepage/header";
 import "./BoardingHouseDetailPage.css";
@@ -15,19 +14,17 @@ const getListData = (res) => {
     return [];
 };
 
-const getRoomImage = (room) => {
-    return getImageSource(room?.images || room?.image);
-};
+const getRoomImage = (room) => (
+    getImageSource(room?.images || room?.image)
+);
 
 const RoomTypeRoomsPage = () => {
     const { roomTypeId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-
     const [rooms, setRooms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [selectedRoom, setSelectedRoom] = useState(null);
 
     const roomTypeName = useMemo(() => {
         return (
@@ -66,9 +63,9 @@ const RoomTypeRoomsPage = () => {
         navigate(`/deposits/create/${roomId}`);
     };
 
-    const handleAppointmentClick = (e, room) => {
+    const handleAppointmentClick = (e, roomId) => {
         e.stopPropagation();
-        setSelectedRoom(room);
+        navigate(`/appointments/create/${roomId}`);
     };
 
     return (
@@ -103,19 +100,13 @@ const RoomTypeRoomsPage = () => {
                                     <span>Rooms</span>
                                     <h2>Rooms in {roomTypeName}</h2>
                                 </div>
-
-                                {!loading && !error && (
-                                    <strong>{rooms.length} rooms</strong>
-                                )}
+                                {!loading && !error && <strong>{rooms.length} rooms</strong>}
                             </div>
 
                             {loading ? (
                                 <div className="rooms-grid">
                                     {[1, 2, 3].map((item) => (
-                                        <div
-                                            className="room-card room-card--loading"
-                                            key={item}
-                                        >
+                                        <div className="room-card room-card--loading" key={item}>
                                             <div className="detail-skeleton room-card-skeleton-image" />
                                             <div className="detail-skeleton room-card-skeleton-line" />
                                             <div className="detail-skeleton room-card-skeleton-line room-card-skeleton-line--short" />
@@ -150,23 +141,13 @@ const RoomTypeRoomsPage = () => {
                                                     alt={room.roomNumber || "Room"}
                                                     onError={setFallbackImage}
                                                 />
-
-                                                <span
-                                                    className={
-                                                        room.isAvailable
-                                                            ? "available"
-                                                            : "unavailable"
-                                                    }
-                                                >
-                                                    {room.isAvailable
-                                                        ? "Available"
-                                                        : "Unavailable"}
+                                                <span className={room.isAvailable ? "available" : "unavailable"}>
+                                                    {room.isAvailable ? "Available" : "Unavailable"}
                                                 </span>
                                             </div>
 
                                             <div className="room-card-body">
                                                 <h3>Room {room.roomNumber || "N/A"}</h3>
-
                                                 <p>
                                                     {room.description ||
                                                         "This room has no description yet."}
@@ -176,19 +157,14 @@ const RoomTypeRoomsPage = () => {
                                                     <button
                                                         type="button"
                                                         className="room-action-btn room-action-btn--deposit"
-                                                        onClick={(e) =>
-                                                            handleDepositClick(e, room._id)
-                                                        }
+                                                        onClick={(e) => handleDepositClick(e, room._id)}
                                                     >
                                                         Deposit
                                                     </button>
-
                                                     <button
                                                         type="button"
                                                         className="room-action-btn room-action-btn--appointment"
-                                                        onClick={(e) =>
-                                                            handleAppointmentClick(e, room)
-                                                        }
+                                                        onClick={(e) => handleAppointmentClick(e, room._id)}
                                                     >
                                                         Appointment
                                                     </button>
@@ -201,22 +177,13 @@ const RoomTypeRoomsPage = () => {
                                 <div className="room-types-empty">
                                     <BedDouble size={34} />
                                     <h3>No rooms found</h3>
-                                    <p>
-                                        This room type has no room information right now.
-                                    </p>
+                                    <p>This room type has no room information right now.</p>
                                 </div>
                             )}
                         </section>
                     </div>
                 </section>
             </main>
-
-            {selectedRoom && (
-                <CreateAppointmentModal
-                    room={selectedRoom}
-                    onClose={() => setSelectedRoom(null)}
-                />
-            )}
 
             <Footer />
         </>

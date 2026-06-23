@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
-import Header from "../layout/homepage/header";
+import { useCallback, useEffect, useState } from "react";import Header from "../layout/homepage/header";
 import ProfileSidebar from "../profile/ProfileSidebar";
 import { getProfileAPI } from "../../api/accountAPI";
 import { cancelAppointment, getMyAppointments } from "../../api/appointment";
@@ -10,107 +9,63 @@ export default function AppointmentPage() {
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-
-  const [cancelTarget, setCancelTarget] = useState(null);
-  const [cancelReason, setCancelReason] = useState("");
-  const [cancelError, setCancelError] = useState("");
-  const [cancelLoading, setCancelLoading] = useState(false);
-
   const loadAppointments = useCallback(async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
+    const profileRes = await getProfileAPI();
+    const appointmentRes = await getMyAppointments(page, 8);
 
-      const profileRes = await getProfileAPI();
-      const appointmentRes = await getMyAppointments(page, 8);
+    setUser(profileRes?.data || profileRes);
 
-      setUser(profileRes?.data || profileRes);
+    const sortedAppointments = [...(appointmentRes?.data || [])].sort(
+      (a, b) => {
+        if (a.status === "pending" && b.status !== "pending") return -1;
+        if (a.status !== "pending" && b.status === "pending") return 1;
 
-      const sortedAppointments = [...(appointmentRes?.data || [])].sort((a, b) => {
-  const statusOrder = {
-    accepted: 1,
-    pending: 2,
-    completed: 3,
-    rejected: 4,
-    canceled: 5,
-  };
+        return new Date(b.appointmentDate) - new Date(a.appointmentDate);
+      }
+    );
 
-  const aOrder = statusOrder[a.status] || 99;
-  const bOrder = statusOrder[b.status] || 99;
-
-  if (aOrder !== bOrder) {
-    return aOrder - bOrder;
+    setAppointments(sortedAppointments);
+    setPagination(appointmentRes?.pagination || null);
+  } catch (error) {
+    console.error("Get appointments failed:", error);
+    setAppointments([]);
+  } finally {
+    setLoading(false);
   }
+}, [page]);
 
-  return new Date(a.appointmentDate) - new Date(b.appointmentDate);
-});
+useEffect(() => {
+  loadAppointments();
+}, [loadAppointments]);
 
-      setAppointments(sortedAppointments);
-      setPagination(appointmentRes?.pagination || null);
-    } catch (error) {
-      console.error("Get appointments failed:", error);
-      setAppointments([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [page]);
+  const handleCancel = async (id) => {
+    const reason = window.prompt("Enter cancel reason:");
+    if (reason === null) return;
 
-  useEffect(() => {
-    loadAppointments();
-  }, [loadAppointments]);
-
-  const openCancelModal = (appointment) => {
-    setCancelTarget(appointment);
-    setCancelReason("");
-    setCancelError("");
-  };
-
-  const closeCancelModal = () => {
-    setCancelTarget(null);
-    setCancelReason("");
-    setCancelError("");
-  };
-
-  const handleCancel = async () => {
-    if (!cancelTarget?._id) {
-      setCancelError("Appointment is required.");
-      return;
-    }
-
-    const reason = cancelReason.trim();
-
-    if (reason.length > 500) {
-      setCancelError("Cancel reason cannot exceed 500 characters.");
-      return;
-    }
+    if (!window.confirm("Cancel this appointment?")) return;
 
     try {
-      setCancelLoading(true);
-      setCancelError("");
-
-      const res = await cancelAppointment(cancelTarget._id, {
-        reasonForCancel: reason || "Canceled by user",
+      const res = await cancelAppointment(id, {
+        reasonForCancel: reason.trim() || "Canceled by user",
       });
 
       if (res?.success) {
-        alert("Appointment canceled successfully.");
-        closeCancelModal();
+        alert("Appointment canceled");
         loadAppointments();
       } else {
-        setCancelError(res?.message || "Cancel failed.");
+        alert(res?.message || "Cancel failed");
       }
     } catch (error) {
-      setCancelError(error.message || "Cancel failed.");
-    } finally {
-      setCancelLoading(false);
+      alert(error.message || "Cancel failed");
     }
   };
 
   const formatDate = (date) => {
     if (!date) return "N/A";
-    return new Date(date).toLocaleString("en-GB");
+    return new Date(date).toLocaleString();
   };
-
-
 
   return (
     <>
@@ -138,42 +93,21 @@ export default function AppointmentPage() {
               <div style={styles.empty}>No appointments found.</div>
             ) : (
               <>
-                {appointments.map((item) => (
+                {appointments.map((item, index) => (
                   <div key={item._id} style={styles.card}>
                     <div style={styles.cardHeader}>
                       <div>
-                        <div style={styles.roomRow}>
-                          <h3 style={styles.room}>
-                            Room {item.roomNumber || "N/A"}
-                          </h3>
+<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+  <h3 style={styles.room}>
+    Room {item.roomNumber || "N/A"}
+  </h3>
 
-                          <span
-  style={{
-    ...styles.badge,
-    ...(item.status === "accepted"
-      ? styles.acceptedBadge
-      : item.status === "pending"
-      ? styles.pendingBadge
-      : item.status === "completed"
-      ? styles.completedBadge
-      : item.status === "rejected"
-      ? styles.rejectedBadge
-      : styles.canceledBadge),
-  }}
->
-  {item.status === "accepted"
-    ? "Upcoming Visit"
-    : item.status === "pending"
-    ? "Waiting Approval"
-    : item.status === "completed"
-    ? "Completed"
-    : item.status === "rejected"
-    ? "Rejected"
-    : "Canceled"}
-</span>
-                        </div>
-
-                        <p style={styles.house}>
+  {index === 0 && item.status === "pending" && (
+    <span style={styles.badge}>
+      Upcoming
+    </span>
+  )}
+</div>                        <p style={styles.house}>
                           {item.boardingHouseName || "No boarding house"}
                         </p>
                       </div>
@@ -187,71 +121,51 @@ export default function AppointmentPage() {
                       <p>
                         <b>Date:</b> {formatDate(item.appointmentDate)}
                       </p>
-
                       <p>
                         <b>Owner:</b> {item.ownerName || "N/A"}
                       </p>
-
                       {item.note && (
                         <p>
                           <b>Note:</b> {item.note}
                         </p>
                       )}
-
-                      {["canceled", "rejected"].includes(item.status) && (
+                      {item.status === "canceled" && (
                         <p>
-                          <b>
-                            {item.status === "rejected"
-                              ? "Reject reason"
-                              : "Cancel reason"}
-                            :
-                          </b>{" "}
+                          <b>Cancel reason:</b>{" "}
                           {item.reasonForCancel || "No reason"}
                         </p>
                       )}
                     </div>
 
                     {item.status === "pending" && (
-                      <div style={styles.actionRow}>
-                        <button
-                          style={styles.cancelBtn}
-                          onClick={() => openCancelModal(item)}
-                        >
-                          Cancel Appointment
-                        </button>
-                      </div>
+                      <button
+                        style={styles.cancelBtn}
+                        onClick={() => handleCancel(item._id)}
+                      >
+                        Cancel Appointment
+                      </button>
                     )}
                   </div>
                 ))}
 
                 <div style={styles.pagination}>
                   <button
-                    style={{
-                      ...styles.pageBtn,
-                      ...(pagination?.hasPrevPage
-                        ? {}
-                        : styles.disabledBtn),
-                    }}
+                    style={styles.pageBtn}
                     disabled={!pagination?.hasPrevPage}
-                    onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                    onClick={() => setPage(page - 1)}
                   >
                     Previous
                   </button>
 
-                  <span style={styles.pageText}>
-                    {pagination?.currentPage || page}/
+                  <span>
+                    Page {pagination?.currentPage || page} /{" "}
                     {pagination?.totalPages || 1}
                   </span>
 
                   <button
-                    style={{
-                      ...styles.pageBtn,
-                      ...(pagination?.hasNextPage
-                        ? {}
-                        : styles.disabledBtn),
-                    }}
+                    style={styles.pageBtn}
                     disabled={!pagination?.hasNextPage}
-                    onClick={() => setPage((prev) => prev + 1)}
+                    onClick={() => setPage(page + 1)}
                   >
                     Next
                   </button>
@@ -261,106 +175,9 @@ export default function AppointmentPage() {
           </main>
         </div>
       </div>
-
-      {cancelTarget && (
-        <div style={styles.overlay} onMouseDown={closeCancelModal}>
-          <div
-            style={styles.cancelModal}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>Cancel Appointment</h3>
-              <button style={styles.closeBtn} onClick={closeCancelModal}>
-                x
-              </button>
-            </div>
-
-            <p style={styles.desc}>
-              Please enter the reason for canceling this appointment.
-            </p>
-
-            <div style={styles.miniBox}>
-              <p>
-                <b>Room:</b> Room {cancelTarget.roomNumber || "N/A"}
-              </p>
-              <p>
-                <b>Boarding House:</b>{" "}
-                {cancelTarget.boardingHouseName || "N/A"}
-              </p>
-              <p>
-                <b>Date:</b> {formatDate(cancelTarget.appointmentDate)}
-              </p>
-            </div>
-
-            {cancelError && <div style={styles.errorBox}>{cancelError}</div>}
-
-            <textarea
-              style={styles.textarea}
-              value={cancelReason}
-              maxLength={500}
-              placeholder="Enter cancel reason..."
-              onChange={(e) => setCancelReason(e.target.value)}
-            />
-
-            <div style={styles.counter}>{cancelReason.length}/500</div>
-
-            <div style={styles.modalActions}>
-              <button style={styles.backBtn} onClick={closeCancelModal}>
-                Back
-              </button>
-
-              <button
-                style={{
-                  ...styles.cancelBtn,
-                  ...(cancelLoading ? styles.loadingBtn : {}),
-                }}
-                onClick={handleCancel}
-                disabled={cancelLoading}
-              >
-                {cancelLoading ? "Canceling..." : "Confirm Cancel"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
-
-const statusStyles = {
-  pending: {
-    background: "#fff7ed",
-    color: "#ff5a00",
-  },
-  accepted: {
-    background: "#ecfdf3",
-    color: "#027a48",
-  },
-  rejected: {
-    background: "#fef3f2",
-    color: "#b42318",
-  },
-  canceled: {
-    background: "#fff1f2",
-    color: "#be123c",
-  },
-  completed: {
-    background: "#eef4ff",
-    color: "#3538cd",
-  },
-};
-
-const getStatusStyle = (status) => ({
-  ...(statusStyles[status] || statusStyles.pending),
-  borderRadius: "20px",
-  padding: "6px 12px",
-  fontSize: "13px",
-  fontWeight: "700",
-  textTransform: "capitalize",
-  display: "inline-flex",
-  alignItems: "center",
-  width: "fit-content",
-});
 
 const styles = {
   page: {
@@ -414,13 +231,7 @@ const styles = {
   cardHeader: {
     display: "flex",
     justifyContent: "space-between",
-    gap: "12px",
     marginBottom: "12px",
-  },
-  roomRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
   },
   room: {
     margin: 0,
@@ -438,26 +249,11 @@ const styles = {
     color: "#344054",
     fontSize: "14px",
   },
-  actionRow: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "10px",
-    marginTop: "12px",
-    flexWrap: "wrap",
-  },
   cancelBtn: {
+    marginTop: "12px",
     background: "#ff5a00",
     color: "#fff",
     border: "none",
-    borderRadius: "8px",
-    padding: "9px 14px",
-    cursor: "pointer",
-    fontWeight: "600",
-  },
-  backBtn: {
-    background: "#fff",
-    color: "#344054",
-    border: "1px solid #d0d5dd",
     borderRadius: "8px",
     padding: "9px 14px",
     cursor: "pointer",
@@ -484,123 +280,32 @@ const styles = {
     borderRadius: "7px",
     cursor: "pointer",
   },
-  disabledBtn: {
-    background: "#f2f4f7",
-    color: "#98a2b3",
-    cursor: "not-allowed",
-  },
-  pageText: {
-    color: "#344054",
-    fontWeight: 700,
-  },
   badge: {
-    background: "#ff5a00",
-    color: "#fff",
-    fontSize: "12px",
-    padding: "4px 8px",
-    borderRadius: "12px",
-    fontWeight: "600",
-  },
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(15,23,42,0.55)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
-    padding: "20px",
-  },
-  cancelModal: {
-    background: "#fff",
-    borderRadius: "12px",
-    width: "min(520px, 100%)",
-    padding: "24px",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
-  },
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    alignItems: "center",
-    marginBottom: "16px",
-  },
-  modalTitle: {
-    margin: 0,
-    color: "#1f2937",
-  },
-  closeBtn: {
-    width: "32px",
-    height: "32px",
-    borderRadius: "8px",
-    border: "1px solid #d0d5dd",
-    background: "#fff",
-    cursor: "pointer",
-  },
-  modalActions: {
-    marginTop: "18px",
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "10px",
-  },
-  miniBox: {
-    background: "#f9fafb",
-    border: "1px solid #e5e7eb",
-    borderRadius: "10px",
-    padding: "12px 14px",
-    margin: "14px 0",
-    color: "#344054",
-  },
-  errorBox: {
-    background: "#fef3f2",
-    color: "#b42318",
-    border: "1px solid #fecdca",
-    borderRadius: "8px",
-    padding: "10px 12px",
-    marginBottom: "12px",
-  },
-  textarea: {
-    width: "100%",
-    minHeight: "120px",
-    border: "1px solid #d0d5dd",
-    borderRadius: "8px",
-    padding: "12px",
-    resize: "vertical",
-    boxSizing: "border-box",
-    fontFamily: "inherit",
-  },
-  counter: {
-    textAlign: "right",
-    color: "#667085",
-    fontSize: "12px",
-    marginTop: "6px",
-  },
-  loadingBtn: {
-    opacity: 0.7,
-    cursor: "not-allowed",
-  },
-  pendingBadge: {
-  background: "#fff7ed",
-  color: "#ff5a00",
-},
-
-acceptedBadge: {
-  background: "#ecfdf3",
-  color: "#027a48",
-},
-
-completedBadge: {
-  background: "#eef4ff",
-  color: "#3538cd",
-},
-
-rejectedBadge: {
-  background: "#fef3f2",
-  color: "#b42318",
-},
-
-canceledBadge: {
-  background: "#fff1f2",
-  color: "#be123c",
+  background: "#ff5a00",
+  color: "#fff",
+  fontSize: "12px",
+  padding: "4px 8px",
+  borderRadius: "12px",
+  fontWeight: "600",
 },
 };
+
+const getStatusStyle = (status) => ({
+  background:
+    status === "pending"
+      ? "#fff7ed"
+      : status === "canceled"
+      ? "#fff1f2"
+      : "#ecfdf3",
+  color:
+    status === "pending"
+      ? "#ff5a00"
+      : status === "canceled"
+      ? "#be123c"
+      : "#027a48",
+  borderRadius: "20px",
+  padding: "6px 12px",
+  fontSize: "13px",
+  fontWeight: "700",
+  textTransform: "capitalize",
+});

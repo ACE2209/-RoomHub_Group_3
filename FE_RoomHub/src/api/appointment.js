@@ -11,15 +11,6 @@ export const getMyAppointments = async (page = 1, limit = 10) => {
   return parseJsonResponse(res);
 };
 
-export const getAppointmentDetail = async (appointmentId) => {
-  const res = await fetch(`${API_URL}/appointments/${appointmentId}`, {
-    method: "GET",
-    headers: authHeaders(),
-  });
-
-  return parseJsonResponse(res);
-};
-
 export const cancelAppointment = async (appointmentId, data = {}) => {
   const res = await fetch(`${API_URL}/appointments/${appointmentId}/cancel`, {
     method: "PATCH",
