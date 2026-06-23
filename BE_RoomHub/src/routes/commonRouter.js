@@ -1,4 +1,3 @@
-```js
 import { Router } from "express";
 import {
   authController,
@@ -28,11 +27,7 @@ commonRouter.post("/verify-register", authController.verifyRegister);
    REPORT
 ========================= */
 
-commonRouter.post(
-  "/reports",
-  authMiddleware,
-  reportController.createReport
-);
+commonRouter.post("/reports", authMiddleware, reportController.createReport);
 
 /* =========================
    BOARDING HOUSE
@@ -54,13 +49,13 @@ commonRouter.get(
 );
 
 commonRouter.get(
-  "/boardinghouse/:id",
-  boardingHouseController.getBoardingHouseDetailInUser
+  "/boardinghouse/room-types/:id",
+  roomTypeController.getRoomTypeByBhId
 );
 
 commonRouter.get(
-  "/boardinghouse/room-types/:id",
-  roomTypeController.getRoomTypeByBhId
+  "/boardinghouse/:id",
+  boardingHouseController.getBoardingHouseDetailInUser
 );
 
 /* =========================
@@ -78,7 +73,7 @@ commonRouter.get(
 );
 
 /* =========================
-   APPOINTMENT
+   APPOINTMENT - USER
 ========================= */
 
 commonRouter.post(
@@ -92,6 +87,12 @@ commonRouter.get(
   authMiddleware,
   appointmentController.getAppointmentByUserId
 );
+
+// commonRouter.get(
+//   "/appointments/:appointmentId",
+//   authMiddleware,
+//   appointmentController.getAppointmentDetailByUser
+// );
 
 commonRouter.patch(
   "/appointments/:appointmentId/cancel",
@@ -108,10 +109,6 @@ commonRouter.get(
   roomController.getRoomsByRoomType
 );
 
-commonRouter.get(
-  "/rooms/:roomId",
-  roomController.getRoomDetails
-);
+commonRouter.get("/rooms/:roomId", roomController.getRoomDetails);
 
 export { commonRouter };
-```

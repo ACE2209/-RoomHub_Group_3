@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import HomePage from "../pages/HomePage";
 import Login from "../pages/auth/Login";
@@ -11,10 +11,12 @@ import Profile from "../pages/profile/Profile";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 import AccountManagementPage from "../pages/admin/AccountManagementPage";
 import BoardingHouseManagementPage from "../pages/admin/BoardingHouseManagementPage";
-import BoardingHouseReportManagementPage from "../pages/admin/BoardingHouseReportManagementPage";
 import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
-import ReportManagementPage from "../pages/admin/ReportManagementPage";
+
+import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
+import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
+import BoardingHouseReportManagementPage from "../pages/admin/ReportManagement/BoardingHouseReportManagementPage";
 
 import BoardingHouseDetailPage from "../pages/BoardingHouseDetailPage";
 import RoomDetailPage from "../pages/RoomDetailPage";
@@ -22,10 +24,10 @@ import RoomTypeRoomsPage from "../pages/RoomTypeRoomsPage";
 
 import MyBoardingHousesPage from "../pages/owner/MyBoardingHousesPage";
 import OwnerBoardingHouseDetailPage from "../pages/owner/OwnerBoardingHouseDetailPage";
+import AppointmentManagementPage from "../pages/owner/AppointmentManagementPage";
 import MyReportsPage from "../pages/report/MyReportsPage";
 
 import AppointmentPage from "../pages/user/AppointmentPage";
-import CreateAppointmentPage from "../pages/user/CreateAppointmentPage";
 import CreateDepositPage from "../pages/user/CreateDepositPage";
 import FavoritesPage from "../pages/user/FavoritesPage";
 
@@ -86,14 +88,6 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/appointments/create/:roomId"
-        element={
-          <ProtectedRoute>
-            <CreateAppointmentPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/deposits/create/:roomId"
         element={
           <ProtectedRoute>
@@ -118,11 +112,11 @@ const AppRoutes = () => {
         }
       />
 
-      {/* Owner Routes */}
+      {/* Owner/Staff Routes */}
       <Route
         path="/my-boarding-houses"
         element={
-          <ProtectedRoute allowedRoles={["owner"]}>
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
             <MyBoardingHousesPage />
           </ProtectedRoute>
         }
@@ -130,8 +124,16 @@ const AppRoutes = () => {
       <Route
         path="/my-boarding-houses/:id"
         element={
-          <ProtectedRoute allowedRoles={["owner"]}>
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
             <OwnerBoardingHouseDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/managed-appointments"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <AppointmentManagementPage />
           </ProtectedRoute>
         }
       />
@@ -173,7 +175,7 @@ const AppRoutes = () => {
         path="/admin/reports"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
-            <ReportManagementPage />
+            <Navigate to="/admin/review-reports" replace />
           </ProtectedRoute>
         }
       />
@@ -181,7 +183,7 @@ const AppRoutes = () => {
         path="/admin/review-reports"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
-            <ReportManagementPage />
+            <ReviewReportManagementPage />
           </ProtectedRoute>
         }
       />
@@ -189,7 +191,7 @@ const AppRoutes = () => {
         path="/admin/review-reports/:reportId"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
-            <ReportManagementPage />
+            <ReportDetailPage />
           </ProtectedRoute>
         }
       />
