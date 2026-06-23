@@ -14,24 +14,24 @@ import BoardingHouseManagementPage from "../pages/admin/BoardingHouseManagementP
 import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
 
+import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
+import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
+import BoardingHouseReportManagementPage from "../pages/admin/ReportManagement/BoardingHouseReportManagementPage";
+
 import BoardingHouseDetailPage from "../pages/BoardingHouseDetailPage";
 import RoomDetailPage from "../pages/RoomDetailPage";
 import RoomTypeRoomsPage from "../pages/RoomTypeRoomsPage";
 
 import MyBoardingHousesPage from "../pages/owner/MyBoardingHousesPage";
 import OwnerBoardingHouseDetailPage from "../pages/owner/OwnerBoardingHouseDetailPage";
+import AppointmentManagementPage from "../pages/owner/AppointmentManagementPage";
 import MyReportsPage from "../pages/report/MyReportsPage";
-
-import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
-import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
-import BoardingHouseReportManagementPage from "../pages/admin/ReportManagement/BoardingHouseReportManagementPage";
 
 import AppointmentPage from "../pages/user/AppointmentPage";
 import CreateDepositPage from "../pages/user/CreateDepositPage";
 import FavoritesPage from "../pages/user/FavoritesPage";
 
 import ProtectedRoute from "./ProtectedRoute";
-import AppointmentManagementPage from "../pages/owner/AppointmentManagementPage";
 
 const AppRoutes = () => {
   return (
@@ -104,6 +104,16 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/my-reports"
+        element={
+          <ProtectedRoute>
+            <MyReportsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Owner/Staff Routes */}
+      <Route
         path="/my-boarding-houses"
         element={
           <ProtectedRoute allowedRoles={["owner", "staff"]}>
@@ -120,10 +130,10 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/my-reports"
+        path="/managed-appointments"
         element={
-          <ProtectedRoute>
-            <MyReportsPage />
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <AppointmentManagementPage />
           </ProtectedRoute>
         }
       />
@@ -201,15 +211,6 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
-            {/* Staff/Owner Routes */}
-<Route
-  path="/managed-appointments"
-  element={
-    <ProtectedRoute allowedRoles={["owner", "staff"]}>
-      <AppointmentManagementPage />
-    </ProtectedRoute>
-  }
-/>
     </Routes>
   );
 };

@@ -32,6 +32,8 @@ adminRouter.delete('/reports/:reportId', reportController.softDeleteReport);
 adminRouter.get('/review-reports', reportController.getReviewReports);
 adminRouter.get('/review-reports/filter', reportController.filterReviewReports);
 adminRouter.get('/reportReview/:reportId', reportController.getReportReviewDetail);
+adminRouter.get('/boarding-house-reports', reportController.getBoardingHouseReports);
+adminRouter.get('/boarding-house-reports/filter', reportController.filterBoardingHouseReports);
 
 // ── BOARDING HOUSES ───────────────────────────────
 adminRouter.get('/boardinghouses', boardingHouseController.getAllBoardingHouses);
