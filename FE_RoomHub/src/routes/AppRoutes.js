@@ -39,33 +39,18 @@ import ProtectedRoute from "./ProtectedRoute";
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Public Routes */}
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-      {/* Boarding House Routes */}
-      <Route
-        path="/boarding-houses/:boardingHouseId"
-        element={<BoardingHouseDetailPage />}
-      />
-      <Route
-        path="/boardinghouse/:boardingHouseId"
-        element={<BoardingHouseDetailPage />}
-      />
-      <Route
-        path="/boarding-house/:boardingHouseId"
-        element={<BoardingHouseDetailPage />}
-      />
-      <Route
-        path="/room-types/:roomTypeId/rooms"
-        element={<RoomTypeRoomsPage />}
-      />
+      <Route path="/boarding-houses/:boardingHouseId" element={<BoardingHouseDetailPage />} />
+      <Route path="/boardinghouse/:boardingHouseId" element={<BoardingHouseDetailPage />} />
+      <Route path="/boarding-house/:boardingHouseId" element={<BoardingHouseDetailPage />} />
+      <Route path="/room-types/:roomTypeId/rooms" element={<RoomTypeRoomsPage />} />
       <Route path="/rooms/:roomId" element={<RoomDetailPage />} />
 
-      {/* User Routes */}
       <Route
         path="/profile"
         element={
@@ -115,6 +100,14 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/watchlater"
+        element={
+          <ProtectedRoute>
+            <WatchLaterPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/my-boarding-houses"
         element={
           <ProtectedRoute allowedRoles={["owner", "staff"]}>
@@ -139,16 +132,6 @@ const AppRoutes = () => {
         }
       />
 
-      <Route
-        path="/watchlater"
-        element={
-          <ProtectedRoute>
-            <WatchLaterPage />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Admin Routes */}
       <Route
         path="/admin"
         element={
