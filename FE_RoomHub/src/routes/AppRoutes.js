@@ -15,6 +15,9 @@ import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
 import BHDetailPage from "../pages/admin/BHDetailPage";
 import ProfilePage from "../pages/admin/ProfilePage";
+import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
+import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
+import BoardingHouseReportManagementPage from "../pages/admin/BoardingHouseReportManagementPage";
 
 import BoardingHouseDetailPage from "../pages/BoardingHouseDetailPage";
 import RoomDetailPage from "../pages/RoomDetailPage";
@@ -26,10 +29,6 @@ import AppointmentManagementPage from "../pages/ownerandstaff/AppointmentManagem
 import ManageRooms from "../pages/ownerandstaff/ManageRooms";
 import ManageRoomAdditionalFees from "../pages/ownerandstaff/ManageRoomAdditionalFees";
 import MyReportsPage from "../pages/report/MyReportsPage";
-
-import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
-import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
-import BoardingHouseReportManagementPage from "../pages/admin/BoardingHouseReportManagementPage";
 
 import AppointmentPage from "../pages/user/AppointmentPage";
 import CreateDepositPage from "../pages/user/CreateDepositPage";
@@ -134,6 +133,7 @@ const AppRoutes = () => {
         }
       />
 
+      {/* Admin Routes */}
       <Route
         path="/admin"
         element={
