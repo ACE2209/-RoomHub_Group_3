@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
 import HomePage from "../pages/HomePage";
 import Login from "../pages/auth/Login";
@@ -11,8 +11,10 @@ import Profile from "../pages/profile/Profile";
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 import AccountManagementPage from "../pages/admin/AccountManagementPage";
 import BoardingHouseManagementPage from "../pages/admin/BoardingHouseManagementPage";
+import BoardingHouseReportManagementPage from "../pages/admin/BoardingHouseReportManagementPage";
 import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
+import ReportManagementPage from "../pages/admin/ReportManagementPage";
 
 import BoardingHouseDetailPage from "../pages/BoardingHouseDetailPage";
 import RoomDetailPage from "../pages/RoomDetailPage";
@@ -21,10 +23,6 @@ import RoomTypeRoomsPage from "../pages/RoomTypeRoomsPage";
 import MyBoardingHousesPage from "../pages/owner/MyBoardingHousesPage";
 import OwnerBoardingHouseDetailPage from "../pages/owner/OwnerBoardingHouseDetailPage";
 import MyReportsPage from "../pages/report/MyReportsPage";
-
-import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
-import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
-import BoardingHouseReportManagementPage from "../pages/admin/ReportManagement/BoardingHouseReportManagementPage";
 
 import AppointmentPage from "../pages/user/AppointmentPage";
 import CreateAppointmentPage from "../pages/user/CreateAppointmentPage";
@@ -98,3 +96,121 @@ const AppRoutes = () => {
       <Route
         path="/deposits/create/:roomId"
         element={
+          <ProtectedRoute>
+            <CreateDepositPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/favorites"
+        element={
+          <ProtectedRoute>
+            <FavoritesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-reports"
+        element={
+          <ProtectedRoute>
+            <MyReportsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Owner Routes */}
+      <Route
+        path="/my-boarding-houses"
+        element={
+          <ProtectedRoute allowedRoles={["owner"]}>
+            <MyBoardingHousesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-boarding-houses/:id"
+        element={
+          <ProtectedRoute allowedRoles={["owner"]}>
+            <OwnerBoardingHouseDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Admin Routes */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/accounts"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AccountManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/reviews"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <ReviewManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/reviews/:reviewId"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <ReviewDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/reports"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <ReportManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/review-reports"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <ReportManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/review-reports/:reportId"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <ReportManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/boarding-houses"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <BoardingHouseManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/boarding-house-reports"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <BoardingHouseReportManagementPage />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
+  );
+};
+
+export default AppRoutes;
