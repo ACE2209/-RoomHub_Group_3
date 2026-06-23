@@ -18,12 +18,47 @@ class RoomController {
         isAvailable: true,
       })
         .select("_id roomNumber isAvailable roomTypeId")
-        .populate("roomTypeId", "name price peopleNumber")
+        .populate("roomTypeId", "typeName price peopleNumber roomSize")
         .sort({ roomNumber: 1 })
         .lean();
 
       return res.status(200).json({
         success: true,
+        count: rooms.length,
+        data: rooms,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
+  }
+
+  async getRoomsByRoomType(req, res) {
+    try {
+      const { roomTypeId } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(roomTypeId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid roomTypeId",
+        });
+      }
+
+      const rooms = await Room.find({
+        roomTypeId,
+        isAvailable: true,
+      })
+        .select("_id roomNumber isAvailable images description roomTypeId boardingHouseId")
+        .populate("roomTypeId", "typeName price peopleNumber roomSize")
+        .sort({ roomNumber: 1 })
+        .lean();
+
+      return res.status(200).json({
+        success: true,
+        count: rooms.length,
         data: rooms,
       });
     } catch (error) {
@@ -47,7 +82,8 @@ class RoomController {
       }
 
       const room = await Room.findById(roomId)
-        .select("_id roomNumber isAvailable boardingHouseId")
+        .select("_id roomNumber isAvailable images description boardingHouseId roomTypeId")
+        .populate("roomTypeId", "typeName price peopleNumber roomSize")
         .lean();
 
       if (!room) {

@@ -135,7 +135,7 @@ oneHourLater.setHours(oneHourLater.getHours() + 1);
           message: "Invalid appointment date",
         });
       }
-    
+
       if (appointmentTime < oneHourLater) {
   return res.status(400).json({
     success: false,

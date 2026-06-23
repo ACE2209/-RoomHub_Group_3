@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { createReportAPI } from '../api/reportAPI.js';
+import { createReport } from '../api/reportAPI.js';
 
-const ReportModal = ({ isOpen, onClose, targetId, reportType }) => {
+const ReportModal = ({ isOpen, onClose, targetId, reportType, onSubmitted }) => {
   const [formData, setFormData] = useState({
     reason: '',
     details: '',
@@ -13,6 +13,7 @@ const ReportModal = ({ isOpen, onClose, targetId, reportType }) => {
     'Inappropriate content',
     'Misleading information',
     'Spam',
+    'Privacy violation',
     'Offensive language',
     'Other',
   ];
@@ -26,7 +27,7 @@ const ReportModal = ({ isOpen, onClose, targetId, reportType }) => {
 
     setLoading(true);
     try {
-      await createReportAPI({
+      await createReport({
         reportType,
         targetId,
         reason: formData.reason,
@@ -34,9 +35,10 @@ const ReportModal = ({ isOpen, onClose, targetId, reportType }) => {
       });
       alert('Report submitted successfully. Thank you!');
       setFormData({ reason: '', details: '' });
+      onSubmitted?.({ targetId, reportType });
       onClose();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to submit report');
+      setError(err?.message || err?.response?.data?.message || 'Failed to submit report');
     } finally {
       setLoading(false);
     }
@@ -132,7 +134,7 @@ const ReportModal = ({ isOpen, onClose, targetId, reportType }) => {
     <div style={overlayStyle} onClick={onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ margin: '0 0 20px 0', color: '#27364a', fontSize: 18 }}>
-          Report {reportType === 'review' ? 'Review' : 'Room'}
+          Report {reportType === 'review' ? 'Review' : 'Boarding House'}
         </h3>
 
         <form onSubmit={handleSubmit}>

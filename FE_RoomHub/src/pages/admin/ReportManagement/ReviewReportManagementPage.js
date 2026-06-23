@@ -202,6 +202,8 @@ export default function ReviewReportManagementPage() {
                   <option value="Inappropriate content">
                     Inappropriate content
                   </option>
+                  <option value="Offensive language">Offensive language</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
 
@@ -215,7 +217,8 @@ export default function ReviewReportManagementPage() {
                 >
                   <option value="">All statuses</option>
                   <option value="pending">Pending</option>
-                  <option value="processed">Processed</option>
+                  <option value="processing">Processing</option>
+                  <option value="resolved">Resolved</option>
                   <option value="rejected">Rejected</option>
                 </select>
               </div>
