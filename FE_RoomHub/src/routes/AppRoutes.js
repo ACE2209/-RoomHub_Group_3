@@ -22,14 +22,14 @@ import RoomTypeRoomsPage from "../pages/RoomTypeRoomsPage";
 
 import MyBoardingHousesPage from "../pages/owner/MyBoardingHousesPage";
 import OwnerBoardingHouseDetailPage from "../pages/owner/OwnerBoardingHouseDetailPage";
+import AppointmentManagementPage from "../pages/owner/AppointmentManagementPage";
 import MyReportsPage from "../pages/report/MyReportsPage";
 
 import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
 import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
-import BoardingHouseReportManagementPage from "../pages/admin/ReportManagement/BoardingHouseReportManagementPage";
+import BoardingHouseReportManagementPage from "../pages/admin/BoardingHouseReportManagementPage";
 
 import AppointmentPage from "../pages/user/AppointmentPage";
-import CreateAppointmentPage from "../pages/user/CreateAppointmentPage";
 import CreateDepositPage from "../pages/user/CreateDepositPage";
 import FavoritesPage from "../pages/user/FavoritesPage";
 import WatchLaterPage from "../pages/user/WatchLaterPage";
@@ -76,14 +76,6 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/appointments/create/:roomId"
-        element={
-          <ProtectedRoute>
-            <CreateAppointmentPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/deposits/create/:roomId"
         element={
           <ProtectedRoute>
@@ -120,6 +112,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["owner", "staff"]}>
             <OwnerBoardingHouseDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/managed-appointments"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <AppointmentManagementPage />
           </ProtectedRoute>
         }
       />
