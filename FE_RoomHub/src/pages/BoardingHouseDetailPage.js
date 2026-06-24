@@ -327,8 +327,8 @@ const BoardingHouseDetailPage = () => {
                                                 >
                                                     <Clock
                                                         size={22}
+                                                        fill="none"
                                                         color={isWatchLater ? "#ff6b00" : "black"}
-                                                        fill={isWatchLater ? "#ff6b00" : "none"}
                                                     />
                                                 </button>
                                             </div>
