@@ -29,6 +29,8 @@ export default function Sidebar() {
           <NavLink to="/my-boarding-houses">My Boarding Houses</NavLink>
         )}
 
+        {isAdmin && <NavLink to="/admin/profile">Profile</NavLink>}
+
         {!isAdmin && <NavLink to="/my-reports">My Reports</NavLink>}
       </nav>
 

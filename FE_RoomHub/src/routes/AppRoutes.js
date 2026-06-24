@@ -14,6 +14,9 @@ import BoardingHouseManagementPage from "../pages/admin/BoardingHouseManagementP
 import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
 
+import BHDetailPage from "../pages/admin/BHDetailPage";
+import ProfilePage from "../pages/admin/ProfilePage";
+
 import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
 import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
 import BoardingHouseReportManagementPage from "../pages/admin/BoardingHouseReportManagementPage";
@@ -32,6 +35,7 @@ import CreateDepositPage from "../pages/user/CreateDepositPage";
 import FavoritesPage from "../pages/user/FavoritesPage";
 
 import ProtectedRoute from "./ProtectedRoute";
+import WatchLaterPage from "../pages/user/WatchLaterPage";
 
 const AppRoutes = () => {
   return (
@@ -137,6 +141,15 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/watchlater"
+        element={
+          <ProtectedRoute>
+            <WatchLaterPage />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Admin Routes */}
       <Route
         path="/admin"
@@ -207,6 +220,24 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <BoardingHouseReportManagementPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/boarding-houses/:boardingHouseId"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <BHDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/profile"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <ProfilePage />
           </ProtectedRoute>
         }
       />
