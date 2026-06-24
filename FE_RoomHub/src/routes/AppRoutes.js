@@ -14,6 +14,9 @@ import BoardingHouseManagementPage from "../pages/admin/BoardingHouseManagementP
 import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
 
+import BHDetailPage from "../pages/admin/BHDetailPage";
+import ProfilePage from "../pages/admin/ProfilePage";
+
 import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
 import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
 import BoardingHouseReportManagementPage from "../pages/admin/ReportManagement/BoardingHouseReportManagementPage";
@@ -24,7 +27,6 @@ import RoomTypeRoomsPage from "../pages/RoomTypeRoomsPage";
 
 import MyBoardingHousesPage from "../pages/owner/MyBoardingHousesPage";
 import OwnerBoardingHouseDetailPage from "../pages/owner/OwnerBoardingHouseDetailPage";
-import AppointmentManagementPage from "../pages/owner/AppointmentManagementPage";
 import MyReportsPage from "../pages/report/MyReportsPage";
 
 import AppointmentPage from "../pages/user/AppointmentPage";
@@ -33,6 +35,7 @@ import CreateDepositPage from "../pages/user/CreateDepositPage";
 import FavoritesPage from "../pages/user/FavoritesPage";
 
 import ProtectedRoute from "./ProtectedRoute";
+import WatchLaterPage from "../pages/user/WatchLaterPage";
 
 const AppRoutes = () => {
   return (
@@ -139,10 +142,10 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/managed-appointments"
+        path="/watchlater"
         element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <AppointmentManagementPage />
+          <ProtectedRoute>
+            <WatchLaterPage />
           </ProtectedRoute>
         }
       />
@@ -217,6 +220,24 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <BoardingHouseReportManagementPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/boarding-houses/:boardingHouseId"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <BHDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/profile"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <ProfilePage />
           </ProtectedRoute>
         }
       />

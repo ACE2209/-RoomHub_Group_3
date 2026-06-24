@@ -1,0 +1,46 @@
+{
+  "boardingHouseAdmin": {
+    "name": "Tên",
+    "address": "Địa chỉ",
+    "priceRange": "Khoảng giá/tháng",
+    "boardingHouseType": "Loại Nhà Trọ",
+    "totalRooms": "Tổng số phòng",
+    "createdAt": "Ngày tạo",
+    "action": "Hành động",
+    "delete": "Xóa",
+    "update": "Cập nhật",
+    "addNew": "Thêm nhà trọ mới",
+    "confirmDeletion": {
+      "title": "Xác nhận xóa",
+      "content": "Bạn có chắc chắn muốn xóa \"{{name}}\" không?"
+    },
+    "pagination": {
+      "showTotal": "{{start}}-{{end}} trong tổng số {{total}} Nhà Trọ"
+    }
+  },
+  "boardingHouseTypes": {
+    "Nhà trọ truyền thống": "Nhà trọ truyền thống",
+    "Mini house": "Căn hộ mini",
+    "Nhà trọ kiến trúc xá": "Nhà trọ kiến trúc xá",
+    "nha_tro_truyen_thong": "Nhà trọ truyền thống",
+    "mini_house": "Mini house",
+    "nha_tro_kien_truc_xa": "Nhà trọ kiến trúc xá",
+    "nha_tro_cao_cap": "Nhà trọ cao cấp"
+  },
+  "errors": {
+    "enterBoardingHouseName": "Vui lòng nhập tên nhà trọ.",
+    "selectProvince": "Vui lòng chọn tỉnh/thành phố.",
+    "selectDistrict": "Vui lòng chọn quận/huyện.",
+    "selectWard": "Vui lòng chọn phường/xã.",
+    "maxOtherImages": "Bạn chỉ có thể tải lên tối đa 15 ảnh khác.",
+    "invalidFormData": "Dữ liệu form không hợp lệ.",
+    "fetchImages": "Không thể tải ảnh."
+  },
+  "validation": {
+    "enterDetailAddress": "Vui lòng nhập chi tiết nhà trọ."
+  },
+  "messages": {
+    "deleteSuccess": "Xóa nhà trọ thành công.",
+    "noData": "Không có dữ liệu."
+  }
+}

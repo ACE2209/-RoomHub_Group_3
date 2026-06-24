@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
     ArrowLeft,
     BedDouble,
+    Clock,
     Droplets,
     Heart,
     Home,
@@ -27,6 +28,7 @@ import { getImageSource, setFallbackImage } from "../api/config";
 import ReviewSection from "../components/ReviewSection";
 import MapSection from "../components/MapSection";
 import { toggleFavorite, getFavorites } from "../api/favorite";
+import { toggleWatchLater, getWatchLater } from "../api/watchLater";
 
 const formatCurrency = (value) => {
     const numberValue = Number(value);
@@ -89,6 +91,7 @@ const BoardingHouseDetailPage = () => {
     const [roomTypesError, setRoomTypesError] = useState("");
     const [error, setError] = useState("");
     const [favorites, setFavorites] = useState([]);
+    const [isWatchLater, setIsWatchLater] = useState(false);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -187,6 +190,27 @@ const BoardingHouseDetailPage = () => {
         loadFavorites();
     }, []);
 
+    useEffect(() => {
+        const loadWatchLater = async () => {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            try {
+                const res = await getWatchLater();
+                if (res?.watchLater) {
+                    const inWatchLater = res.watchLater.some(
+                        (item) => (item.id || item._id) === boardingHouseId
+                    );
+                    setIsWatchLater(inWatchLater);
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        loadWatchLater();
+    }, [boardingHouseId]);
+
     const handleFavorite = async () => {
         const token = localStorage.getItem("token");
 
@@ -205,6 +229,22 @@ const BoardingHouseDetailPage = () => {
                     prev.filter(id => id !== boardingHouseId)
                 );
             }
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleWatchLater = async () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        try {
+            const res = await toggleWatchLater(boardingHouseId);
+            setIsWatchLater(Boolean(res?.isWatchLater));
         } catch (err) {
             console.error(err);
         }
@@ -299,6 +339,17 @@ const BoardingHouseDetailPage = () => {
                                                                 ? "red"
                                                                 : "none"
                                                         }
+                                                    />
+                                                </button>
+
+                                                <button
+                                                    onClick={handleWatchLater}
+                                                    className="btn p-0 border-0 bg-transparent"
+                                                >
+                                                    <Clock
+                                                        size={22}
+                                                        fill="none"
+                                                        color={isWatchLater ? "#ff6b00" : "black"}
                                                     />
                                                 </button>
                                             </div>

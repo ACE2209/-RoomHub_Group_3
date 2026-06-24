@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
     Heart,
+    Clock,
     Bell,
     Search,
     MapPin,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { getFavorites } from "../../../api/favorite";
+import { getWatchLater } from "../../../api/watchLater";
 const Header = () => {
     const navigate = useNavigate();
 
@@ -20,6 +22,7 @@ const Header = () => {
     const [showUserMenu, setShowUserMenu] = useState(false);
 
     const [favorites, setFavorites] = useState([]);
+    const [watchLater, setWatchLater] = useState([]);
 
     useEffect(() => {
         const userData = localStorage.getItem("user");
@@ -42,6 +45,24 @@ const Header = () => {
         };
 
         loadFavorites();
+    }, [user]);
+
+    useEffect(() => {
+        const loadWatchLater = async () => {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            try {
+                const res = await getWatchLater();
+                if (res?.watchLater) {
+                    setWatchLater(res.watchLater);
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        loadWatchLater();
     }, [user]);
 
     useEffect(() => {
@@ -86,6 +107,17 @@ const Header = () => {
         }
 
         navigate("/favorites");
+    };
+
+    const handleWatchLaterClick = () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        navigate("/watchlater");
     };
 
     const menuItemStyle = {
@@ -243,6 +275,26 @@ const Header = () => {
                                         style={{ fontSize: "10px" }}
                                     >
                                         {favorites.length}
+                                    </span>
+                                )}
+                            </button>
+
+                            <button
+                                className="btn border-0 p-0 position-relative"
+                                onClick={handleWatchLaterClick}
+                            >
+                                <Clock
+                                    size={24}
+                                    fill="none"
+                                    color={watchLater.length > 0 ? "#ff6b00" : "black"}
+                                />
+
+                                {watchLater.length > 0 && (
+                                    <span
+                                        className="position-absolute top-0 start-100 translate-middle badge rounded-pill"
+                                        style={{ fontSize: "10px", backgroundColor: "#ff6b00" }}
+                                    >
+                                        {watchLater.length}
                                     </span>
                                 )}
                             </button>

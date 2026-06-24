@@ -1,7 +1,30 @@
+import axiosClient from "./axios.config";
 import axios from "axios";
 
 import API_URL from "./config";
 
+// ===== Admin profile (axios.config instance) =====
+export const updateAccountFromProfile = (data) => {
+  return axiosClient.put("auth/profile", data);
+};
+
+export const sendOTPChangeEmail = (data) => {
+  return axiosClient.post("auth/send-otp-change-email", data);
+};
+
+export const verifyChangeEmail = (data) => {
+  return axiosClient.post("auth/verify-change-email", data);
+};
+
+export const updateAvatar = (data) => {
+  return axiosClient.put("auth/avatar", data, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
+
+// ===== Account management & profile (REST helpers) =====
 const authHeader = () => ({
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
 });

@@ -1,0 +1,58 @@
+{
+  "boardingHouseDetailsAdmin": {
+    "title": "Thông Tin Nhà Trọ",
+    "information": "Thông Tin",
+    "price": "Giá",
+    "image": "Hình Ảnh",
+    "address": "Địa Chỉ",
+    "name": "Tên Nhà Trọ",
+    "boardingHouseType": "Loại Nhà Trọ",
+    "description": "Mô Tả",
+    "priceRent": "Giá Thuê/tháng",
+    "electricityPrice": "Giá Điện/kWh",
+    "waterPrice": "Giá Nước/m³",
+    "primaryImage": "Hình Ảnh Chính",
+    "otherImages": "Hình Ảnh Khác",
+    "selectProvince": "Chọn Tỉnh/Thành",
+    "selectDistrict": "Chọn Quận/Huyện",
+    "selectWard": "Chọn Phường/Xã",
+    "detail": "Chi Tiết",
+    "totalRooms": "Tổng Số Phòng",
+    "availableRooms": "Số Phòng Trống",
+    "update": "Cập Nhật",
+    "back": "Trở Lại",
+    "likes": "{{count}} Lượt Thích",
+    "delete": "Xóa",
+    "preview": "Xem",
+    "defaultName": "Tên mặc định",
+    "addPrimaryImage": "Thêm ảnh chính",
+    "validation": {
+      "selectProvince": "Vui lòng chọn tỉnh/thành phố.",
+      "selectDistrict": "Vui lòng chọn quận/huyện.",
+      "selectWard": "Vui lòng chọn phường/xã."
+    }
+  },
+  "errors": {
+    "noId": "Không tìm thấy ID nhà trọ.",
+    "fetchFailed": "Không thể lấy dữ liệu nhà trọ.",
+    "fetchAddressFailed": "Không thể lấy dữ liệu địa chỉ.",
+    "fetchBoardingHouseTypes": "Không thể lấy loại nhà trọ.",
+    "maxOtherImages": "Bạn chỉ có thể tải lên tối đa 15 ảnh khác."
+  },
+  "validation": {
+    "selectBoardingHouseType": "Vui lòng chọn loại nhà trọ.",
+    "enterBoardingHouseName": "Vui lòng nhập tên nhà trọ.",
+    "selectProvince": "Vui lòng chọn tỉnh/thành phố.",
+    "selectDistrict": "Vui lòng chọn quận/huyện.",
+    "selectWard": "Vui lòng chọn phường/xã.",
+    "enterDetailAddress": "Vui lòng nhập chi tiết nhà trọ.",
+    "enterPriceRange": "Vui lòng nhập giá thuê.",
+    "enterElectricityPrice": "Vui lòng nhập giá điện.",
+    "enterWaterPrice": "Vui lòng nhập giá nước."
+  },
+  "messages": {
+    "updateSuccess": "Cập nhật nhà trọ thành công.",
+    "updateFailed": "Cập nhật nhà trọ thất bại.",
+    "imageRemoved": "Ảnh đã được xóa."
+  }
+}

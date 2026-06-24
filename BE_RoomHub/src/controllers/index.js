@@ -4,11 +4,12 @@ import reportController from './reportController.js';
 
 import favoriteController from './favoriteController.js';
 import ReviewController from './reviewController.js';
+import BoardingHouseController from './BoardingHouseController.js';
 // import withdrawalRequestsController from './withdrawalRequestsController.js';
 import boardingHouseController from './BoardingHouseController.js';
 import appointmentController from './appointmentController.js';
 import roomController from './roomController.js';
-// import watchLaterController from './watchLaterController.js';
+import watchLaterController from './watchLaterController.js';
 // import depositController from './depositController.js';
 // import FacilitiesController from './facilitiesController.js';
  import roomTypeController from './roomTypeController.js';
@@ -28,12 +29,13 @@ export {
   reportController,
 
   // withdrawalRequestsController,
+  BoardingHouseController,
   boardingHouseController,
   ReviewController,
   favoriteController,
   appointmentController,
   roomController,
-  // watchLaterController,
+  watchLaterController,
   // depositController,
   // FacilitiesController,
    roomTypeController,
