@@ -16,7 +16,7 @@ import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
 
 import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
 import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
-import BoardingHouseReportManagementPage from "../pages/admin/ReportManagement/BoardingHouseReportManagementPage";
+import BoardingHouseReportManagementPage from "../pages/admin/BoardingHouseReportManagementPage";
 
 import BoardingHouseDetailPage from "../pages/BoardingHouseDetailPage";
 import RoomDetailPage from "../pages/RoomDetailPage";
