@@ -28,7 +28,8 @@ import { getImageSource, setFallbackImage } from "../api/config";
 import ReviewSection from "../components/ReviewSection";
 import MapSection from "../components/MapSection";
 import { toggleFavorite, getFavorites } from "../api/favorite";
-import { toggleWatchLater } from "../api/watchLater";
+import { toggleWatchLater, getWatchLater } from "../api/watchLater";
+import { toastSuccess, toastInfo, confirmAction } from "../utils/notify";
 
 const formatCurrency = (value) => {
     const numberValue = Number(value);
@@ -190,6 +191,27 @@ const BoardingHouseDetailPage = () => {
         loadFavorites();
     }, []);
 
+    useEffect(() => {
+        const loadWatchLater = async () => {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            try {
+                const res = await getWatchLater();
+                if (res?.watchLater) {
+                    const inWatchLater = res.watchLater.some(
+                        (item) => (item.id || item._id) === boardingHouseId
+                    );
+                    setIsWatchLater(inWatchLater);
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        };
+
+        loadWatchLater();
+    }, [boardingHouseId]);
+
     const handleFavorite = async () => {
         const token = localStorage.getItem("token");
 
@@ -221,9 +243,27 @@ const BoardingHouseDetailPage = () => {
             return;
         }
 
+        // Đang trong watch later -> bấm lần nữa để gỡ thì xác nhận trước
+        if (isWatchLater) {
+            const confirmed = await confirmAction({
+                title: "Remove from Watch Later?",
+                text: "This boarding house will be removed from your watch later list.",
+                confirmText: "Yes, remove",
+            });
+
+            if (!confirmed) return;
+        }
+
         try {
             const res = await toggleWatchLater(boardingHouseId);
-            setIsWatchLater(Boolean(res?.isWatchLater));
+            const added = Boolean(res?.isWatchLater);
+            setIsWatchLater(added);
+
+            if (added) {
+                toastSuccess("Added to Watch Later");
+            } else {
+                toastInfo("Removed from Watch Later");
+            }
         } catch (err) {
             console.error(err);
         }
