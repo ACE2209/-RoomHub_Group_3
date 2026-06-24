@@ -24,6 +24,7 @@ const AppointmentSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
+      maxlength: 500,
     },
 
     appointmentDate: {
@@ -35,26 +36,59 @@ const AppointmentSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
+      maxlength: 500,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
 
+AppointmentSchema.index({ accountId: 1, roomId: 1, status: 1 });
+AppointmentSchema.index({ roomId: 1, status: 1, appointmentDate: 1 });
+AppointmentSchema.index({ appointmentDate: 1 });
+
 AppointmentSchema.statics.updateExpiredAppointments = async function () {
-  return this.updateMany(
+  const now = new Date();
+
+  const expiredPending = await this.updateMany(
     {
       status: "pending",
-      appointmentDate: { $lt: new Date() },
+      appointmentDate: { $lte: now },
     },
     {
-      status: "canceled",
-      reasonForCancel: "Appointment expired",
+      $set: {
+        status: "canceled",
+        reasonForCancel: "Appointment expired",
+      },
     }
   );
+
+  const completedAccepted = await this.updateMany(
+    {
+      status: "accepted",
+      appointmentDate: { $lte: now },
+    },
+    {
+      $set: {
+        status: "completed",
+      },
+    }
+  );
+
+  return {
+    expiredPending,
+    completedAccepted,
+  };
 };
 
 AppointmentSchema.virtual("isExpired").get(function () {
-  return this.status === "pending" && new Date() > this.appointmentDate;
+  return (
+    ["pending", "accepted"].includes(this.status) &&
+    new Date() > this.appointmentDate
+  );
 });
 
 const Appointment = mongoose.model("Appointment", AppointmentSchema);
