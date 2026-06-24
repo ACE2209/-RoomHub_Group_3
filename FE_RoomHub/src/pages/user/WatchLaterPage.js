@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getWatchLater, deleteWatchLater } from "../../api/watchLater";
 import { Clock, Star, MapPin, BedDouble, X, Search, Trash2 } from "lucide-react";
-import Swal from "sweetalert2";
+import { confirmAction, toastSuccess } from "../../utils/notify";
+import getLocalizedAddress from "../../utils/addressHelper";
 import Footer from "../layout/homepage/footer";
 import Header from "../layout/homepage/header";
 
@@ -31,17 +32,6 @@ const WatchLaterPage = () => {
         }).format(numberValue);
     };
 
-    const formatAddress = (address) => {
-        if (!address) return "";
-
-        return [
-            address.detail,
-            address.ward?.name,
-            address.district?.name,
-            address.province?.name,
-        ].filter(Boolean).join(", ");
-    };
-
     // DERIVED LIST: filter by keyword + sort (giữ nguyên mảng gốc watchLater)
     const visibleList = useMemo(() => {
         const kw = keyword.trim().toLowerCase();
@@ -49,7 +39,7 @@ const WatchLaterPage = () => {
         const filtered = watchLater.filter((item) => {
             if (!kw) return true;
             const name = (item.name || "").toLowerCase();
-            const addr = formatAddress(item.address).toLowerCase();
+            const addr = getLocalizedAddress(item.address).toLowerCase();
             return name.includes(kw) || addr.includes(kw);
         });
 
@@ -77,18 +67,13 @@ const WatchLaterPage = () => {
     const handleRemoveWatchLater = async (e, id) => {
         e.stopPropagation();
 
-        const confirm = await Swal.fire({
+        const confirmed = await confirmAction({
             title: "Remove from Watch Later?",
             text: "This boarding house will be removed from your watch later list.",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#ff6b00",
-            cancelButtonColor: "#aaa",
-            confirmButtonText: "Yes, remove",
-            cancelButtonText: "Cancel",
+            confirmText: "Yes, remove",
         });
 
-        if (!confirm.isConfirmed) return;
+        if (!confirmed) return;
 
         try {
             await deleteWatchLater(id);
@@ -96,6 +81,8 @@ const WatchLaterPage = () => {
             setWatchLater(prev =>
                 prev.filter(item => (item.id || item._id) !== id)
             );
+
+            toastSuccess("Removed from Watch Later");
         } catch (err) {
             console.error(err);
         }
@@ -103,28 +90,21 @@ const WatchLaterPage = () => {
 
     // CLEAR ALL (loop deleteWatchLater)
     const handleClearAll = async () => {
-        const confirm = await Swal.fire({
+        const confirmed = await confirmAction({
             title: "Clear all Watch Later?",
             text: `All ${watchLater.length} items will be removed.`,
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#ff3b30",
-            cancelButtonColor: "#aaa",
-            confirmButtonText: "Yes, clear all",
-            cancelButtonText: "Cancel",
+            confirmText: "Yes, clear all",
+            danger: true,
         });
 
-        if (!confirm.isConfirmed) return;
+        if (!confirmed) return;
 
         try {
             const ids = watchLater.map((item) => item.id || item._id);
             await Promise.all(ids.map((id) => deleteWatchLater(id)));
             setWatchLater([]);
-            Swal.fire({
-                title: "Cleared!",
-                icon: "success",
-                confirmButtonColor: "#ff6b00",
-            });
+
+            toastSuccess("Watch Later cleared");
         } catch (err) {
             console.error(err);
         }
@@ -291,7 +271,7 @@ const WatchLaterPage = () => {
                                             {/* ADDRESS */}
                                             <div className="text-muted small d-flex align-items-center gap-1">
                                                 <MapPin size={15} />
-                                                {formatAddress(item.address)}
+                                                {getLocalizedAddress(item.address)}
                                             </div>
 
                                             {/* DESCRIPTION */}
