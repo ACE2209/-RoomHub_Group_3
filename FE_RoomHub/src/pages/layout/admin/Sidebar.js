@@ -3,8 +3,10 @@ import { Link, NavLink } from "react-router-dom";
 export default function Sidebar() {
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const role = user?.role;
+
   const isAdmin = role === "admin";
-  const canManageOwnBoardingHouses = role === "owner" || role === "staff";
+  const canManageOwnBoardingHouses =
+    role === "owner" || role === "staff";
 
   return (
     <aside className="sidebar">
@@ -13,29 +15,63 @@ export default function Sidebar() {
       </Link>
 
       <nav className="menu">
-        {isAdmin && <NavLink to="/admin">Dashboard</NavLink>}
-        {isAdmin && <NavLink to="/admin/accounts">Account Management</NavLink>}
+        {isAdmin && (
+          <NavLink to="/admin">
+            Dashboard
+          </NavLink>
+        )}
+
+        {isAdmin && (
+          <NavLink to="/admin/accounts">
+            Account Management
+          </NavLink>
+        )}
 
         {isAdmin && (
           <>
-            <NavLink to="/admin/review-reports">Review Reports</NavLink>
-            <NavLink to="/admin/boarding-house-reports">Boarding House Reports</NavLink>
-            <NavLink to="/admin/boarding-houses">Boarding House Management</NavLink>
-            <NavLink to="/admin/reviews">Review Management</NavLink>
+            <NavLink to="/admin/review-reports">
+              Review Reports
+            </NavLink>
+
+            <NavLink to="/admin/boarding-house-reports">
+              Boarding House Reports
+            </NavLink>
+
+            <NavLink to="/admin/boarding-houses">
+              Boarding House Management
+            </NavLink>
+
+            <NavLink to="/admin/reviews">
+              Review Management
+            </NavLink>
           </>
         )}
 
         {canManageOwnBoardingHouses && (
-  <>
-    <NavLink to="/my-boarding-houses">My Boarding Houses</NavLink>
+          <>
+            <NavLink to="/my-boarding-houses">
+              My Boarding Houses
+            </NavLink>
 
-    <NavLink to="/managed-appointments">
-      Appointment Management
-    </NavLink>
-  </>
-)}
+            <NavLink to="/managed-appointments">
+              Appointment Management
+            </NavLink>
 
-        {!isAdmin && <NavLink to="/my-reports">My Reports</NavLink>}
+            <NavLink to="/manage-rooms">
+              Manage Rooms
+            </NavLink>
+
+            <NavLink to="/manage-room-additional-fees">
+              Manage Room Additional Fees
+            </NavLink>
+          </>
+        )}
+
+        {!isAdmin && (
+          <NavLink to="/my-reports">
+            My Reports
+          </NavLink>
+        )}
       </nav>
 
       <div className="sidebar-bottom">‹</div>
