@@ -20,9 +20,11 @@ import BoardingHouseDetailPage from "../pages/BoardingHouseDetailPage";
 import RoomDetailPage from "../pages/RoomDetailPage";
 import RoomTypeRoomsPage from "../pages/RoomTypeRoomsPage";
 
-import MyBoardingHousesPage from "../pages/owner/MyBoardingHousesPage";
-import OwnerBoardingHouseDetailPage from "../pages/owner/OwnerBoardingHouseDetailPage";
-import AppointmentManagementPage from "../pages/owner/AppointmentManagementPage";
+import MyBoardingHousesPage from "../pages/ownerandstaff/MyBoardingHousesPage";
+import OwnerBoardingHouseDetailPage from "../pages/ownerandstaff/OwnerBoardingHouseDetailPage";
+import AppointmentManagementPage from "../pages/ownerandstaff/AppointmentManagementPage";
+import ManageRooms from "../pages/ownerandstaff/ManageRooms";
+import ManageRoomAdditionalFees from "../pages/ownerandstaff/ManageRoomAdditionalFees";
 import MyReportsPage from "../pages/report/MyReportsPage";
 
 import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
@@ -217,6 +219,24 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/manage-rooms"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManageRooms />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/manage-room-additional-fees"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManageRoomAdditionalFees />
           </ProtectedRoute>
         }
       />
