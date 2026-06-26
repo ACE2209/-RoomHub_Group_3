@@ -14,7 +14,7 @@ import {
     Row,
     Col,
     Empty,
-    DatePicker,  // ✅ ADD THIS
+    DatePicker,
 } from "antd";
 
 import {
@@ -41,8 +41,7 @@ import AdminLayout from "../layout/admin/AdminLayout";
 import "./ManageRoomAdditionalFees.css";
 
 const { Option } = Select;
-const { MonthPicker } = DatePicker;  // ✅ ADD THIS
-
+const { MonthPicker } = DatePicker;
 const ManageRoomAdditionalFees = () => {
     const [loading, setLoading] = useState(false);
     const [boardingHouses, setBoardingHouses] = useState([]);
