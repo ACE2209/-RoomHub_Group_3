@@ -25,6 +25,11 @@ const Profile = () => {
     const [step, setStep] = useState(1);
     const [token, setToken] = useState("");
 
+    const [emailMessage, setEmailMessage] = useState("");
+    const [emailError, setEmailError] = useState("");
+    const [verifyLoading, setVerifyLoading] = useState(false);
+    const [sendLoading, setSendLoading] = useState(false);
+
     const [editOpen, setEditOpen] = useState(false);
 
     const [form, setForm] = useState({
@@ -105,59 +110,81 @@ const Profile = () => {
     };
 
     const handleSendOTP = async () => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!newEmail.trim()) {
+            setEmailError("Please enter email");
+            return;
+        }
+
+        if (!emailRegex.test(newEmail)) {
+            setEmailError("Please enter a valid email address");
+            return;
+        }
+
         try {
+            setSendLoading(true);
+            setEmailError("");
+            setEmailMessage("");
+
             const res = await sendOTPChangeEmailAPI(newEmail);
+
             setToken(res.token);
             setStep(2);
 
-            Swal.fire({
-                toast: true,
-                position: "top-end",
-                icon: "success",
-                title: "OTP sent",
-                timer: 1500,
-                showConfirmButton: false,
-            });
+            setEmailMessage(
+                `OTP has been sent to ${newEmail}. Please check your inbox and spam folder.`
+            );
 
         } catch (err) {
-            Swal.fire({
-                icon: "error",
-                title: "Error",
-                text: err.response?.data?.message,
-            });
+            setEmailError(
+                err.response?.data?.message || "Failed to send OTP"
+            );
+        } finally {
+            setSendLoading(false);
         }
     };
 
     const handleVerifyEmail = async () => {
+        if (!otp.trim()) {
+            setEmailError("Please enter OTP");
+            return;
+        }
+
         try {
+            setVerifyLoading(true);
+            setEmailError("");
+
             await verifyChangeEmailAPI({
                 email: newEmail,
                 otp,
                 token,
             });
 
-            Swal.fire({
-                toast: true,
-                position: "top-end",
-                icon: "success",
-                title: "Email updated",
-                timer: 1500,
-                showConfirmButton: false,
-            });
-
             setEmailModal(false);
+
             setStep(1);
             setNewEmail("");
             setOtp("");
+            setToken("");
+            setEmailMessage("");
+            setEmailError("");
 
-            fetchProfile();
+            await fetchProfile();
+
+            Swal.fire({
+                icon: "success",
+                title: "Email Updated",
+                text: "Your email has been changed successfully.",
+                confirmButtonColor: "#ff6b00",
+            });
 
         } catch (err) {
-            Swal.fire({
-                icon: "error",
-                title: "Error",
-                text: err.response?.data?.message,
-            });
+            setEmailError(
+                err.response?.data?.message || "Invalid OTP"
+            );
+        } finally {
+            setVerifyLoading(false);
         }
     };
 
@@ -267,7 +294,46 @@ const Profile = () => {
                         padding: 20,
                         borderRadius: 12,
                     }}>
-                        <h3>Change Email</h3>
+                        <h3
+                            style={{
+                                marginBottom: 16,
+                                textAlign: "center",
+                            }}
+                        >
+                            Change Email
+                        </h3>
+
+                        {emailMessage && (
+                            <div
+                                style={{
+                                    background: "#ecfdf5",
+                                    color: "#059669",
+                                    padding: 12,
+                                    borderRadius: 8,
+                                    marginBottom: 12,
+                                    fontSize: 14,
+                                    border: "1px solid #a7f3d0",
+                                }}
+                            >
+                                {emailMessage}
+                            </div>
+                        )}
+
+                        {emailError && (
+                            <div
+                                style={{
+                                    background: "#fef2f2",
+                                    color: "#dc2626",
+                                    padding: 12,
+                                    borderRadius: 8,
+                                    marginBottom: 12,
+                                    fontSize: 14,
+                                    border: "1px solid #fecaca",
+                                }}
+                            >
+                                {emailError}
+                            </div>
+                        )}
 
                         {step === 1 && (
                             <>
@@ -280,6 +346,7 @@ const Profile = () => {
 
                                 <button
                                     onClick={handleSendOTP}
+                                    disabled={sendLoading}
                                     style={{
                                         marginTop: 10,
                                         width: "100%",
@@ -288,9 +355,11 @@ const Profile = () => {
                                         padding: 10,
                                         border: "none",
                                         borderRadius: 8,
+                                        cursor: sendLoading ? "not-allowed" : "pointer",
+                                        opacity: sendLoading ? 0.7 : 1,
                                     }}
                                 >
-                                    Send OTP
+                                    {sendLoading ? "Sending..." : "Send OTP"}
                                 </button>
                             </>
                         )}
@@ -306,6 +375,7 @@ const Profile = () => {
 
                                 <button
                                     onClick={handleVerifyEmail}
+                                    disabled={verifyLoading}
                                     style={{
                                         marginTop: 10,
                                         width: "100%",
@@ -314,9 +384,11 @@ const Profile = () => {
                                         padding: 10,
                                         border: "none",
                                         borderRadius: 8,
+                                        cursor: verifyLoading ? "not-allowed" : "pointer",
+                                        opacity: verifyLoading ? 0.7 : 1,
                                     }}
                                 >
-                                    Verify
+                                    {verifyLoading ? "Verifying..." : "Verify OTP"}
                                 </button>
                             </>
                         )}
@@ -325,6 +397,11 @@ const Profile = () => {
                             onClick={() => {
                                 setEmailModal(false);
                                 setStep(1);
+                                setNewEmail("");
+                                setOtp("");
+                                setToken("");
+                                setEmailMessage("");
+                                setEmailError("");
                             }}
                             style={{
                                 marginTop: 10,

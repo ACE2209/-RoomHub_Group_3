@@ -25,17 +25,20 @@ import BoardingHouseDetailPage from "../pages/BoardingHouseDetailPage";
 import RoomDetailPage from "../pages/RoomDetailPage";
 import RoomTypeRoomsPage from "../pages/RoomTypeRoomsPage";
 
-import MyBoardingHousesPage from "../pages/owner/MyBoardingHousesPage";
-import OwnerBoardingHouseDetailPage from "../pages/owner/OwnerBoardingHouseDetailPage";
+import MyBoardingHousesPage from "../pages/ownerandstaff/MyBoardingHousesPage";
+import OwnerBoardingHouseDetailPage from "../pages/ownerandstaff/OwnerBoardingHouseDetailPage";
 import MyReportsPage from "../pages/report/MyReportsPage";
 
 import AppointmentPage from "../pages/user/AppointmentPage";
-import CreateAppointmentPage from "../pages/user/CreateAppointmentPage";
 import CreateDepositPage from "../pages/user/CreateDepositPage";
 import FavoritesPage from "../pages/user/FavoritesPage";
 
 import ProtectedRoute from "./ProtectedRoute";
 import WatchLaterPage from "../pages/user/WatchLaterPage";
+import AppointmentManagementPage from "../pages/ownerandstaff/AppointmentManagementPage";
+
+import ManageRooms from "../pages/ownerandstaff/ManageRooms";
+import ManageRoomAdditionalFees from "../pages/ownerandstaff/ManageRoomAdditionalFees";
 
 const AppRoutes = () => {
   return (
@@ -91,14 +94,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/appointments/create/:roomId"
-        element={
-          <ProtectedRoute>
-            <CreateAppointmentPage />
-          </ProtectedRoute>
-        }
-      />
+
       <Route
         path="/deposits/create/:roomId"
         element={
@@ -146,6 +142,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <WatchLaterPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/managed-appointments"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <AppointmentManagementPage />
           </ProtectedRoute>
         }
       />
@@ -238,6 +242,24 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/manage-rooms"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManageRooms />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/manage-room-additional-fees"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManageRoomAdditionalFees />
           </ProtectedRoute>
         }
       />
