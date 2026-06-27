@@ -34,7 +34,6 @@ export const addBoardingHouseImage = (boardingHouseId, imageData) => {
     imageData
   );
 };
-
 export const updateBoardingHouseImage = (
   boardingHouseId,
   imageId,
@@ -45,7 +44,6 @@ export const updateBoardingHouseImage = (
     imageData
   );
 };
-
 export const deleteBoardingHouseImage = (boardingHouseId, imageId) => {
   return axios.delete(
     `/dashboard/boardinghouse/${boardingHouseId}/images/${imageId}`

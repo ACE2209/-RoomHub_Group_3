@@ -1,8 +1,6 @@
 export default function AdminHeader() {
   return (
     <header className="admin-header">
-      <div></div>
-
       <div className="header-right">
         <input
           className="search-box"
