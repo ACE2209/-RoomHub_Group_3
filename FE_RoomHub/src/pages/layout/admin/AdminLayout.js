@@ -1,6 +1,5 @@
 import "./admin.css";
 import Sidebar from "./Sidebar";
-import AdminHeader from "./AdminHeader";
 
 export default function AdminLayout({ children }) {
   return (
@@ -8,7 +7,6 @@ export default function AdminLayout({ children }) {
       <Sidebar />
 
       <div className="admin-main">
-        <AdminHeader />
 
         <div className="admin-content">
           {children}
