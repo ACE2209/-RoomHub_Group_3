@@ -27,6 +27,12 @@ const RoomSchema = new mongoose.Schema(
       default: true,
     },
 
+    // ✅ NEW: Track if isAvailable is manually set
+    manuallySet: {
+      type: Boolean,
+      default: false,
+    },
+
     images: {
       imageUrl: {
         type: String,
@@ -75,8 +81,15 @@ const RoomSchema = new mongoose.Schema(
 
 /**
  * Auto update room availability when rentBy changes
+ * ✅ FIXED: Skip if manuallySet is true
  */
 RoomSchema.pre("save", async function (next) {
+  // ✅ NEW: Skip auto-update if manually set
+  if (this.manuallySet) {
+    this.manuallySet = false; // Reset for next save
+    return next();
+  }
+
   if (!this.isModified("rentBy") && !this.isNew) {
     return next();
   }

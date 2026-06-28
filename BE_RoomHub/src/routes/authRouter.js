@@ -6,6 +6,7 @@ import {
   favoriteController,
   reportController,
   ReviewController,
+  watchLaterController,
 } from "../controllers/index.js";
 import { upload } from "../config/cloudinary.config.js";
 
@@ -43,6 +44,11 @@ authRouter.get("/favorites", favoriteController.getFavorites);
 authRouter.get("/favorites/all", favoriteController.getAllFavorites);
 authRouter.post("/favorites", favoriteController.createFavorite);
 authRouter.delete("/favorites/:boardingHouseId", favoriteController.deleteFavorite);
+
+// Watch later
+authRouter.get("/watchlater", watchLaterController.getWatchLater);
+authRouter.post("/watchlater", watchLaterController.createWatchLater);
+authRouter.delete("/watchlater/:boardingHouseId", watchLaterController.deleteWatchLater);
 
 // profile
 authRouter.get("/profile", accountController.getProfile);
