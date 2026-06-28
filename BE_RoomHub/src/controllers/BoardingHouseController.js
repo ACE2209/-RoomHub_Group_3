@@ -10,7 +10,37 @@ import '../models/account.js';
 import paginate from '../utils/pagination.js';
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const buildTextRegex = (value) => new RegExp(escapeRegex(value.trim()), 'i');
+
+const VIETNAMESE_CHAR_GROUPS = {
+  a: 'aàáạảãâầấậẩẫăằắặẳẵ',
+  d: 'dđ',
+  e: 'eèéẹẻẽêềếệểễ',
+  i: 'iìíịỉĩ',
+  o: 'oòóọỏõôồốộổỗơờớợởỡ',
+  u: 'uùúụủũưừứựửữ',
+  y: 'yỳýỵỷỹ',
+};
+
+const buildTextRegex = (value) => {
+  const pattern = String(value)
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .split('')
+    .map((char) => {
+      if (/\s/.test(char)) return '\\s+';
+
+      const lowerChar = char.toLowerCase();
+      const group = VIETNAMESE_CHAR_GROUPS[lowerChar];
+
+      if (!group) return escapeRegex(char);
+
+      return `[${group}${group.toUpperCase()}]`;
+    })
+    .join('');
+
+  return new RegExp(pattern, 'i');
+};
 
 const parsePositiveInt = (value, fallback) => {
   const parsed = Number.parseInt(value, 10);
@@ -458,7 +488,14 @@ class BoardingHouseController {
       };
 
       if (name?.trim()) {
-        filter.name = buildTextRegex(name);
+        const keywordRegex = buildTextRegex(name);
+        filter.$or = [
+          { name: keywordRegex },
+          { 'address.province.name': keywordRegex },
+          { 'address.district.name': keywordRegex },
+          { 'address.ward.name': keywordRegex },
+          { 'address.detail': keywordRegex },
+        ];
       }
 
       if (province?.trim()) {
