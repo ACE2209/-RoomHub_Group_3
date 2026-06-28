@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { boardingHouseController, appointmentController, roomAdditionFeeController } from '../controllers/index.js';
+import {
+  boardingHouseController,
+  appointmentController,
+  roomAdditionFeeController,
+  depositController,
+} from '../controllers/index.js';
 import { upload } from '../config/cloudinary.config.js';
 
 const ownerRouter = Router();
@@ -14,5 +19,9 @@ ownerRouter.get("/room-addition-fee/calculate-rent/:roomId", roomAdditionFeeCont
 ownerRouter.put("/room-addition-fee/:id", roomAdditionFeeController.updateRoomAdditionFee);
 ownerRouter.delete("/room-addition-fee/:id", roomAdditionFeeController.deleteRoomAdditionFee);
 ownerRouter.get("/room-addition-fee/:roomId", roomAdditionFeeController.getRoomAdditionFeesByRoomId);
+
+ownerRouter.get("/deposits", depositController.getDepositsByOwnerOrStaff);
+ownerRouter.patch("/deposits/:depositId/decision", depositController.handleDepositDecision);
+ownerRouter.delete("/deposits/:depositId", depositController.deleteDepositRoom);
 
 export { ownerRouter };

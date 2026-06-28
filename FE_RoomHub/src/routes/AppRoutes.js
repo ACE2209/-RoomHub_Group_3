@@ -26,6 +26,7 @@ import RoomTypeRoomsPage from "../pages/RoomTypeRoomsPage";
 import MyBoardingHousesPage from "../pages/ownerandstaff/MyBoardingHousesPage";
 import OwnerBoardingHouseDetailPage from "../pages/ownerandstaff/OwnerBoardingHouseDetailPage";
 import AppointmentManagementPage from "../pages/ownerandstaff/AppointmentManagementPage";
+import DepositManagementPage from "../pages/ownerandstaff/DepositManagementPage";
 import ManageRooms from "../pages/ownerandstaff/ManageRooms";
 import ManageRoomAdditionalFees from "../pages/ownerandstaff/ManageRoomAdditionalFees";
 import MyReportsPage from "../pages/report/MyReportsPage";
@@ -121,6 +122,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["owner", "staff"]}>
             <AppointmentManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/managed-deposits"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <DepositManagementPage />
           </ProtectedRoute>
         }
       />

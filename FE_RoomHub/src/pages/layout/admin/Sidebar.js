@@ -93,6 +93,10 @@ export default function Sidebar() {
               Appointment Management
             </NavLink>
 
+            <NavLink to="/managed-deposits">
+              Deposit Management
+            </NavLink>
+
             <NavLink to="/manage-rooms">
               Manage Rooms
             </NavLink>

@@ -5,6 +5,7 @@ import {
   roomController,
   roomAdditionFeeController,
   appointmentController,
+  depositController,
 } from "../controllers/index.js";
 import { upload } from '../config/cloudinary.config.js';
 
@@ -36,5 +37,14 @@ staffRouter.get("/room/boarding-house/:boardingHouseId", roomController.getRooms
 staffRouter.post("/room/boarding-house", upload.single("Room"), roomController.addRoom);
 staffRouter.put("/room/boarding-house/:roomId", upload.single("Room"), roomController.updateRoom);
 staffRouter.delete("/room/boarding-house/:roomId", roomController.deleteRoom);
+
+// DEPOSIT MANAGEMENT
+staffRouter.get("/deposits", depositController.getDepositsByOwnerOrStaff);
+staffRouter.patch("/deposits/:depositId/decision", depositController.handleDepositDecision);
+staffRouter.delete("/deposits/:depositId", depositController.deleteDepositRoom);
+staffRouter.delete(
+  "/deposit-room/:depositRoomId",
+  depositController.deleteDepositRoom
+);
 
 export { staffRouter };

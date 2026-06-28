@@ -23,9 +23,9 @@ const buildQuery = (params = {}) => {
   return query ? `?${query}` : "";
 };
 
-export const getManagedAppointments = async (params = {}) => {
+export const getManagedDeposits = async (params = {}) => {
   const res = await fetch(
-    `${API_BASE_URL}${getRolePrefix()}/appointments${buildQuery(params)}`,
+    `${API_BASE_URL}${getRolePrefix()}/deposits${buildQuery(params)}`,
     {
       method: "GET",
       headers: authHeaders(),
@@ -35,21 +35,9 @@ export const getManagedAppointments = async (params = {}) => {
   return parseJsonResponse(res);
 };
 
-export const getManagedAppointmentDetail = async (appointmentId) => {
+export const updateManagedDepositDecision = async (depositId, data) => {
   const res = await fetch(
-    `${API_BASE_URL}${getRolePrefix()}/appointments/${appointmentId}`,
-    {
-      method: "GET",
-      headers: authHeaders(),
-    }
-  );
-
-  return parseJsonResponse(res);
-};
-
-export const updateManagedAppointmentStatus = async (appointmentId, data) => {
-  const res = await fetch(
-    `${API_BASE_URL}${getRolePrefix()}/appointments/${appointmentId}/status`,
+    `${API_BASE_URL}${getRolePrefix()}/deposits/${depositId}/decision`,
     {
       method: "PATCH",
       headers: {
@@ -57,6 +45,20 @@ export const updateManagedAppointmentStatus = async (appointmentId, data) => {
         ...authHeaders(),
       },
       body: JSON.stringify(data),
+    }
+  );
+
+
+  
+  return parseJsonResponse(res);
+};
+
+export const deleteManagedDeposit = async (depositId) => {
+  const res = await fetch(
+    `${API_BASE_URL}${getRolePrefix()}/deposits/${depositId}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(),
     }
   );
 
