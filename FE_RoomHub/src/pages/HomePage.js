@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
     BedDouble,
@@ -25,6 +25,7 @@ import "./HomePage.css";
 
 const PAGE_LIMIT = 9;
 const SECTION_LIMIT = 4; // Số lượng hiển thị ở Newest & High Rating
+const LIVE_SEARCH_DELAY = 120;
 
 const formatCurrency = (value) => {
     const numberValue = Number(value);
@@ -173,6 +174,7 @@ const HomePage = () => {
     const [highRatingHouses, setHighRatingHouses] = useState([]);
     const [newestLoading, setNewestLoading] = useState(true);
     const [highRatingLoading, setHighRatingLoading] = useState(true);
+    const latestSearchRequestRef = useRef(0);
 
     const mergedFilterValue = useMemo(() => {
         const keyword = debouncedSearchValue.trim();
@@ -186,10 +188,15 @@ const HomePage = () => {
     }, [debouncedSearchValue, filterValue, pagination.currentPage]);
 
     const fetchBoardingHouses = useCallback(async () => {
+        const requestId = latestSearchRequestRef.current + 1;
+        latestSearchRequestRef.current = requestId;
+
         try {
             setLoading(true);
             setError("");
             const res = await getBhByArea(mergedFilterValue);
+
+            if (requestId !== latestSearchRequestRef.current) return;
 
             if (res?.success && Array.isArray(res.data)) {
                 setBoardingHouses(res.data.map(normalizeBoardingHouse));
@@ -199,11 +206,14 @@ const HomePage = () => {
                 setError(res?.message || "Unable to load boarding houses");
             }
         } catch (err) {
+            if (requestId !== latestSearchRequestRef.current) return;
             console.error("Get guest boarding houses failed:", err);
             setBoardingHouses([]);
             setError(err.message || "Unable to load boarding houses");
         } finally {
-            setLoading(false);
+            if (requestId === latestSearchRequestRef.current) {
+                setLoading(false);
+            }
         }
     }, [mergedFilterValue]);
 
@@ -266,7 +276,7 @@ const HomePage = () => {
         const timeoutId = window.setTimeout(() => {
             setDebouncedSearchValue(searchValue);
             setPagination((prev) => ({ ...prev, currentPage: 1 }));
-        }, 350);
+        }, LIVE_SEARCH_DELAY);
 
         return () => window.clearTimeout(timeoutId);
     }, [searchValue]);
@@ -312,10 +322,12 @@ const HomePage = () => {
                             <div className="guest-search" role="search">
                                 <Search size={20} />
                                 <input
+                                    type="search"
                                     value={searchValue}
                                     onChange={(e) => setSearchValue(e.target.value)}
-                                    placeholder="Search by boarding house name"
+                                    placeholder="Type any letter, name, or area"
                                     aria-label="Search boarding houses"
+                                    autoComplete="off"
                                 />
                             </div>
                         </div>
