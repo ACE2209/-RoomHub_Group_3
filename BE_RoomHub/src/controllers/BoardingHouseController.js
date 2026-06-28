@@ -8,7 +8,8 @@ import { Account } from '../models/account.js';
 import Review from '../models/review.js';
 import paginate from '../utils/pagination.js';
 
-const buildTextRegex = (value) => new RegExp(value.trim(), 'i');
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const buildTextRegex = (value) => new RegExp(escapeRegex(value.trim()), 'i');
 
 const parsePositiveInt = (value, fallback) => {
   const parsed = Number.parseInt(value, 10);
@@ -427,6 +428,149 @@ class BoardingHouseController {
       return res.status(500).json({
         success: false,
         message: 'Failed to fetch boarding houses',
+        error: error.message,
+      });
+    }
+  }
+
+  async getBhByArea(req, res) {
+    try {
+      const {
+        name,
+        province,
+        district,
+        ward,
+        priceRange,
+        boardingHouseType,
+        rating,
+        ratingRange,
+        page = 1,
+        limit = 10,
+      } = req.query;
+
+      const currentPage = parsePositiveInt(page, 1);
+      const pageLimit = Math.min(parsePositiveInt(limit, 10), 100);
+
+      const filter = {
+        totalRooms: { $gt: 0 },
+        deleted: { $ne: true },
+      };
+
+      if (name?.trim()) {
+        filter.name = buildTextRegex(name);
+      }
+
+      if (province?.trim()) {
+        filter['address.province.name'] = buildTextRegex(province);
+      }
+
+      if (district?.trim()) {
+        filter['address.district.name'] = buildTextRegex(district);
+      }
+
+      if (ward?.trim()) {
+        filter['address.ward.name'] = buildTextRegex(ward);
+      }
+
+      if (priceRange) {
+        const rangeValues = (Array.isArray(priceRange) ? priceRange : String(priceRange).split(','))
+          .flatMap((value) => String(value).split(','))
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value));
+
+        if (rangeValues.length !== 2 || rangeValues[0] < 0 || rangeValues[1] < rangeValues[0]) {
+          return res.status(400).json({
+            success: false,
+            message: 'priceRange must be in "min,max" format',
+          });
+        }
+
+        filter.priceRange = {
+          $gte: rangeValues[0],
+          $lte: rangeValues[1],
+        };
+      }
+
+      if (boardingHouseType) {
+        if (!mongoose.Types.ObjectId.isValid(boardingHouseType)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid boardingHouseType',
+          });
+        }
+
+        filter.boardingHouseType = new mongoose.Types.ObjectId(boardingHouseType);
+      }
+
+      if (ratingRange) {
+        const rangeValues = (Array.isArray(ratingRange) ? ratingRange : String(ratingRange).split(','))
+          .flatMap((value) => String(value).split(','))
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value));
+
+        if (rangeValues.length !== 2 || rangeValues[0] < 1 || rangeValues[1] > 5 || rangeValues[1] < rangeValues[0]) {
+          return res.status(400).json({
+            success: false,
+            message: 'ratingRange must be in "min,max" format from 1 to 5',
+          });
+        }
+
+        filter.rating = {
+          $gte: rangeValues[0],
+          $lte: rangeValues[1],
+        };
+      } else if (rating) {
+        const ratings = (Array.isArray(rating) ? rating : String(rating).split(','))
+          .flatMap((value) => String(value).split(','))
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value));
+
+        if (!ratings.length || ratings.some((value) => value < 1 || value > 5)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Rating must be a list of numbers from 1 to 5',
+          });
+        }
+
+        filter.rating = {
+          $gte: Math.min(...ratings),
+          $lte: Math.max(...ratings),
+        };
+      }
+
+      const [totalDocs, data] = await Promise.all([
+        BoardingHouse.countDocuments(filter),
+        BoardingHouse.find(filter)
+          .sort({ createdAt: -1 })
+          .skip((currentPage - 1) * pageLimit)
+          .limit(pageLimit)
+          .populate([
+            { path: 'boardingHouseType', select: 'name codeName' },
+            { path: 'ownerId', select: 'username fullname email phoneNumber avatarImage role' },
+          ])
+          .lean(),
+      ]);
+
+      const totalPages = Math.ceil(totalDocs / pageLimit);
+
+      return res.status(200).json({
+        success: true,
+        data,
+        totalDocs,
+        pagination: {
+          currentPage,
+          totalPages,
+          totalItems: totalDocs,
+          limit: pageLimit,
+          hasNextPage: currentPage < totalPages,
+          hasPrevPage: currentPage > 1,
+        },
+      });
+    } catch (error) {
+      console.error('Error filtering boarding houses for guest:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to filter boarding houses',
         error: error.message,
       });
     }
@@ -1258,16 +1402,19 @@ class BoardingHouseController {
 
   async getMaxPriceBH(req, res, next) {
     try {
-      const maxPriceHouse = await BoardingHouse.findOne().sort({
+      const maxPriceHouse = await BoardingHouse.findOne({
+        totalRooms: { $gt: 0 },
+        deleted: { $ne: true },
+      }).sort({
         priceRange: -1,
       });
-      if (!maxPriceHouse || maxPriceHouse === 0) {
-        return res.status(404).json({ message: 'No boarding house found' });
+      if (!maxPriceHouse) {
+        return res.status(200).json({ success: true, maxPrice: 0 });
       }
 
       const roundedPrice = Math.ceil(maxPriceHouse.priceRange / 100) * 100;
 
-      res.status(200).json({ maxPrice: roundedPrice });
+      res.status(200).json({ success: true, maxPrice: roundedPrice });
     } catch (error) {
       console.error('Error fetching max price:', error);
       res

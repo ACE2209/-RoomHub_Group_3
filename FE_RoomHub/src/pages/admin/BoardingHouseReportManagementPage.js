@@ -192,17 +192,17 @@ export default function BoardingHouseReportManagementPage() {
                   <td style={tdStyle}>
                     <div style={houseNameStyle}>{getBoardingHouseName(report)}</div>
                     <div style={mutedTextStyle}>{getAddress(report)}</div>
-                    <div style={mutedTextStyle}>Price: {formatCurrency(report.targetId?.priceRange)}</div>
-                    <div style={mutedTextStyle}>Rating: {displayValue(report.targetId?.rating)}</div>
                   </td>
                   <td style={tdStyle}>
                     <div>{displayValue(report.reporter?.fullname)}</div>
                     <div style={mutedTextStyle}>{displayValue(report.reporter?.email)}</div>
+                    {report.reporter?.phoneNumber && (
+                      <div style={mutedTextStyle}>{report.reporter.phoneNumber}</div>
+                    )}
                   </td>
                   <td style={tdStyle}>{displayValue(report.reason)}</td>
                   <td style={tdStyle}>
                     <div style={textBlockStyle}>{displayValue(report.details)}</div>
-                    <div style={mutedTextStyle}>Images: {getImageCount(report)}</div>
                   </td>
                   <td style={tdStyle}>
                     <span style={statusBadgeStyle(report.status)}>{displayValue(report.status)}</span>
@@ -258,20 +258,6 @@ const getAddress = (report) => {
   ].filter(Boolean).join(", ");
 
   return displayValue(fullAddress);
-};
-
-const getImageCount = (report) => (
-  Array.isArray(report.images) ? report.images.length : 0
-);
-
-const formatCurrency = (value) => {
-  const numberValue = Number(value);
-  if (!Number.isFinite(numberValue)) return "N/A";
-
-  return numberValue.toLocaleString("vi-VN", {
-    style: "currency",
-    currency: "VND",
-  });
 };
 
 const formatDateTime = (value) => (

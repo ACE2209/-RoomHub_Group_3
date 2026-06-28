@@ -21,10 +21,35 @@ export const parseJsonResponse = async (res) => {
   return data;
 };
 
+const getOriginalUrlFromCloudinaryFetch = (imageUrl) => {
+  const fetchMarker = "/image/fetch/";
+
+  if (!imageUrl.includes("res.cloudinary.com") || !imageUrl.includes(fetchMarker)) {
+    return imageUrl;
+  }
+
+  const markerIndex = imageUrl.indexOf(fetchMarker);
+  const fetchPath = imageUrl.slice(markerIndex + fetchMarker.length);
+  const encodedUrlIndex = fetchPath.search(/https?%3A/i);
+
+  if (encodedUrlIndex === -1) {
+    return imageUrl;
+  }
+
+  try {
+    return decodeURIComponent(fetchPath.slice(encodedUrlIndex));
+  } catch (error) {
+    console.error("Cannot decode Cloudinary fetch image URL:", error);
+    return imageUrl;
+  }
+};
+
 export const getImageUrl = (imageUrl, fallback = "/image/logoconen.png") => {
   if (!imageUrl) return fallback;
 
-  const normalizedUrl = String(imageUrl).replace(/\\/g, "/").trim();
+  const normalizedUrl = getOriginalUrlFromCloudinaryFetch(
+    String(imageUrl).replace(/\\/g, "/").trim()
+  );
 
   if (!normalizedUrl) return fallback;
 

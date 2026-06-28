@@ -12,14 +12,15 @@ import {
 } from "lucide-react";
 
 import {
-    getAllBoardingHousesForGuest,
     getNewestBH,
     getHighRatingBH
 } from "../api/boardingHouse";
+import { getBhByArea } from "../api/boardingHouseAPI";
 import { getImageSource, setFallbackImage } from "../api/config";
 
 import Footer from "./layout/homepage/footer";
 import Header from "./layout/homepage/header";
+import FilterBoardingHouseUser from "./FilterBoardingHouseUser";
 import "./HomePage.css";
 
 const PAGE_LIMIT = 9;
@@ -48,6 +49,19 @@ const formatAddress = (address) => {
 const getPrimaryImage = (house) => {
     return getImageSource(house?.images || house?.image);
 };
+
+const normalizeBoardingHouse = (house) => ({
+    ...house,
+    _id: house._id || house.id,
+    name: house.name || "Unnamed boarding house",
+    address: house.address || {},
+    images: house.images || [],
+    priceRange: Number(house.priceRange || 0),
+    totalRooms: Number(house.totalRooms || 0),
+    availableRooms: Number(house.availableRooms || 0),
+    rating: house.rating ?? "N/A",
+    boardingHouseType: house.boardingHouseType || null,
+});
 
 // Component Card
 const BoardingHouseCard = ({ house }) => (
@@ -93,6 +107,7 @@ const BoardingHouseCard = ({ house }) => (
     </Link>
 );
 
+// eslint-disable-next-line no-unused-vars
 const listings = [
     {
         id: 1,
@@ -128,6 +143,7 @@ const listings = [
     },
 ];
 
+// eslint-disable-next-line no-unused-vars
 const tours = [
     { id: 1, img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBcuTVyvDCOYVBhF2h30ySYY-urJBKLVEJRJWTICL4CFoT0ZHJW1maRjRQ1L3o2j3ZhbJJyjavPFm0KV2UGfCkaRQ4pR7qiBVEJcFzyQEMy20X4Iw0Fjwces9kH2ZIp7GM73bdJY5mVbAxb8JQhsFurUJFe0rgcfSNeaOxMaJXNFewTb6Pwe9Nb9dVrGxDB7gN7HQnEJbRiBNeO2qvxBNA6EqkH6VC0A5VRMkdJeVAy3dncvnvG6kjx1ETZr1u3mvHGmigL48kLJFCI", name: "Căn hộ Sunrise Quận 7", type: "360° Virtual Tour" },
     { id: 2, img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCFIz9IsdnuqFnjR9WHRdZPFTMeyMOzFAfbV4BKxRAMMDnPUCZ78GGqXAOBQOk0039CmEDt3xJdBwNMHXcvBVq9IXEpNC9L_2zV7LMFtKK-mMZkSuE3VmjfIYgHeq3rbZXs-HMsX0NbdZIjQdrI2vPdcz0YqvIAv6kuaeXXa3GfWdX0s89UR8zoolr1oJuEolYnqECA6uIiK0_tD8LOtfRc60qcDiTKdFmpJ3MgCbYYQQMI5pwsjsTGUCby-wYixvPKOMW5uQnpmJ3u", name: "Nhà trọ Hẻm Xe Hơi - Phú Nhuận", type: "Video Review" },
@@ -135,6 +151,7 @@ const tours = [
     { id: 4, img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCNNzFC2SWdvsjCjfV115X5JGc-_9oTiKMGGwA5jkK458SlrArrDjwzjw0SLZ1YgKWhlKQVTV9m_DVv26uD1fwexDxIfYG98_jqTiBG95V1Cb19WmgEVX412YhXYzIZryX72DW8b7qtOQXx6qYQxNt5VirkJJpRhCAOg2VV8rXfTWl7Pn4mdwi2WqlTxZWJ0fckyPdYtLNXZrcGYjhJWaGinhBs6v7R6HzzXlmdu_sEBCYBwlhNpzpJTIPiPVcmXcDRzwegHrN14a8w", name: "Phòng Full-Option Bình Thạnh", type: "Video 4K" },
 ];
 
+// eslint-disable-next-line no-unused-vars
 const filterLabels = ["Dưới 1 triệu", "1 - 2 triệu", "2 - 5 triệu", "Căn hộ", "Nhà trọ", "Quận 1", "Bình Thạnh", "Thủ Đức"];
 
 const HomePage = () => {
@@ -149,20 +166,33 @@ const HomePage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [searchValue, setSearchValue] = useState("");
+    const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
+    const [filterValue, setFilterValue] = useState({});
 
     const [newestHouses, setNewestHouses] = useState([]);
     const [highRatingHouses, setHighRatingHouses] = useState([]);
     const [newestLoading, setNewestLoading] = useState(true);
     const [highRatingLoading, setHighRatingLoading] = useState(true);
 
-    const fetchBoardingHouses = useCallback(async (page = 1) => {
+    const mergedFilterValue = useMemo(() => {
+        const keyword = debouncedSearchValue.trim();
+
+        return {
+            ...filterValue,
+            name: keyword || filterValue.name,
+            page: pagination.currentPage || 1,
+            limit: PAGE_LIMIT,
+        };
+    }, [debouncedSearchValue, filterValue, pagination.currentPage]);
+
+    const fetchBoardingHouses = useCallback(async () => {
         try {
             setLoading(true);
             setError("");
-            const res = await getAllBoardingHousesForGuest({ page, limit: PAGE_LIMIT });
+            const res = await getBhByArea(mergedFilterValue);
 
             if (res?.success && Array.isArray(res.data)) {
-                setBoardingHouses(res.data);
+                setBoardingHouses(res.data.map(normalizeBoardingHouse));
                 setPagination((prev) => ({ ...prev, ...(res.pagination || {}) }));
             } else {
                 setBoardingHouses([]);
@@ -175,7 +205,7 @@ const HomePage = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [mergedFilterValue]);
 
     const fetchNewestHouses = useCallback(async () => {
         try {
@@ -211,20 +241,6 @@ const HomePage = () => {
         }
     }, []);
 
-    const filteredBoardingHouses = useMemo(() => {
-        const keyword = searchValue.trim().toLowerCase();
-        if (!keyword) return boardingHouses;
-
-        return boardingHouses.filter((house) => {
-            const searchableText = [
-                house.name,
-                house.boardingHouseType?.name,
-                formatAddress(house.address),
-            ].join(" ").toLowerCase();
-            return searchableText.includes(keyword);
-        });
-    }, [boardingHouses, searchValue]);
-
     const visiblePages = useMemo(() => {
         const totalPages = pagination.totalPages || 1;
         const currentPage = pagination.currentPage || 1;
@@ -242,15 +258,32 @@ const HomePage = () => {
     }, [pagination.currentPage, pagination.totalPages]);
 
     useEffect(() => {
-        fetchBoardingHouses(1);
         fetchNewestHouses();
         fetchHighRatingHouses();
-    }, [fetchBoardingHouses, fetchNewestHouses, fetchHighRatingHouses]);
+    }, [fetchNewestHouses, fetchHighRatingHouses]);
+
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            setDebouncedSearchValue(searchValue);
+            setPagination((prev) => ({ ...prev, currentPage: 1 }));
+        }, 350);
+
+        return () => window.clearTimeout(timeoutId);
+    }, [searchValue]);
+
+    useEffect(() => {
+        fetchBoardingHouses();
+    }, [fetchBoardingHouses]);
 
     const handlePageChange = (page) => {
         if (page < 1 || page > pagination.totalPages || loading) return;
-        fetchBoardingHouses(page);
+        setPagination((prev) => ({ ...prev, currentPage: page }));
         window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    const handleFilterChange = (filters) => {
+        setFilterValue(filters);
+        setPagination((prev) => ({ ...prev, currentPage: 1 }));
     };
 
     const handleSeeMoreNewest = () => {
@@ -281,7 +314,7 @@ const HomePage = () => {
                                 <input
                                     value={searchValue}
                                     onChange={(e) => setSearchValue(e.target.value)}
-                                    placeholder="Search by name, type, or address"
+                                    placeholder="Search by boarding house name"
                                     aria-label="Search boarding houses"
                                 />
                             </div>
@@ -300,6 +333,8 @@ const HomePage = () => {
                         </div>
                     </div>
 
+                    <FilterBoardingHouseUser setFilterValue={handleFilterChange} />
+
                     {loading ? (
                         <div className="guest-grid">
                             {Array.from({ length: 6 }).map((_, index) => (
@@ -316,14 +351,14 @@ const HomePage = () => {
                             <Home size={36} />
                             <h3>Cannot load boarding houses</h3>
                             <p>{error}</p>
-                            <button type="button" onClick={() => fetchBoardingHouses(1)}>
+                            <button type="button" onClick={fetchBoardingHouses}>
                                 Try again
                             </button>
                         </div>
-                    ) : filteredBoardingHouses.length > 0 ? (
+                    ) : boardingHouses.length > 0 ? (
                         <>
                             <div className="guest-grid">
-                                {filteredBoardingHouses.map((house) => (
+                                {boardingHouses.map((house) => (
                                     <BoardingHouseCard key={house._id} house={house} />
                                 ))}
                             </div>
@@ -363,7 +398,7 @@ const HomePage = () => {
                         <div className="guest-empty">
                             <Search size={36} />
                             <h3>No boarding houses found</h3>
-                            <p>Try another keyword or clear the search box.</p>
+                            <p>Try another name or reset the filters.</p>
                         </div>
                     )}
                 </section>

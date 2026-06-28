@@ -156,7 +156,7 @@ class reportController {
         deleted: { $ne: true },
       })
         .sort({ createdAt: -1 })
-        .populate('reporter', 'fullname email avatarImage phone')
+        .populate('reporter', 'fullname email avatarImage phoneNumber')
         .populate('processedBy', 'fullname')
         .populate('targetId', 'name description address priceRange rating totalRooms availableRooms images');
 
@@ -243,7 +243,7 @@ class reportController {
 
       const reports = await Report.find(filter)
         .sort({ createdAt: -1 })
-        .populate('reporter', 'fullname email avatarImage phone')
+        .populate('reporter', 'fullname email avatarImage phoneNumber')
         .populate('processedBy', 'fullname')
         .populate('targetId', 'name description address priceRange rating totalRooms availableRooms images');
 
