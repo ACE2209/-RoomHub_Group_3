@@ -4,6 +4,17 @@ export const filterBHUser = async (filterValue) => {
     params: filterValue,
   });
 };
+export const getBhByArea = async (filterValue = {}) => {
+  return axios.get('/boardinghouse/home/area', {
+    params: filterValue,
+  });
+};
+export const getBoardingHouseTypesForGuest = () => {
+  return axios.get('/boardinghouse/types');
+};
+export const getMaxPriceBHForGuest = () => {
+  return axios.get('/boardinghouse/home/max-price');
+};
 export const getAllBoardingHDB = () => {
   return axios.get('/dashboard/boardinghouse');
 };
