@@ -9,7 +9,7 @@ import boardingHouseController from './BoardingHouseController.js';
 import appointmentController from './appointmentController.js';
 import roomController from './roomController.js';
 // import watchLaterController from './watchLaterController.js';
-// import depositController from './depositController.js';
+ import depositController from './depositController.js';
 // import FacilitiesController from './facilitiesController.js';
  import roomTypeController from './roomTypeController.js';
 // import tenantController from './tenantController.js';
@@ -34,7 +34,7 @@ export {
   appointmentController,
   roomController,
   // watchLaterController,
-  // depositController,
+   depositController,
   // FacilitiesController,
    roomTypeController,
   // userPaymentController,

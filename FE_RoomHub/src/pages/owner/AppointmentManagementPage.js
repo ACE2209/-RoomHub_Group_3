@@ -6,7 +6,7 @@ import {
   getManagedAppointments,
   getManagedAppointmentDetail,
   updateManagedAppointmentStatus,
-} from "../../api/owner-staff/managedAppointment";
+} from "../../api/managedAppointment";
 
 const statusColor = {
   pending: { bg: "#fffaeb", color: "#b54708", border: "#fedf89" },
