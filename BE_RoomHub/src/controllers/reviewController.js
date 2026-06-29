@@ -3,6 +3,280 @@ import paginate from "../utils/pagination.js";
 import BoardingHouse from "../models/boardingHouse.js";
 
 class ReviewController {
+  getUserId(req) {
+    return req.user?.userId || req.user?._id;
+  }
+
+  async canManageBoardingHouse(req, boardingHouseId) {
+    const userId = this.getUserId(req);
+    if (!userId || !boardingHouseId) return false;
+
+    const role = req.user?.role;
+    const manageFilter = role === "staff"
+      ? { staffId: userId }
+      : { ownerId: userId };
+
+    const boardingHouse = await BoardingHouse.findOne({
+      _id: boardingHouseId,
+      ...manageFilter,
+    }).select("_id");
+
+    return Boolean(boardingHouse);
+  }
+
+  async getManagedReviewByBhId(req, res) {
+    try {
+      const { id } = req.params;
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          message: "bhId is required",
+        });
+      }
+
+      const hasPermission = await this.canManageBoardingHouse(req, id);
+      if (!hasPermission) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have permission to view reviews of this boarding house",
+        });
+      }
+
+      return this.getReviewByBhId(req, res);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
+  }
+
+  async getManagedReviews(req, res) {
+    try {
+      const userId = this.getUserId(req);
+      const role = req.user?.role;
+      const manageFilter = role === "staff"
+        ? { staffId: userId }
+        : { ownerId: userId };
+
+      const boardingHouses = await BoardingHouse.find(manageFilter).select("_id");
+      const boardingHouseIds = boardingHouses.map((house) => house._id);
+
+      const result = await paginate(
+        Review,
+        {
+          filter: {
+            boardingHouseId: { $in: boardingHouseIds },
+            parentId: null,
+          },
+          populate: [
+            {
+              path: "accountId",
+              select: "fullname username avatarImage",
+            },
+            {
+              path: "boardingHouseId",
+              select: "name address",
+            },
+          ],
+          defaultLimit: 10,
+          maxLimit: 50,
+          sortField: "createdAt",
+          sortableFields: ["updatedAt", "createdAt", "rating"],
+          includeUrls: false,
+          includeTotalData: false,
+        },
+        req
+      );
+
+      const data = await Promise.all(
+        result.data.map(async (review) => {
+          const reply = await Review.findOne({ parentId: review._id })
+            .select("_id content createdAt accountId")
+            .populate({
+              path: "accountId",
+              select: "fullname avatarImage username",
+            })
+            .lean();
+
+          return {
+            ...review,
+            replyContent: reply ? {
+              _id: reply._id,
+              content: reply.content,
+              createdAt: reply.createdAt,
+              account: reply.accountId,
+            } : null,
+          };
+        })
+      );
+
+      return res.status(200).json({
+        ...result,
+        data,
+        meta: {
+          managedBoardingHouseCount: boardingHouseIds.length,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
+  }
+
+  async replyReview(req, res) {
+    try {
+      const accountId = this.getUserId(req);
+      const { parentId, content } = req.body;
+
+      if (!accountId) {
+        return res.status(401).json({ success: false, message: "Account ID not found." });
+      }
+
+      if (!parentId || !content?.trim()) {
+        return res.status(400).json({ success: false, message: "parentId and content are required" });
+      }
+
+      const parentReview = await Review.findById(parentId);
+      if (!parentReview || parentReview.parentId) {
+        return res.status(404).json({ success: false, message: "Parent review not found" });
+      }
+
+      const hasPermission = await this.canManageBoardingHouse(req, parentReview.boardingHouseId);
+      if (!hasPermission) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have permission to reply to this review",
+        });
+      }
+
+      const existingReply = await Review.findOne({ parentId: parentReview._id });
+      if (existingReply) {
+        return res.status(400).json({
+          success: false,
+          message: "This review already has a reply",
+        });
+      }
+
+      const reply = await Review.create({
+        accountId,
+        boardingHouseId: parentReview.boardingHouseId,
+        content: content.trim(),
+        parentId: parentReview._id,
+      });
+
+      await reply.populate({
+        path: "accountId",
+        select: "fullname avatarImage username",
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "Reply added successfully",
+        data: reply,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
+  }
+
+  async updateReplyReview(req, res) {
+    try {
+      const accountId = this.getUserId(req);
+      const { replyId } = req.params;
+      const { content } = req.body;
+
+      if (!content?.trim()) {
+        return res.status(400).json({ success: false, message: "Content is required" });
+      }
+
+      const reply = await Review.findById(replyId);
+      if (!reply || !reply.parentId) {
+        return res.status(404).json({ success: false, message: "Reply not found" });
+      }
+
+      const hasPermission = await this.canManageBoardingHouse(req, reply.boardingHouseId);
+      if (!hasPermission) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have permission to update this reply",
+        });
+      }
+
+      const isCreator = reply.accountId?.toString() === accountId?.toString();
+      if (!isCreator && !hasPermission) {
+        return res.status(403).json({ success: false, message: "Unauthorized" });
+      }
+
+      reply.content = content.trim();
+      await reply.save();
+      await reply.populate({
+        path: "accountId",
+        select: "fullname avatarImage username",
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Reply updated successfully",
+        data: reply,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
+  }
+
+  async softDeleteReplyReview(req, res) {
+    try {
+      const accountId = this.getUserId(req);
+      const { replyId } = req.params;
+
+      const reply = await Review.findById(replyId);
+      if (!reply || !reply.parentId) {
+        return res.status(404).json({ success: false, message: "Reply not found" });
+      }
+
+      const hasPermission = await this.canManageBoardingHouse(req, reply.boardingHouseId);
+      if (!hasPermission) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have permission to delete this reply",
+        });
+      }
+
+      const isCreator = reply.accountId?.toString() === accountId?.toString();
+      if (!isCreator && !hasPermission) {
+        return res.status(403).json({ success: false, message: "Unauthorized" });
+      }
+
+      await reply.delete();
+
+      return res.status(200).json({
+        success: true,
+        message: "Reply deleted successfully",
+        data: reply,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
+  }
+
   async getReviewsByBoardingHouse(req, res) {
     try {
       const { boardingHouseId } = req.params;
