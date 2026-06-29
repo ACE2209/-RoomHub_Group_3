@@ -12,6 +12,16 @@ const buildQuery = (params = {}) => {
   return query.toString();
 };
 
+const getRolePrefix = () => {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const role = user?.role || localStorage.getItem("role");
+
+  if (role === "owner") return "/owner";
+  if (role === "staff") return "/staff";
+
+  return "/owner";
+};
+
 export const getBoardingHouses = async ({ page = 1, limit = 10 } = {}) => {
   const query = buildQuery({ page, limit });
   const res = await fetch(`${API_URL}/dashboard/boardinghouses?${query}`, {
@@ -76,7 +86,7 @@ export const deleteBoardingHouse = async (id) => {
 };
 
 export const getBoardingHouseTypes = async () => {
-  const res = await fetch(`${API_URL}/staff/types`, {
+  const res = await fetch(`${API_URL}${getRolePrefix()}/types`, {
     headers: authHeaders(),
   });
 
@@ -85,7 +95,7 @@ export const getBoardingHouseTypes = async () => {
 
 export const getOwnBoardingHouses = async ({ page = 1, limit = 10 } = {}) => {
   const query = buildQuery({ page, limit });
-  const res = await fetch(`${API_URL}/staff/boardinghouses?${query}`, {
+  const res = await fetch(`${API_URL}${getRolePrefix()}/boardinghouses?${query}`, {
     headers: authHeaders(),
   });
 
@@ -93,7 +103,7 @@ export const getOwnBoardingHouses = async ({ page = 1, limit = 10 } = {}) => {
 };
 
 export const getOwnBoardingHouseDetail = async (id) => {
-  const res = await fetch(`${API_URL}/staff/boardinghouses/${id}`, {
+  const res = await fetch(`${API_URL}${getRolePrefix()}/boardinghouses/${id}`, {
     headers: authHeaders(),
   });
 
@@ -101,7 +111,7 @@ export const getOwnBoardingHouseDetail = async (id) => {
 };
 
 export const createOwnBoardingHouse = async (data) => {
-  const res = await fetch(`${API_URL}/staff/boardinghouses`, {
+  const res = await fetch(`${API_URL}${getRolePrefix()}/boardinghouses`, {
     method: "POST",
     headers: authHeaders(),
     body: data,
@@ -111,7 +121,7 @@ export const createOwnBoardingHouse = async (data) => {
 };
 
 export const updateOwnBoardingHouse = async (id, data) => {
-  const res = await fetch(`${API_URL}/staff/boardinghouses/${id}`, {
+  const res = await fetch(`${API_URL}${getRolePrefix()}/boardinghouses/${id}`, {
     method: "PUT",
     headers: authHeaders(),
     body: data,
@@ -121,7 +131,7 @@ export const updateOwnBoardingHouse = async (id, data) => {
 };
 
 export const deleteOwnBoardingHouse = async (id) => {
-  const res = await fetch(`${API_URL}/staff/boardinghouses/${id}`, {
+  const res = await fetch(`${API_URL}${getRolePrefix()}/boardinghouses/${id}`, {
     method: "DELETE",
     headers: authHeaders(),
   });
