@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Building2, Edit3, Eye, Home, Plus, Trash2 } from "lucide-react";
+import { Building2, Edit3, Eye, Home, MessageSquare, Plus, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AdminLayout from "../layout/admin/AdminLayout";
 import {
@@ -142,6 +142,9 @@ export default function MyBoardingHousesPage() {
                     <div style={actionStyle}>
                       <button title="View detail" style={iconBtnStyle} onClick={() => navigate(`/my-boarding-houses/${house._id}?mode=view`)}>
                         <Eye size={17} />
+                      </button>
+                      <button title="Reviews" style={iconBtnStyle} onClick={() => navigate(`/my-boarding-houses/${house._id}?mode=view#reviews`)}>
+                        <MessageSquare size={17} />
                       </button>
                       <button title="Update" style={iconBtnStyle} onClick={() => navigate(`/my-boarding-houses/${house._id}`)}>
                         <Edit3 size={17} />

@@ -29,6 +29,7 @@ import AppointmentManagementPage from "../pages/ownerandstaff/AppointmentManagem
 import DepositManagementPage from "../pages/ownerandstaff/DepositManagementPage";
 import ManageRooms from "../pages/ownerandstaff/ManageRooms";
 import ManageRoomAdditionalFees from "../pages/ownerandstaff/ManageRoomAdditionalFees";
+import ManagedReviewsPage from "../pages/ownerandstaff/ManagedReviewsPage";
 import MyReportsPage from "../pages/report/MyReportsPage";
 
 import AppointmentPage from "../pages/user/AppointmentPage";
@@ -130,6 +131,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["owner", "staff"]}>
             <DepositManagementPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/managed-reviews"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManagedReviewsPage />
           </ProtectedRoute>
         }
       />

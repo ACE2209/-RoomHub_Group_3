@@ -1,5 +1,15 @@
 import API_URL, { authHeaders, parseJsonResponse } from "./config";
 
+const getRolePrefix = () => {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const role = user?.role || localStorage.getItem("role");
+
+  if (role === "owner") return "/owner";
+  if (role === "staff") return "/staff";
+
+  return "/owner";
+};
+
 // Get all reviews
 export const getReviews = async () => {
   const res = await fetch(`${API_URL}/dashboard/reviews`, {
@@ -89,6 +99,67 @@ export const getBoardingHouseReviews = async (
   const res = await fetch(
     `${API_URL}/boardinghouse/reviews/${boardingHouseId}?page=${page}&limit=${limit}`
   );
+
+  return parseJsonResponse(res);
+};
+
+export const getManagedBoardingHouseReviews = async (
+  boardingHouseId,
+  page = 1,
+  limit = 10
+) => {
+  const res = await fetch(
+    `${API_URL}${getRolePrefix()}/boardinghouse/reviews/${boardingHouseId}?page=${page}&limit=${limit}`,
+    {
+      headers: authHeaders(),
+    }
+  );
+
+  return parseJsonResponse(res);
+};
+
+export const getManagedReviews = async ({ page = 1, limit = 10 } = {}) => {
+  const res = await fetch(
+    `${API_URL}${getRolePrefix()}/reviews?page=${page}&limit=${limit}`,
+    {
+      headers: authHeaders(),
+    }
+  );
+
+  return parseJsonResponse(res);
+};
+
+export const replyManagedReview = async ({ parentId, content }) => {
+  const res = await fetch(`${API_URL}${getRolePrefix()}/reviews/reply`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ parentId, content }),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const updateManagedReviewReply = async (replyId, { content }) => {
+  const res = await fetch(`${API_URL}${getRolePrefix()}/reviews/reply/${replyId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ content }),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const deleteManagedReviewReply = async (replyId) => {
+  const res = await fetch(`${API_URL}${getRolePrefix()}/reviews/reply/${replyId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
 
   return parseJsonResponse(res);
 };

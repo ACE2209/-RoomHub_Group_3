@@ -6,10 +6,17 @@ import {
   roomAdditionFeeController,
   appointmentController,
   depositController,
+  ReviewController,
 } from "../controllers/index.js";
 import { upload } from '../config/cloudinary.config.js';
 
 const staffRouter = Router();
+
+staffRouter.get("/reviews", ReviewController.getManagedReviews.bind(ReviewController));
+staffRouter.get("/boardinghouse/reviews/:id", ReviewController.getManagedReviewByBhId.bind(ReviewController));
+staffRouter.post("/reviews/reply", ReviewController.replyReview.bind(ReviewController));
+staffRouter.put("/reviews/reply/:replyId", ReviewController.updateReplyReview.bind(ReviewController));
+staffRouter.delete("/reviews/reply/:replyId", ReviewController.softDeleteReplyReview.bind(ReviewController));
 
 staffRouter.get('/types', boardingHouseController.getBoardingHouseTypes);
 staffRouter.get('/boardinghouses', boardingHouseController.getOwnBoardingHouses.bind(boardingHouseController));

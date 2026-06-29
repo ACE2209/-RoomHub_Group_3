@@ -97,6 +97,10 @@ export default function Sidebar() {
               Deposit Management
             </NavLink>
 
+            <NavLink to="/managed-reviews">
+              Review Management
+            </NavLink>
+
             <NavLink to="/manage-rooms">
               Manage Rooms
             </NavLink>
@@ -107,11 +111,6 @@ export default function Sidebar() {
           </>
         )}
 
-        {!isAdmin && (
-          <NavLink to="/my-reports">
-            My Reports
-          </NavLink>
-        )}
       </nav>
 
       <div className="sidebar-bottom">
