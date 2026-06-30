@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const host = " https://esgoo.net/api-tinhthanh/";
+const host = "https://esgoo.net/api-tinhthanh/";
 
 export const fetchProvinces = async () => {
     try {
