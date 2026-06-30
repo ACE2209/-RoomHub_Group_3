@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+// eslint-disable-next-line no-unused-vars
 import {
     BedDouble,
     ChevronLeft,
@@ -8,6 +9,7 @@ import {
     MapPin,
     Search,
     Star,
+    // eslint-disable-next-line no-unused-vars
     ArrowRight, // Thêm icon cho nút See More
 } from "lucide-react";
 
@@ -63,6 +65,14 @@ const normalizeBoardingHouse = (house) => ({
     rating: house.rating ?? "N/A",
     boardingHouseType: house.boardingHouseType || null,
 });
+
+const getCarouselItems = (items, startIndex) => {
+    if (items.length <= SECTION_LIMIT) return items;
+
+    return Array.from({ length: SECTION_LIMIT }, (_, index) => {
+        return items[(startIndex + index) % items.length];
+    });
+};
 
 // Component Card
 const BoardingHouseCard = ({ house }) => (
@@ -172,6 +182,8 @@ const HomePage = () => {
 
     const [newestHouses, setNewestHouses] = useState([]);
     const [highRatingHouses, setHighRatingHouses] = useState([]);
+    const [newestStartIndex, setNewestStartIndex] = useState(0);
+    const [highRatingStartIndex, setHighRatingStartIndex] = useState(0);
     const [newestLoading, setNewestLoading] = useState(true);
     const [highRatingLoading, setHighRatingLoading] = useState(true);
     const latestSearchRequestRef = useRef(0);
@@ -222,7 +234,8 @@ const HomePage = () => {
             setNewestLoading(true);
             const res = await getNewestBH();
             if (res?.success && Array.isArray(res.data)) {
-                setNewestHouses(res.data.slice(0, SECTION_LIMIT));
+                setNewestHouses(res.data.map(normalizeBoardingHouse));
+                setNewestStartIndex(0);
             } else {
                 setNewestHouses([]);
             }
@@ -239,7 +252,8 @@ const HomePage = () => {
             setHighRatingLoading(true);
             const res = await getHighRatingBH();
             if (res?.success && Array.isArray(res.data)) {
-                setHighRatingHouses(res.data.slice(0, SECTION_LIMIT));
+                setHighRatingHouses(res.data.map(normalizeBoardingHouse));
+                setHighRatingStartIndex(0);
             } else {
                 setHighRatingHouses([]);
             }
@@ -266,6 +280,16 @@ const HomePage = () => {
 
         return pages;
     }, [pagination.currentPage, pagination.totalPages]);
+
+    const visibleNewestHouses = useMemo(
+        () => getCarouselItems(newestHouses, newestStartIndex),
+        [newestHouses, newestStartIndex]
+    );
+
+    const visibleHighRatingHouses = useMemo(
+        () => getCarouselItems(highRatingHouses, highRatingStartIndex),
+        [highRatingHouses, highRatingStartIndex]
+    );
 
     useEffect(() => {
         fetchNewestHouses();
@@ -296,12 +320,24 @@ const HomePage = () => {
         setPagination((prev) => ({ ...prev, currentPage: 1 }));
     };
 
+    const handleCarouselMove = (section, direction) => {
+        const items = section === "newest" ? newestHouses : highRatingHouses;
+        if (items.length <= SECTION_LIMIT) return;
+
+        const setStartIndex = section === "newest" ? setNewestStartIndex : setHighRatingStartIndex;
+        setStartIndex((currentIndex) => {
+            return (currentIndex + direction + items.length) % items.length;
+        });
+    };
+
+    // eslint-disable-next-line no-unused-vars
     const handleSeeMoreNewest = () => {
         // TODO: Điều hướng đến trang Newest (có thể dùng react-router)
         alert("Chuyển đến trang tất cả boarding house mới nhất");
         // navigate('/newest'); // nếu dùng react-router
     };
 
+    // eslint-disable-next-line no-unused-vars
     const handleSeeMoreHighRating = () => {
         alert("Chuyển đến trang boarding house đánh giá cao");
         // navigate('/high-rating');
@@ -318,34 +354,44 @@ const HomePage = () => {
                             <span className="guest-hero__eyebrow">RoomHub Boarding Houses</span>
                             <h1>Find a boarding house that feels easy to live in.</h1>
                             <p>Browse available boarding houses, compare locations, room availability, ratings, and prices in one place.</p>
+                        </div>
+                    </div>
+                </section>
+                <section className="container guest-listing-section">
+                    <div className="guest-results-layout">
+                        <aside className="guest-results-layout__sidebar">
+                            <FilterBoardingHouseUser setFilterValue={handleFilterChange} />
+                        </aside>
 
-                            <div className="guest-search" role="search">
+                        <div className="guest-results-layout__main">
+                            <div className="guest-search guest-search--listing" role="search">
                                 <Search size={20} />
                                 <input
                                     type="search"
                                     value={searchValue}
                                     onChange={(e) => setSearchValue(e.target.value)}
-                                    placeholder="Type any letter, name, or area"
+                                    placeholder="Tìm kiếm theo tên phòng, địa điểm, khu vực..."
                                     aria-label="Search boarding houses"
                                     autoComplete="off"
                                 />
+                                <button type="button" onClick={fetchBoardingHouses}>
+                                    Tìm kiếm
+                                </button>
                             </div>
-                        </div>
-                    </div>
-                </section>
-                <section className="container guest-listing-section">
-                    <div className="guest-section-header">
-                        <div>
-                            <span className="guest-section-kicker">Explore All</span>
-                            <h2>All Boarding Houses</h2>
-                        </div>
-                        <div className="guest-count">
-                            <Home size={18} />
-                            <span>{pagination.totalItems || 0} houses</span>
-                        </div>
-                    </div>
 
-                    <FilterBoardingHouseUser setFilterValue={handleFilterChange} />
+                            <div className="guest-results-toolbar">
+                                <div className="guest-results-toolbar__title">
+                                    <h2>
+                                        Tìm thấy <span>{pagination.totalItems || 0}</span> kết quả phù hợp
+                                    </h2>
+                                </div>
+                                <label className="guest-sort">
+                                    <span>Sắp xếp theo:</span>
+                                    <select defaultValue="newest" aria-label="Sort boarding houses">
+                                        <option value="newest">Mới nhất</option>
+                                    </select>
+                                </label>
+                            </div>
 
                     {loading ? (
                         <div className="guest-grid">
@@ -413,6 +459,8 @@ const HomePage = () => {
                             <p>Try another name or reset the filters.</p>
                         </div>
                     )}
+                        </div>
+                    </div>
                 </section>
                 <section className="container guest-listing-section">
                     <div className="guest-section-header">
@@ -420,22 +468,41 @@ const HomePage = () => {
                             <span className="guest-section-kicker">New Arrivals</span>
                             <h2>Boarding Houses Mới Nhất</h2>
                         </div>
-                        <button className="guest-see-more" onClick={handleSeeMoreNewest}>
-                            See More <ArrowRight size={18} />
-                        </button>
                     </div>
 
                     {newestLoading ? (
-                        <div className="guest-grid">
-                            {Array.from({ length: SECTION_LIMIT }).map((_, i) => (
-                                <div className="guest-card guest-card--loading" key={i} />
-                            ))}
+                        <div className="guest-carousel-shell">
+                            <div className="guest-carousel-grid">
+                                {Array.from({ length: SECTION_LIMIT }).map((_, i) => (
+                                    <div className="guest-card guest-card--loading" key={i} />
+                                ))}
+                            </div>
                         </div>
                     ) : newestHouses.length > 0 ? (
-                        <div className="guest-grid">
-                            {newestHouses.map((house) => (
-                                <BoardingHouseCard key={house._id} house={house} />
-                            ))}
+                        <div className="guest-carousel-shell">
+                            <button
+                                className="guest-carousel-arrow guest-carousel-arrow--prev"
+                                type="button"
+                                aria-label="Previous newest boarding houses"
+                                disabled={newestHouses.length <= SECTION_LIMIT}
+                                onClick={() => handleCarouselMove("newest", -1)}
+                            >
+                                <ChevronLeft size={24} />
+                            </button>
+                            <div className="guest-carousel-grid">
+                                {visibleNewestHouses.map((house) => (
+                                    <BoardingHouseCard key={house._id} house={house} />
+                                ))}
+                            </div>
+                            <button
+                                className="guest-carousel-arrow guest-carousel-arrow--next"
+                                type="button"
+                                aria-label="Next newest boarding houses"
+                                disabled={newestHouses.length <= SECTION_LIMIT}
+                                onClick={() => handleCarouselMove("newest", 1)}
+                            >
+                                <ChevronRight size={24} />
+                            </button>
                         </div>
                     ) : (
                         <div className="guest-empty">
@@ -449,22 +516,41 @@ const HomePage = () => {
                             <span className="guest-section-kicker">Highly Rated</span>
                             <h2>Boarding Houses Đánh Giá Cao</h2>
                         </div>
-                        <button className="guest-see-more" onClick={handleSeeMoreHighRating}>
-                            See More <ArrowRight size={18} />
-                        </button>
                     </div>
 
                     {highRatingLoading ? (
-                        <div className="guest-grid">
-                            {Array.from({ length: SECTION_LIMIT }).map((_, i) => (
-                                <div className="guest-card guest-card--loading" key={i} />
-                            ))}
+                        <div className="guest-carousel-shell">
+                            <div className="guest-carousel-grid">
+                                {Array.from({ length: SECTION_LIMIT }).map((_, i) => (
+                                    <div className="guest-card guest-card--loading" key={i} />
+                                ))}
+                            </div>
                         </div>
                     ) : highRatingHouses.length > 0 ? (
-                        <div className="guest-grid">
-                            {highRatingHouses.map((house) => (
-                                <BoardingHouseCard key={house._id} house={house} />
-                            ))}
+                        <div className="guest-carousel-shell">
+                            <button
+                                className="guest-carousel-arrow guest-carousel-arrow--prev"
+                                type="button"
+                                aria-label="Previous high rating boarding houses"
+                                disabled={highRatingHouses.length <= SECTION_LIMIT}
+                                onClick={() => handleCarouselMove("highRating", -1)}
+                            >
+                                <ChevronLeft size={24} />
+                            </button>
+                            <div className="guest-carousel-grid">
+                                {visibleHighRatingHouses.map((house) => (
+                                    <BoardingHouseCard key={house._id} house={house} />
+                                ))}
+                            </div>
+                            <button
+                                className="guest-carousel-arrow guest-carousel-arrow--next"
+                                type="button"
+                                aria-label="Next high rating boarding houses"
+                                disabled={highRatingHouses.length <= SECTION_LIMIT}
+                                onClick={() => handleCarouselMove("highRating", 1)}
+                            >
+                                <ChevronRight size={24} />
+                            </button>
                         </div>
                     ) : (
                         <div className="guest-empty">
