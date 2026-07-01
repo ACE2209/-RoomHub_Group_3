@@ -5,10 +5,18 @@ import {
   roomController,
   roomAdditionFeeController,
   appointmentController,
+  depositController,
+  ReviewController,
 } from "../controllers/index.js";
 import { upload } from '../config/cloudinary.config.js';
 
 const staffRouter = Router();
+
+staffRouter.get("/reviews", ReviewController.getManagedReviews.bind(ReviewController));
+staffRouter.get("/boardinghouse/reviews/:id", ReviewController.getManagedReviewByBhId.bind(ReviewController));
+staffRouter.post("/reviews/reply", ReviewController.replyReview.bind(ReviewController));
+staffRouter.put("/reviews/reply/:replyId", ReviewController.updateReplyReview.bind(ReviewController));
+staffRouter.delete("/reviews/reply/:replyId", ReviewController.softDeleteReplyReview.bind(ReviewController));
 
 staffRouter.get('/types', boardingHouseController.getBoardingHouseTypes);
 staffRouter.get('/boardinghouses', boardingHouseController.getOwnBoardingHouses.bind(boardingHouseController));
@@ -21,6 +29,15 @@ staffRouter.delete('/boardinghouses/:id', boardingHouseController.deleteOwnBoard
 staffRouter.get("/appointments", appointmentController.getManagedAppointments);
 staffRouter.get("/appointments/:appointmentId", appointmentController.getManagedAppointmentDetail);
 staffRouter.patch("/appointments/:appointmentId/status", appointmentController.updateManagedAppointmentStatus);
+
+// DEPOSIT MANAGEMENT
+staffRouter.get("/deposits", depositController.getDepositsByOwnerOrStaff);
+staffRouter.patch("/deposits/:depositId/decision", depositController.handleDepositDecision);
+staffRouter.delete("/deposits/:depositId", depositController.deleteDepositRoom);
+staffRouter.delete(
+  "/deposit-room/:depositRoomId",
+  depositController.deleteDepositRoom
+);
 
 // room Addition Fee
 staffRouter.post("/room-addition-fee", roomAdditionFeeController.createRoomAdditionFee);

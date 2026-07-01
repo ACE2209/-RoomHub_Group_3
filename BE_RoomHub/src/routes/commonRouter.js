@@ -22,8 +22,11 @@ commonRouter.post("/verify-register", authController.verifyRegister);
 commonRouter.post("/reports", authMiddleware, reportController.createReport);
 
 commonRouter.get("/boardinghouse", boardingHouseController.getAllBoardingHousesForGuest);
+commonRouter.get("/boardinghouse/home/area", boardingHouseController.getBhByArea);
+commonRouter.get("/boardinghouse/home/max-price", boardingHouseController.getMaxPriceBH);
 commonRouter.get("/boardinghouse/highrating", boardingHouseController.getHighRatingBH);
 commonRouter.get("/boardinghouse/newest", boardingHouseController.getNewestBH);
+commonRouter.get("/boardinghouse/types", boardingHouseController.getAllBoardingHouseTypes);
 commonRouter.get("/boardinghouse/:id", boardingHouseController.getBoardingHouseDetailInUser);
 commonRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId);
 
