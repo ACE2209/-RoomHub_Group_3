@@ -35,13 +35,20 @@ import MyReportsPage from "../pages/report/MyReportsPage";
 import AppointmentPage from "../pages/user/AppointmentPage";
 import CreateDepositPage from "../pages/user/CreateDepositPage";
 import FavoritesPage from "../pages/user/FavoritesPage";
+import MyDepositsPage from "../pages/user/MyDepositsPage";
+import PaymentResultPage from "../pages/user/PaymentResultPage";
+import MyMonthlyRentsPage from "../pages/user/MyMonthlyRentsPage";
+import MyMonthlyRentDetailPage from "../pages/user/MyMonthlyRentDetailPage";
 
 import ProtectedRoute from "./ProtectedRoute";
 import WatchLaterPage from "../pages/user/WatchLaterPage";
+
 import ManageRooms from "../pages/ownerandstaff/ManageRooms";
 import ManageRoomAdditionalFees from "../pages/ownerandstaff/ManageRoomAdditionalFees";
-import MyDepositsPage from "../pages/user/MyDepositsPage";
-import PaymentResultPage from "../pages/user/PaymentResultPage";
+import ManageMonthlyRents from "../pages/ownerandstaff/ManageMonthlyRents";
+import ManageMonthlyRentDetail from "../pages/ownerandstaff/ManageMonthlyRentDetail";
+import RentPaymentsManagement from "../pages/ownerandstaff/RentPaymentsManagement";
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -52,7 +59,7 @@ const AppRoutes = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-      {/* Boarding House Routes */}
+      {/* Boarding House */}
       <Route
         path="/boarding-houses/:boardingHouseId"
         element={<BoardingHouseDetailPage />}
@@ -71,7 +78,7 @@ const AppRoutes = () => {
       />
       <Route path="/rooms/:roomId" element={<RoomDetailPage />} />
 
-      {/* User Routes */}
+      {/* User */}
       <Route
         path="/profile"
         element={
@@ -80,6 +87,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/change-password"
         element={
@@ -88,6 +96,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/appointments"
         element={
@@ -105,6 +114,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/favorites"
         element={
@@ -113,6 +123,16 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/watchlater"
+        element={
+          <ProtectedRoute>
+            <WatchLaterPage />
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/my-reports"
         element={
@@ -122,7 +142,43 @@ const AppRoutes = () => {
         }
       />
 
-      {/* Owner/Staff Routes */}
+      <Route
+        path="/my-deposits"
+        element={
+          <ProtectedRoute>
+            <MyDepositsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/payment-result"
+        element={
+          <ProtectedRoute>
+            <PaymentResultPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/monthly-rents"
+        element={
+          <ProtectedRoute>
+            <MyMonthlyRentsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/monthly-rents/:userPaymentId"
+        element={
+          <ProtectedRoute>
+            <MyMonthlyRentDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Owner & Staff */}
       <Route
         path="/my-boarding-houses"
         element={
@@ -131,6 +187,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/my-boarding-houses/:id"
         element={
@@ -139,14 +196,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/watchlater"
-        element={
-          <ProtectedRoute>
-            <WatchLaterPage />
-          </ProtectedRoute>
-        }
-      />
+
       <Route
         path="/managed-appointments"
         element={
@@ -155,6 +205,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/managed-deposits"
         element={
@@ -163,6 +214,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/managed-reviews"
         element={
@@ -172,7 +224,52 @@ const AppRoutes = () => {
         }
       />
 
-      {/* Admin Routes */}
+      <Route
+        path="/manage-rooms"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManageRooms />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/manage-room-additional-fees"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManageRoomAdditionalFees />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/manage-monthly-rents"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManageMonthlyRents />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/manage-monthly-rents/:billId"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManageMonthlyRentDetail />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/rent-payments"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <RentPaymentsManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Admin */}
       <Route
         path="/admin"
         element={
@@ -181,6 +278,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/accounts"
         element={
@@ -189,6 +287,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/reviews"
         element={
@@ -197,6 +296,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/reviews/:reviewId"
         element={
@@ -205,6 +305,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/reports"
         element={
@@ -213,6 +314,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/review-reports"
         element={
@@ -221,6 +323,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/review-reports/:reportId"
         element={
@@ -229,6 +332,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/boarding-houses"
         element={
@@ -237,6 +341,7 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+
       <Route
         path="/admin/boarding-house-reports"
         element={
@@ -263,40 +368,6 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
-
-      <Route
-        path="/manage-rooms"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <ManageRooms />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/manage-room-additional-fees"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <ManageRoomAdditionalFees />
-          </ProtectedRoute>
-        }
-      /><Route
-  path="/my-deposits"
-  element={
-    <ProtectedRoute>
-      <MyDepositsPage />
-    </ProtectedRoute>
-  }
-/>
-
-<Route
-  path="/payment-result"
-  element={
-    <ProtectedRoute>
-      <PaymentResultPage />
-    </ProtectedRoute>
-  }
-/>
     </Routes>
   );
 };

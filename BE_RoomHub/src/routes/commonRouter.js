@@ -6,6 +6,7 @@ import {
   appointmentController,
   ReviewController,
   reportController,
+  monthlyRentController,
   paymentController,
 } from "../controllers/index.js";
 
@@ -13,15 +14,24 @@ import roomController from "../controllers/roomController.js";
 import { authMiddleware } from "../middlewares/index.js";
 
 const commonRouter = Router();
-// auth
+
+// ======================
+// Auth
+// ======================
 commonRouter.post("/login", authController.login);
 commonRouter.post("/forgot-password", authController.forgotPassword);
 commonRouter.post("/reset-password", authController.resetPassword);
 commonRouter.post("/send-otp-register", authController.sendOTPRegister);
 commonRouter.post("/verify-register", authController.verifyRegister);
 
+// ======================
+// Report
+// ======================
 commonRouter.post("/reports", authMiddleware, reportController.createReport);
 
+// ======================
+// Boarding House
+// ======================
 commonRouter.get("/boardinghouse", boardingHouseController.getAllBoardingHousesForGuest);
 commonRouter.get("/boardinghouse/home/area", boardingHouseController.getBhByArea);
 commonRouter.get("/boardinghouse/home/max-price", boardingHouseController.getMaxPriceBH);
@@ -31,19 +41,73 @@ commonRouter.get("/boardinghouse/types", boardingHouseController.getAllBoardingH
 commonRouter.get("/boardinghouse/:id", boardingHouseController.getBoardingHouseDetailInUser);
 commonRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId);
 
-//review
-commonRouter.get("/boardinghouse/:boardingHouseId/reviews", ReviewController.getReviewsByBoardingHouse);
-commonRouter.get("/boardinghouse/reviews/:id", ReviewController.getReviewByBhId);
-commonRouter.get('/boardinghouse/reviews/:id', ReviewController.getReviewByBhId);
+// ======================
+// Reviews
+// ======================
+commonRouter.get(
+  "/boardinghouse/:boardingHouseId/reviews",
+  ReviewController.getReviewsByBoardingHouse
+);
+commonRouter.get(
+  "/boardinghouse/reviews/:id",
+  ReviewController.getReviewByBhId
+);
 
-commonRouter.post("/appointments", authMiddleware, appointmentController.createAppointment);
-commonRouter.get("/appointments/my", authMiddleware, appointmentController.getAppointmentByUserId);
-commonRouter.patch("/appointments/:appointmentId/cancel", authMiddleware, appointmentController.cancelAppointment);
+// ======================
+// Appointment
+// ======================
+commonRouter.post(
+  "/appointments",
+  authMiddleware,
+  appointmentController.createAppointment
+);
+commonRouter.get(
+  "/appointments/my",
+  authMiddleware,
+  appointmentController.getAppointmentByUserId
+);
+commonRouter.patch(
+  "/appointments/:appointmentId/cancel",
+  authMiddleware,
+  appointmentController.cancelAppointment
+);
 
-commonRouter.get('/room/room-type/:roomTypeId', roomController.getRoomsByRoomType);
-
-commonRouter.get("/room-types/:roomTypeId/rooms", roomController.getRoomsByRoomType);
+// ======================
+// Room
+// ======================
+commonRouter.get(
+  "/room/room-type/:roomTypeId",
+  roomController.getRoomsByRoomType
+);
+commonRouter.get(
+  "/room-types/:roomTypeId/rooms",
+  roomController.getRoomsByRoomType
+);
 commonRouter.get("/rooms/:roomId", roomController.getRoomDetails);
+
+// ======================
+// Monthly Rent
+// ======================
+commonRouter.get(
+  "/monthly-rents/my",
+  authMiddleware,
+  monthlyRentController.getMyMonthlyRents
+);
+commonRouter.get(
+  "/monthly-rents/my/:userPaymentId",
+  authMiddleware,
+  monthlyRentController.getMyMonthlyRentDetail
+);
+commonRouter.patch(
+  "/monthly-rents/my/:userPaymentId/pay",
+  authMiddleware,
+  monthlyRentController.payMyMonthlyRent
+);
+
+// ======================
+// Payment Callback
+// ======================
 commonRouter.get("/payment/vnpay-return", paymentController.vnpayReturn);
 commonRouter.get("/payment/momo-return", paymentController.momoReturn);
+
 export { commonRouter };

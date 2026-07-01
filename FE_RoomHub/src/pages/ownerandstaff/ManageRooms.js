@@ -42,6 +42,17 @@ import "./ManageRoom.css";
 const { Option } = Select;
 const { TextArea } = Input;
 
+const getTenantNames = (rentBy = []) => {
+  if (!rentBy.length) {
+    return "No tenants";
+  }
+
+  return rentBy
+    .map((tenant) => tenant?.fullname || tenant?.username || tenant?.email)
+    .filter(Boolean)
+    .join(", ");
+};
+
 const ManageRooms = () => {
   const [loading, setLoading] = useState(false);
   const [boardingHouses, setBoardingHouses] = useState([]);
@@ -258,6 +269,11 @@ const ManageRooms = () => {
       title: "Capacity",
       key: "capacity",
       render: (_, record) => record.roomTypeId?.peopleNumber || "N/A",
+    },
+    {
+      title: "Tenants",
+      key: "tenants",
+      render: (_, record) => getTenantNames(record.rentBy || []),
     },
     {
       title: "Status",

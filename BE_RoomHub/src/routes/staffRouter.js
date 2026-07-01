@@ -7,6 +7,7 @@ import {
   appointmentController,
   depositController,
   ReviewController,
+  monthlyRentController,
 } from "../controllers/index.js";
 import { upload } from '../config/cloudinary.config.js';
 
@@ -46,6 +47,11 @@ staffRouter.get("/room-addition-fee/calculate-rent/:roomId", roomAdditionFeeCont
 staffRouter.put("/room-addition-fee/:id", roomAdditionFeeController.updateRoomAdditionFee);
 staffRouter.delete("/room-addition-fee/:id", roomAdditionFeeController.deleteRoomAdditionFee);
 staffRouter.get("/room-addition-fee/:roomId", roomAdditionFeeController.getRoomAdditionFeesByRoomId);
+
+staffRouter.get("/monthly-rent-payments", monthlyRentController.getManagedRentPayments);
+staffRouter.get("/monthly-rents", monthlyRentController.getManagedMonthlyRents);
+staffRouter.post("/monthly-rents/calculate/:roomId", monthlyRentController.calculateMonthlyRent);
+staffRouter.get("/monthly-rents/:billId", monthlyRentController.getManagedMonthlyRentDetail);
 
 // room
 staffRouter.get("/room", roomController.getAllRooms);
