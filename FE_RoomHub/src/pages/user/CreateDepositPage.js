@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getRoomDetails } from "../../api/room";
+import { createDepositRequest } from "../../api/deposit";
 
 export default function CreateDepositPage() {
   const { roomId } = useParams();
@@ -8,7 +9,6 @@ export default function CreateDepositPage() {
 
   const [room, setRoom] = useState(null);
   const [roomLoading, setRoomLoading] = useState(false);
-  const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -16,7 +16,6 @@ export default function CreateDepositPage() {
     const loadRoom = async () => {
       try {
         setRoomLoading(true);
-
         const res = await getRoomDetails(roomId);
         setRoom(res?.data || res || null);
       } catch (error) {
@@ -26,40 +25,66 @@ export default function CreateDepositPage() {
       }
     };
 
-    if (roomId) {
-      loadRoom();
-    }
+    if (roomId) loadRoom();
   }, [roomId]);
 
-  const handleSubmit = (e) => {
+  const roomPrice = Number(room?.roomTypeId?.price || 0);
+
+  // Bắt buộc cọc 30% giá phòng
+  const depositAmount = useMemo(() => {
+    if (!roomPrice) return 0;
+    return Math.round(roomPrice * 0.3);
+  }, [roomPrice]);
+
+  const formatVnd = (value) =>
+    Number(value || 0).toLocaleString("vi-VN") + " VND";
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!roomId) return alert("Room is required");
-    if (!amount || Number(amount) <= 0) return alert("Deposit amount is required");
-    if (note.trim().length > 500) return alert("Note cannot exceed 500 characters");
+    if (!depositAmount || depositAmount <= 0) {
+      return alert("Room price is invalid. Cannot create deposit request.");
+    }
 
-    setLoading(true);
-    alert("Deposit request page is ready. Backend deposit API is not connected yet.");
-    setLoading(false);
+    try {
+      setLoading(true);
+
+      const start = new Date();
+      const end = new Date();
+      end.setMonth(end.getMonth() + 6);
+
+      await createDepositRequest({
+        roomId,
+        amount: depositAmount,
+        note,
+        rentalTime: 6,
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      });
+
+      alert("Deposit request created. Please wait for owner approval.");
+      navigate("/my-deposits");
+    } catch (error) {
+      alert(error.message || "Create deposit failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <button type="button" onClick={() => navigate(-1)} style={styles.backBtn}>
-          Back
+    <div style={styles.overlay}>
+      <div style={styles.modal}>
+        <button type="button" onClick={() => navigate(-1)} style={styles.closeBtn}>
+          ×
         </button>
 
         <div style={styles.header}>
-          <div>
-            <p style={styles.eyebrow}>RoomHub deposit</p>
-            <h1 style={styles.title}>Create a room deposit request</h1>
-            <p style={styles.subtitle}>
-              Confirm the room and enter the amount you want to deposit.
-            </p>
-          </div>
-
-          <div style={styles.badge}>Deposit</div>
+          <p style={styles.eyebrow}>RoomHub deposit</p>
+          <h2 style={styles.title}>Create deposit request</h2>
+          <p style={styles.subtitle}>
+            Deposit is fixed at 30% of the monthly room price.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -78,27 +103,31 @@ export default function CreateDepositPage() {
             />
           </div>
 
-          {room?.roomTypeId && (
-            <div style={styles.roomSummary}>
-              <span>{room.roomTypeId.typeName || "Room type"}</span>
-              <strong>
-                {Number(room.roomTypeId.price).toLocaleString("vi-VN")} VND
-              </strong>
+          <div style={styles.summaryBox}>
+            <div style={styles.row}>
+              <span>Room type</span>
+              <strong>{room?.roomTypeId?.typeName || "N/A"}</strong>
             </div>
-          )}
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>
-              Deposit amount <span style={styles.required}>*</span>
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Enter deposit amount"
-              style={styles.input}
-            />
+            <div style={styles.row}>
+              <span>Monthly price</span>
+              <strong>{formatVnd(roomPrice)}</strong>
+            </div>
+
+            <div style={styles.row}>
+              <span>Deposit rate</span>
+              <strong>30%</strong>
+            </div>
+
+            <div style={styles.totalRow}>
+              <span>Required deposit</span>
+              <strong>{formatVnd(depositAmount)}</strong>
+            </div>
+          </div>
+
+          <div style={styles.notice}>
+            You only submit a deposit request now. Payment is made after the owner
+            approves this request.
           </div>
 
           <div style={styles.formGroup}>
@@ -112,17 +141,28 @@ export default function CreateDepositPage() {
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              ...styles.submitBtn,
-              opacity: loading ? 0.6 : 1,
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading ? "Submitting..." : "Submit deposit"}
-          </button>
+          <div style={styles.actions}>
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              disabled={loading}
+              style={styles.cancelBtn}
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={loading || roomLoading}
+              style={{
+                ...styles.submitBtn,
+                opacity: loading || roomLoading ? 0.6 : 1,
+                cursor: loading || roomLoading ? "not-allowed" : "pointer",
+              }}
+            >
+              {loading ? "Submitting..." : "Submit deposit request"}
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -130,37 +170,36 @@ export default function CreateDepositPage() {
 }
 
 const styles = {
-  page: {
+  overlay: {
     minHeight: "100vh",
-    background: "#f6f7f9",
-    padding: "48px 20px",
+    background: "rgba(15, 23, 42, 0.55)",
     display: "flex",
+    alignItems: "center",
     justifyContent: "center",
+    padding: "24px",
   },
-  card: {
+  modal: {
+    position: "relative",
     width: "100%",
-    maxWidth: "640px",
+    maxWidth: "560px",
     background: "#fff",
-    borderRadius: "8px",
-    padding: "32px",
-    boxShadow: "0 20px 50px rgba(15, 23, 42, 0.1)",
-    border: "1px solid #e5e7eb",
+    borderRadius: "14px",
+    padding: "28px",
+    boxShadow: "0 24px 80px rgba(0,0,0,0.22)",
   },
-  backBtn: {
-    background: "transparent",
+  closeBtn: {
+    position: "absolute",
+    top: "14px",
+    right: "18px",
     border: "none",
-    color: "#475467",
-    fontSize: "15px",
-    fontWeight: 700,
+    background: "transparent",
+    fontSize: "30px",
     cursor: "pointer",
-    marginBottom: "24px",
-    padding: 0,
+    color: "#667085",
   },
   header: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "24px",
-    marginBottom: "28px",
+    marginBottom: "22px",
+    paddingRight: "32px",
   },
   eyebrow: {
     margin: "0 0 8px",
@@ -168,30 +207,19 @@ const styles = {
     fontSize: "13px",
     fontWeight: 800,
     textTransform: "uppercase",
-    letterSpacing: 0,
   },
   title: {
     margin: 0,
     color: "#101828",
-    fontSize: "30px",
-    lineHeight: 1.2,
+    fontSize: "26px",
   },
   subtitle: {
-    margin: "10px 0 0",
+    margin: "8px 0 0",
     color: "#667085",
     fontSize: "15px",
-    lineHeight: 1.5,
-  },
-  badge: {
-    alignSelf: "start",
-    background: "#fff4ed",
-    borderRadius: "999px",
-    color: "#c4320a",
-    fontWeight: 800,
-    padding: "9px 12px",
   },
   formGroup: {
-    marginBottom: "18px",
+    marginBottom: "16px",
   },
   label: {
     display: "block",
@@ -200,48 +228,53 @@ const styles = {
     fontSize: "14px",
     fontWeight: 700,
   },
-  required: {
-    color: "#ef4444",
-  },
-  input: {
-    width: "100%",
-    height: "48px",
-    border: "1px solid #d0d5dd",
-    borderRadius: "8px",
-    padding: "0 14px",
-    color: "#101828",
-    fontSize: "15px",
-    outline: "none",
-    boxSizing: "border-box",
-  },
   disabledInput: {
     width: "100%",
-    height: "48px",
+    height: "46px",
     border: "1px solid #d0d5dd",
     borderRadius: "8px",
     padding: "0 14px",
-    color: "#667085",
     background: "#f9fafb",
+    color: "#667085",
     fontSize: "15px",
-    outline: "none",
     boxSizing: "border-box",
-    cursor: "not-allowed",
   },
-  roomSummary: {
-    alignItems: "center",
-    background: "#f8fafc",
+  summaryBox: {
     border: "1px solid #eef0f3",
-    borderRadius: "8px",
-    color: "#475467",
+    borderRadius: "10px",
+    overflow: "hidden",
+    marginBottom: "16px",
+  },
+  row: {
     display: "flex",
     justifyContent: "space-between",
-    gap: "12px",
-    marginBottom: "18px",
+    gap: "16px",
+    padding: "13px 14px",
+    borderBottom: "1px solid #eef0f3",
+    color: "#475467",
+  },
+  totalRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "16px",
+    padding: "15px 14px",
+    background: "#fff7ed",
+    color: "#9a3412",
+    fontSize: "16px",
+  },
+  notice: {
+    background: "#f8fafc",
+    border: "1px solid #e5e7eb",
+    color: "#475467",
+    borderRadius: "8px",
     padding: "12px 14px",
+    fontSize: "14px",
+    lineHeight: 1.5,
+    marginBottom: "16px",
   },
   textarea: {
     width: "100%",
-    minHeight: "130px",
+    minHeight: "110px",
     border: "1px solid #d0d5dd",
     borderRadius: "8px",
     padding: "14px",
@@ -252,14 +285,28 @@ const styles = {
     boxSizing: "border-box",
     fontFamily: "inherit",
   },
-  submitBtn: {
-    width: "100%",
-    height: "50px",
-    background: "#ff6b00",
-    color: "#fff",
-    border: "none",
+  actions: {
+    display: "flex",
+    gap: "12px",
+  },
+  cancelBtn: {
+    flex: 1,
+    height: "48px",
+    border: "1px solid #d0d5dd",
+    background: "#fff",
+    color: "#344054",
     borderRadius: "8px",
     fontWeight: 800,
-    fontSize: "16px",
+    cursor: "pointer",
+  },
+  submitBtn: {
+    flex: 2,
+    height: "48px",
+    border: "none",
+    background: "#ff6b00",
+    color: "#fff",
+    borderRadius: "8px",
+    fontWeight: 800,
+    cursor: "pointer",
   },
 };
