@@ -3,14 +3,24 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getRoomDetails } from "../../api/room";
 import { createDepositRequest } from "../../api/deposit";
 
-export default function CreateDepositPage() {
-  const { roomId } = useParams();
+export default function CreateDepositPage({ roomId: propRoomId, onClose }) {
+  const { roomId: paramRoomId } = useParams();
+  const roomId = propRoomId || paramRoomId;
   const navigate = useNavigate();
 
   const [room, setRoom] = useState(null);
   const [roomLoading, setRoomLoading] = useState(false);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [startDate, setStartDate] = useState("");
+  const [rentalTime, setRentalTime] = useState(6);
+  const [depositMonths, setDepositMonths] = useState(1);
+
+  const handleClose = () => {
+    if (onClose) onClose();
+    else navigate(-1);
+  };
 
   useEffect(() => {
     const loadRoom = async () => {
@@ -30,19 +40,27 @@ export default function CreateDepositPage() {
 
   const roomPrice = Number(room?.roomTypeId?.price || 0);
 
-  // Bắt buộc cọc 30% giá phòng
   const depositAmount = useMemo(() => {
-    if (!roomPrice) return 0;
-    return Math.round(roomPrice * 0.3);
-  }, [roomPrice]);
+    return roomPrice * Number(depositMonths || 1);
+  }, [roomPrice, depositMonths]);
+
+  const endDate = useMemo(() => {
+    if (!startDate) return "";
+    const date = new Date(startDate);
+    date.setMonth(date.getMonth() + Number(rentalTime));
+    return date.toISOString().slice(0, 10);
+  }, [startDate, rentalTime]);
 
   const formatVnd = (value) =>
     Number(value || 0).toLocaleString("vi-VN") + " VND";
+
+  const getToday = () => new Date().toISOString().slice(0, 10);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!roomId) return alert("Room is required");
+    if (!startDate) return alert("Start date is required");
     if (!depositAmount || depositAmount <= 0) {
       return alert("Room price is invalid. Cannot create deposit request.");
     }
@@ -50,20 +68,17 @@ export default function CreateDepositPage() {
     try {
       setLoading(true);
 
-      const start = new Date();
-      const end = new Date();
-      end.setMonth(end.getMonth() + 6);
-
       await createDepositRequest({
         roomId,
-        amount: depositAmount,
+        rentalTime: Number(rentalTime),
+        depositMonths: Number(depositMonths),
+        startDate,
         note,
-        rentalTime: 6,
-        startDate: start.toISOString(),
-        endDate: end.toISOString(),
       });
 
       alert("Deposit request created. Please wait for owner approval.");
+
+      if (onClose) onClose();
       navigate("/my-deposits");
     } catch (error) {
       alert(error.message || "Create deposit failed");
@@ -75,7 +90,7 @@ export default function CreateDepositPage() {
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
-        <button type="button" onClick={() => navigate(-1)} style={styles.closeBtn}>
+        <button type="button" onClick={handleClose} style={styles.closeBtn}>
           ×
         </button>
 
@@ -83,7 +98,7 @@ export default function CreateDepositPage() {
           <p style={styles.eyebrow}>RoomHub deposit</p>
           <h2 style={styles.title}>Create deposit request</h2>
           <p style={styles.subtitle}>
-            Deposit is fixed at 30% of the monthly room price.
+            Choose rental time, contract start date, and deposit amount.
           </p>
         </div>
 
@@ -96,11 +111,57 @@ export default function CreateDepositPage() {
                   ? "Loading room..."
                   : room?.roomNumber
                   ? `Room ${room.roomNumber}`
-                  : roomId
+                  : roomId || ""
               }
               disabled
               style={styles.disabledInput}
             />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Start date *</label>
+            <input
+              type="date"
+              min={getToday()}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Rental time *</label>
+            <select
+              value={rentalTime}
+              onChange={(e) => setRentalTime(e.target.value)}
+              style={styles.input}
+            >
+              <option value={1}>1 month</option>
+              <option value={3}>3 months</option>
+              <option value={6}>6 months</option>
+              <option value={12}>12 months</option>
+            </select>
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>End date</label>
+            <input
+              value={endDate || "Auto calculated"}
+              disabled
+              style={styles.disabledInput}
+            />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Deposit months *</label>
+            <select
+              value={depositMonths}
+              onChange={(e) => setDepositMonths(e.target.value)}
+              style={styles.input}
+            >
+              <option value={1}>1 month deposit</option>
+              <option value={2}>2 months deposit</option>
+            </select>
           </div>
 
           <div style={styles.summaryBox}>
@@ -115,8 +176,8 @@ export default function CreateDepositPage() {
             </div>
 
             <div style={styles.row}>
-              <span>Deposit rate</span>
-              <strong>30%</strong>
+              <span>Deposit rule</span>
+              <strong>{depositMonths} month(s)</strong>
             </div>
 
             <div style={styles.totalRow}>
@@ -126,8 +187,8 @@ export default function CreateDepositPage() {
           </div>
 
           <div style={styles.notice}>
-            You only submit a deposit request now. Payment is made after the owner
-            approves this request.
+            You only submit a deposit request now. Payment is made after the
+            owner approves this request.
           </div>
 
           <div style={styles.formGroup}>
@@ -144,7 +205,7 @@ export default function CreateDepositPage() {
           <div style={styles.actions}>
             <button
               type="button"
-              onClick={() => navigate(-1)}
+              onClick={handleClose}
               disabled={loading}
               style={styles.cancelBtn}
             >
@@ -171,52 +232,61 @@ export default function CreateDepositPage() {
 
 const styles = {
   overlay: {
-    minHeight: "100vh",
-    background: "rgba(15, 23, 42, 0.55)",
+    position: "fixed",
+    inset: 0,
+    background: "rgba(15, 23, 42, 0.58)",
+    backdropFilter: "blur(6px)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     padding: "24px",
+    zIndex: 9999,
   },
   modal: {
     position: "relative",
     width: "100%",
-    maxWidth: "560px",
+    maxWidth: "640px",
     background: "#fff",
-    borderRadius: "14px",
-    padding: "28px",
-    boxShadow: "0 24px 80px rgba(0,0,0,0.22)",
+    borderRadius: "22px",
+    padding: "36px",
+    boxShadow: "0 30px 90px rgba(15, 23, 42, 0.28)",
+    maxHeight: "92vh",
+    overflowY: "auto",
   },
   closeBtn: {
     position: "absolute",
-    top: "14px",
-    right: "18px",
+    top: "24px",
+    right: "24px",
+    width: "42px",
+    height: "42px",
+    borderRadius: "50%",
     border: "none",
-    background: "transparent",
-    fontSize: "30px",
+    background: "#f1f5f9",
+    fontSize: "28px",
     cursor: "pointer",
-    color: "#667085",
+    color: "#475569",
   },
   header: {
-    marginBottom: "22px",
-    paddingRight: "32px",
+    marginBottom: "24px",
+    paddingRight: "58px",
   },
   eyebrow: {
     margin: "0 0 8px",
     color: "#ff6b00",
     fontSize: "13px",
-    fontWeight: 800,
+    fontWeight: 900,
     textTransform: "uppercase",
   },
   title: {
     margin: 0,
-    color: "#101828",
-    fontSize: "26px",
+    color: "#0f172a",
+    fontSize: "28px",
+    fontWeight: 900,
   },
   subtitle: {
     margin: "8px 0 0",
-    color: "#667085",
-    fontSize: "15px",
+    color: "#64748b",
+    fontSize: "16px",
   },
   formGroup: {
     marginBottom: "16px",
@@ -224,62 +294,75 @@ const styles = {
   label: {
     display: "block",
     marginBottom: "8px",
-    color: "#344054",
-    fontSize: "14px",
-    fontWeight: 700,
+    color: "#334155",
+    fontSize: "15px",
+    fontWeight: 800,
+  },
+  input: {
+    width: "100%",
+    height: "50px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "14px",
+    padding: "0 16px",
+    background: "#fff",
+    color: "#0f172a",
+    fontSize: "16px",
+    boxSizing: "border-box",
   },
   disabledInput: {
     width: "100%",
-    height: "46px",
-    border: "1px solid #d0d5dd",
-    borderRadius: "8px",
-    padding: "0 14px",
-    background: "#f9fafb",
-    color: "#667085",
-    fontSize: "15px",
+    height: "50px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "14px",
+    padding: "0 16px",
+    background: "#f8fafc",
+    color: "#475569",
+    fontSize: "16px",
     boxSizing: "border-box",
   },
   summaryBox: {
-    border: "1px solid #eef0f3",
-    borderRadius: "10px",
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
     overflow: "hidden",
-    marginBottom: "16px",
+    marginBottom: "18px",
   },
   row: {
     display: "flex",
     justifyContent: "space-between",
     gap: "16px",
-    padding: "13px 14px",
-    borderBottom: "1px solid #eef0f3",
-    color: "#475467",
+    padding: "15px 18px",
+    borderBottom: "1px solid #e2e8f0",
+    color: "#475569",
+    fontSize: "16px",
   },
   totalRow: {
     display: "flex",
     justifyContent: "space-between",
     gap: "16px",
-    padding: "15px 14px",
+    padding: "17px 18px",
     background: "#fff7ed",
     color: "#9a3412",
     fontSize: "16px",
+    fontWeight: 900,
   },
   notice: {
     background: "#f8fafc",
-    border: "1px solid #e5e7eb",
-    color: "#475467",
-    borderRadius: "8px",
-    padding: "12px 14px",
-    fontSize: "14px",
+    border: "1px solid #e2e8f0",
+    color: "#475569",
+    borderRadius: "12px",
+    padding: "14px 16px",
+    fontSize: "15px",
     lineHeight: 1.5,
-    marginBottom: "16px",
+    marginBottom: "18px",
   },
   textarea: {
     width: "100%",
-    minHeight: "110px",
-    border: "1px solid #d0d5dd",
-    borderRadius: "8px",
-    padding: "14px",
+    minHeight: "120px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "14px",
+    padding: "16px",
     color: "#101828",
-    fontSize: "15px",
+    fontSize: "16px",
     outline: "none",
     resize: "vertical",
     boxSizing: "border-box",
@@ -287,26 +370,32 @@ const styles = {
   },
   actions: {
     display: "flex",
-    gap: "12px",
+    justifyContent: "flex-end",
+    gap: "16px",
+    paddingTop: "20px",
+    marginTop: "20px",
+    borderTop: "1px solid #e5e7eb",
   },
   cancelBtn: {
-    flex: 1,
-    height: "48px",
-    border: "1px solid #d0d5dd",
+    minWidth: "130px",
+    height: "52px",
+    border: "1px solid #cbd5e1",
     background: "#fff",
-    color: "#344054",
-    borderRadius: "8px",
-    fontWeight: 800,
+    color: "#334155",
+    borderRadius: "14px",
+    fontWeight: 900,
     cursor: "pointer",
+    fontSize: "16px",
   },
   submitBtn: {
-    flex: 2,
-    height: "48px",
+    minWidth: "220px",
+    height: "52px",
     border: "none",
     background: "#ff6b00",
     color: "#fff",
-    borderRadius: "8px",
-    fontWeight: 800,
+    borderRadius: "14px",
+    fontWeight: 900,
     cursor: "pointer",
+    fontSize: "16px",
   },
 };
