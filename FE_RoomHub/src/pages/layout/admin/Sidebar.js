@@ -108,7 +108,21 @@ export default function Sidebar() {
             <NavLink to="/manage-room-additional-fees">
               Manage Room Additional Fees
             </NavLink>
+
+            <NavLink to="/manage-monthly-rents">
+              Monthly Rent Management
+            </NavLink>
+
+            <NavLink to="/rent-payments">
+              Rent Payments
+            </NavLink>
           </>
+        )}
+
+        {!isAdmin && !canManageOwnBoardingHouses && (
+          <NavLink to="/monthly-rents">
+            My Monthly Rents
+          </NavLink>
         )}
 
       </nav>

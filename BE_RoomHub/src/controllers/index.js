@@ -22,6 +22,7 @@ import roomTypeController from './roomTypeController.js';
 // import paymentBillController from './paymentBillController.js';
 // import managerController from './managerController.js';
 import roomAdditionFeeController from './roomAdditionFeeController.js';
+import monthlyRentController from './monthlyRentController.js';
 // import taskController from './taskController.js';
 export {
   authController,
@@ -48,5 +49,6 @@ export {
   // paymentBillController,
   // managerController,
   roomAdditionFeeController,
+  monthlyRentController,
   // taskController
 };

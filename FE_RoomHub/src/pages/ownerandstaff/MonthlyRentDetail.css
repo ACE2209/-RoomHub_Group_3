@@ -1,0 +1,90 @@
+.monthly-rent-detail {
+  min-height: 100%;
+  padding: 24px;
+  background: #fff7ed;
+}
+
+.monthly-rent-detail__card {
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(194, 65, 12, 0.08);
+}
+
+.monthly-rent-detail__hero > .ant-card-head {
+  border-bottom-color: #fed7aa;
+  background: linear-gradient(90deg, #f97316, #fb923c);
+  border-radius: 8px 8px 0 0;
+}
+
+.monthly-rent-detail__hero > .ant-card-head .ant-card-head-title {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.monthly-rent-detail__hero > .ant-card-head .ant-btn-primary {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #c2410c;
+  font-weight: 700;
+}
+
+.monthly-rent-detail__descriptions {
+  margin-bottom: 20px;
+}
+
+.monthly-rent-detail__descriptions .ant-descriptions-item-label {
+  background: #ffedd5;
+  color: #9a3412;
+  font-weight: 700;
+}
+
+.monthly-rent-detail__descriptions .ant-descriptions-item-content {
+  background: #ffffff;
+}
+
+.monthly-rent-detail__total {
+  color: #ea580c;
+  font-size: 18px;
+}
+
+.monthly-rent-detail__section {
+  margin-top: 20px;
+  border-color: #fed7aa;
+  border-radius: 8px;
+}
+
+.monthly-rent-detail__section > .ant-card-head {
+  background: #fff7ed;
+  border-bottom-color: #fed7aa;
+}
+
+.monthly-rent-detail__section > .ant-card-head .ant-card-head-title {
+  color: #c2410c;
+  font-weight: 700;
+}
+
+.monthly-rent-detail__table .ant-table-thead > tr > th {
+  background: #fb923c;
+  color: #ffffff;
+  font-weight: 700;
+  border-bottom-color: #fdba74;
+}
+
+.monthly-rent-detail__table .ant-table-tbody > tr:hover > td {
+  background: #fff7ed;
+}
+
+.monthly-rent-detail__service {
+  color: #9a3412;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .monthly-rent-detail {
+    padding: 12px;
+  }
+
+  .monthly-rent-detail__total {
+    font-size: 16px;
+  }
+}

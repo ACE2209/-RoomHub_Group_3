@@ -40,6 +40,11 @@ import ProtectedRoute from "./ProtectedRoute";
 import WatchLaterPage from "../pages/user/WatchLaterPage";
 import ManageRooms from "../pages/ownerandstaff/ManageRooms";
 import ManageRoomAdditionalFees from "../pages/ownerandstaff/ManageRoomAdditionalFees";
+import ManageMonthlyRents from "../pages/ownerandstaff/ManageMonthlyRents";
+import ManageMonthlyRentDetail from "../pages/ownerandstaff/ManageMonthlyRentDetail";
+import MyMonthlyRentsPage from "../pages/user/MyMonthlyRentsPage";
+import MyMonthlyRentDetailPage from "../pages/user/MyMonthlyRentDetailPage";
+import RentPaymentsManagement from "../pages/ownerandstaff/RentPaymentsManagement";
 
 const AppRoutes = () => {
   return (
@@ -117,6 +122,22 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <MyReportsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/monthly-rents"
+        element={
+          <ProtectedRoute>
+            <MyMonthlyRentsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/monthly-rents/:userPaymentId"
+        element={
+          <ProtectedRoute>
+            <MyMonthlyRentDetailPage />
           </ProtectedRoute>
         }
       />
@@ -277,6 +298,30 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["owner", "staff"]}>
             <ManageRoomAdditionalFees />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manage-monthly-rents"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManageMonthlyRents />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manage-monthly-rents/:billId"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManageMonthlyRentDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rent-payments"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <RentPaymentsManagement />
           </ProtectedRoute>
         }
       />

@@ -6,6 +6,7 @@ import {
   appointmentController,
   ReviewController,
   reportController,
+  monthlyRentController,
 } from "../controllers/index.js";
 
 import roomController from "../controllers/roomController.js";
@@ -43,5 +44,9 @@ commonRouter.get('/room/room-type/:roomTypeId', roomController.getRoomsByRoomTyp
 
 commonRouter.get("/room-types/:roomTypeId/rooms", roomController.getRoomsByRoomType);
 commonRouter.get("/rooms/:roomId", roomController.getRoomDetails);
+
+commonRouter.get("/monthly-rents/my", authMiddleware, monthlyRentController.getMyMonthlyRents);
+commonRouter.get("/monthly-rents/my/:userPaymentId", authMiddleware, monthlyRentController.getMyMonthlyRentDetail);
+commonRouter.patch("/monthly-rents/my/:userPaymentId/pay", authMiddleware, monthlyRentController.payMyMonthlyRent);
 
 export { commonRouter };
