@@ -116,13 +116,12 @@ export default function MyDepositsPage() {
                       </p>
 
                       <p>
-                        Deposit rate: <b>30%</b>
-                      </p>
+  Deposit months: <b>{deposit.depositMonths || 1} month(s)</b>
+</p>
 
-                      <p>
-                        Deposit amount:{" "}
-                        <b>{formatCurrency(deposit.amount)}</b>
-                      </p>
+                    <p>
+  Deposit amount: <b>{formatCurrency(deposit.amount)}</b>
+</p>
 
                       <p>
                         Rental time: <b>{deposit.rentalTime || 6} months</b>
