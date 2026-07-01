@@ -263,7 +263,7 @@ class RoomController {
       if (isAvailable !== undefined && isAvailable !== null && isAvailable !== '') {
         const boolValue = isAvailable === true || isAvailable === 'true';
         room.isAvailable = boolValue;
-        room.manuallySet = true;  // ✅ Set flag
+        room.manuallySet = true;  
       }
       if (
         previousElectricityReading !== undefined &&
