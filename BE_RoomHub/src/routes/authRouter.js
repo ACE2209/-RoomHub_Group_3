@@ -7,6 +7,8 @@ import {
   reportController,
   ReviewController,
   watchLaterController,
+  depositController,
+paymentController,
 } from "../controllers/index.js";
 import { upload } from "../config/cloudinary.config.js";
 
@@ -53,5 +55,12 @@ authRouter.delete("/watchlater/:boardingHouseId", watchLaterController.deleteWat
 // profile
 authRouter.get("/profile", accountController.getProfile);
 authRouter.put("/profile", accountController.updateAccountFromProfile);
+// USER DEPOSIT
+authRouter.post("/deposits", depositController.createDeposit);
+authRouter.get("/deposits", depositController.getMyDeposits);
+authRouter.post("/deposits/:depositId/pay", paymentController.payDeposit);
 
+// USER RENT PAYMENT
+authRouter.get("/payment-bills", paymentController.getMyPaymentBills);
+authRouter.post("/payment-bills/:billId/pay", paymentController.payRent);
 export { authRouter };

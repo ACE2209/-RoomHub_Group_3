@@ -6,6 +6,7 @@ import {
   appointmentController,
   ReviewController,
   reportController,
+  paymentController,
 } from "../controllers/index.js";
 
 import roomController from "../controllers/roomController.js";
@@ -43,5 +44,6 @@ commonRouter.get('/room/room-type/:roomTypeId', roomController.getRoomsByRoomTyp
 
 commonRouter.get("/room-types/:roomTypeId/rooms", roomController.getRoomsByRoomType);
 commonRouter.get("/rooms/:roomId", roomController.getRoomDetails);
-
+commonRouter.get("/payment/vnpay-return", paymentController.vnpayReturn);
+commonRouter.get("/payment/momo-return", paymentController.momoReturn);
 export { commonRouter };
