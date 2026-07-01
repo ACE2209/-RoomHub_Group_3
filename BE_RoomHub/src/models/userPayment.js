@@ -4,8 +4,13 @@ const userPaymentSchema = new mongoose.Schema(
   {
     paymentBillId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
       ref: "PaymentBill",
+      default: null,
+    },
+    depositRoomId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DepositRoom",
+      default: null,
     },
     accountId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -20,17 +25,28 @@ const userPaymentSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: ["Pending", "Paid", "Failed"],
+      default: "Pending",
     },
     paymentMethod: {
       type: String,
-      require: true,
+      required: true,
+      enum: ["VNPay", "MoMo"],
+    },
+     orderId: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    orderInfo: {
+      type: String,
+      default: "",
+    },
+    transactionNo: {
+      type: String,
+      default: "",
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-const UserPayment = mongoose.model("UserPayment", userPaymentSchema);
-
-export default UserPayment;
+export default mongoose.model("UserPayment", userPaymentSchema);

@@ -40,7 +40,8 @@ import ProtectedRoute from "./ProtectedRoute";
 import WatchLaterPage from "../pages/user/WatchLaterPage";
 import ManageRooms from "../pages/ownerandstaff/ManageRooms";
 import ManageRoomAdditionalFees from "../pages/ownerandstaff/ManageRoomAdditionalFees";
-
+import MyDepositsPage from "../pages/user/MyDepositsPage";
+import PaymentResultPage from "../pages/user/PaymentResultPage";
 const AppRoutes = () => {
   return (
     <Routes>
@@ -279,7 +280,23 @@ const AppRoutes = () => {
             <ManageRoomAdditionalFees />
           </ProtectedRoute>
         }
-      />
+      /><Route
+  path="/my-deposits"
+  element={
+    <ProtectedRoute>
+      <MyDepositsPage />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/payment-result"
+  element={
+    <ProtectedRoute>
+      <PaymentResultPage />
+    </ProtectedRoute>
+  }
+/>
     </Routes>
   );
 };

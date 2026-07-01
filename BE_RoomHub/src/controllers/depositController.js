@@ -425,7 +425,101 @@ class DepositController {
       });
     }
   }
+async createDeposit(req, res) {
+  try {
+    const accountId = req.user.userId;
+    const { roomId, amount, rentalTime, startDate, endDate } = req.body;
 
+    if (!roomId || !amount || !rentalTime || !startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      });
+    }
+
+    const room = await Room.findById(roomId);
+
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: "Room not found",
+      });
+    }
+
+    if (!room.isAvailable) {
+      return res.status(400).json({
+        success: false,
+        message: "This room is not available",
+      });
+    }
+
+    const existed = await DepositRoom.findOne({
+      accountId,
+      roomId,
+      status: { $in: ["pending", "accepted", "confirmed"] },
+    });
+
+    if (existed) {
+      return res.status(400).json({
+        success: false,
+        message: "You already have a deposit request for this room",
+      });
+    }
+
+    const deposit = await DepositRoom.create({
+      accountId,
+      roomId,
+      amount,
+      rentalTime,
+      startDate,
+      endDate,
+      status: "pending",
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Deposit request created successfully",
+      data: deposit,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
+async getMyDeposits(req, res) {
+  try {
+    const deposits = await DepositRoom.find({
+      accountId: req.user.userId,
+    })
+      .populate({
+        path: "roomId",
+        populate: [
+          {
+            path: "boardingHouseId",
+            select: "name address",
+          },
+          {
+            path: "roomTypeId",
+            select: "typeName price peopleNumber roomSize",
+          },
+        ],
+      })
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      data: deposits,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
   async deleteDepositRoom(req, res) {
     try {
       const depositRoomId = req.params.depositRoomId || req.params.depositId;
