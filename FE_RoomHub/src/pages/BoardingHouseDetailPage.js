@@ -30,6 +30,7 @@ import MapSection from "../components/MapSection";
 import { toggleFavorite, getFavorites } from "../api/favorite";
 import { toggleWatchLater, getWatchLater } from "../api/watchLater";
 import { toastSuccess, toastInfo, confirmAction } from "../utils/notify";
+import ReportModal from "../components/ReportModal";
 
 const formatCurrency = (value) => {
     const numberValue = Number(value);
@@ -93,6 +94,7 @@ const BoardingHouseDetailPage = () => {
     const [error, setError] = useState("");
     const [favorites, setFavorites] = useState([]);
     const [isWatchLater, setIsWatchLater] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -269,9 +271,28 @@ const BoardingHouseDetailPage = () => {
         }
     };
 
+    const handleReportBoardingHouse = () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        setIsReportModalOpen(true);
+    };
+
     return (
         <>
             <Header />
+
+            <ReportModal
+                isOpen={isReportModalOpen}
+                onClose={() => setIsReportModalOpen(false)}
+                targetId={boardingHouseId}
+                reportType="boardingHouse"
+                onSubmitted={() => setIsReportModalOpen(false)}
+            />
 
             <main className="detail-page">
                 <section className="detail-hero">
@@ -370,6 +391,15 @@ const BoardingHouseDetailPage = () => {
                                                         fill="none"
                                                         color={isWatchLater ? "#ff6b00" : "black"}
                                                     />
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={handleReportBoardingHouse}
+                                                    className="btn p-0 border-0 bg-transparent"
+                                                    title="Report this boarding house"
+                                                >
+                                                    <span className="detail-report-pill">Report</span>
                                                 </button>
                                             </div>
                                         </div>
