@@ -260,6 +260,11 @@ class DepositController {
       };
 
       const sendEmailSafe = async (to, subject, html) => {
+        if (!to) {
+          console.error("Deposit email failed: recipient email is missing");
+          return false;
+        }
+
         try {
           await sendEmail(to, subject, html);
           return true;
@@ -268,6 +273,27 @@ class DepositController {
           return false;
         }
       };
+
+      const getRecipientAccount = async (accountRef) => {
+        if (!accountRef) {
+          return null;
+        }
+
+        if (accountRef.email) {
+          return accountRef;
+        }
+
+        const accountId = accountRef._id || accountRef;
+        return Account.findById(accountId).select("fullname email");
+      };
+
+      const recipientAccount = await getRecipientAccount(deposit.accountId);
+
+      if (!recipientAccount?.email) {
+        return res.status(400).json({
+          error: "Deposit account email not found.",
+        });
+      }
 
       if (action === "reject") {
         if (!reasonForCancel) {
@@ -281,10 +307,10 @@ class DepositController {
         await deposit.save();
 
         const emailSent = await sendEmailSafe(
-          deposit.accountId.email,
+          recipientAccount.email,
           "Đặt cọc phòng trọ đã bị từ chối",
           `
-            <p>Xin chào <strong>${deposit.accountId.fullname}</strong>,</p>
+            <p>Xin chào <strong>${recipientAccount.fullname}</strong>,</p>
             <p>Khoản đặt cọc của bạn cho phòng <strong>${deposit.roomId.roomNumber}</strong>
             tại nhà trọ <strong>${boardingHouseName}</strong> đã bị từ chối.</p>
             <p><strong>Lý do:</strong> ${reasonForCancel}</p>
@@ -315,10 +341,10 @@ class DepositController {
           await deposit.save();
 
           const emailSent = await sendEmailSafe(
-            deposit.accountId.email,
+            recipientAccount.email,
             "Yêu cầu đặt cọc đã bị từ chối",
             `
-              <p>Xin chào <strong>${deposit.accountId.fullname}</strong>,</p>
+              <p>Xin chào <strong>${recipientAccount.fullname}</strong>,</p>
               <p>Phòng <strong>${deposit.roomId.roomNumber}</strong>
               tại nhà trọ <strong>${boardingHouseName}</strong> đã đủ người.</p>
             `
@@ -339,10 +365,10 @@ class DepositController {
       await deposit.save();
 
       const emailSent = await sendEmailSafe(
-        deposit.accountId.email,
+        recipientAccount.email,
         "Đặt cọc phòng trọ đã được chấp nhận",
         `
-          <p>Xin chào <strong>${deposit.accountId.fullname}</strong>,</p>
+          <p>Xin chào <strong>${recipientAccount.fullname}</strong>,</p>
           <p>Khoản đặt cọc của bạn cho phòng <strong>${deposit.roomId.roomNumber}</strong>
           tại nhà trọ <strong>${boardingHouseName}</strong> đã được chấp nhận.</p>
           <p>Vui lòng thanh toán tiền cọc để hoàn tất giữ phòng.</p>
@@ -362,16 +388,20 @@ class DepositController {
         });
 
         for (const item of otherPendingDeposits) {
+          const itemRecipientAccount = await getRecipientAccount(
+            item.accountId
+          );
+
           item.status = "rejected";
           item.reasonForCancel =
             "Phòng đã được đặt cọc bởi người khác.";
           await item.save();
 
           await sendEmailSafe(
-            item.accountId.email,
+            itemRecipientAccount?.email,
             "Yêu cầu đặt cọc đã bị từ chối",
             `
-              <p>Xin chào <strong>${item.accountId.fullname}</strong>,</p>
+              <p>Xin chào <strong>${itemRecipientAccount?.fullname || "bạn"}</strong>,</p>
               <p>Phòng <strong>${deposit.roomId.roomNumber}</strong>
               tại nhà trọ <strong>${boardingHouseName}</strong>
               đã được người khác đặt cọc trước.</p>
