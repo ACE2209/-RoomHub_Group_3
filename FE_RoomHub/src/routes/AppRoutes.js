@@ -47,7 +47,6 @@ import ManageRooms from "../pages/ownerandstaff/ManageRooms";
 import ManageRoomAdditionalFees from "../pages/ownerandstaff/ManageRoomAdditionalFees";
 import ManageMonthlyRents from "../pages/ownerandstaff/ManageMonthlyRents";
 import ManageMonthlyRentDetail from "../pages/ownerandstaff/ManageMonthlyRentDetail";
-import RentPaymentsManagement from "../pages/ownerandstaff/RentPaymentsManagement";
 
 const AppRoutes = () => {
   return (
@@ -170,7 +169,25 @@ const AppRoutes = () => {
       />
 
       <Route
+        path="/monthly-rent"
+        element={
+          <ProtectedRoute>
+            <MyMonthlyRentsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/monthly-rents/:userPaymentId"
+        element={
+          <ProtectedRoute>
+            <MyMonthlyRentDetailPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/monthly-rent/:userPaymentId"
         element={
           <ProtectedRoute>
             <MyMonthlyRentDetailPage />
@@ -256,15 +273,6 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["owner", "staff"]}>
             <ManageMonthlyRentDetail />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/rent-payments"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <RentPaymentsManagement />
           </ProtectedRoute>
         }
       />

@@ -59,7 +59,8 @@ export default function MonthlyRentPage() {
       ) : (
         <div style={{ display: "grid", gap: 16 }}>
           {bills.map((bill) => {
-            const paid = String(bill.status).toLowerCase() === "paid";
+            const status = String(bill.status || "").toLowerCase();
+            const canPay = status === "pending";
 
             return (
               <div
@@ -77,7 +78,7 @@ export default function MonthlyRentPage() {
                 <p>Amount: <b>{formatCurrency(bill.paymentAmount)}</b></p>
                 <p>Status: <b>{bill.status}</b></p>
 
-                {!paid && (
+                {canPay && (
                   <div style={{ display: "flex", gap: 12 }}>
                     <button
                       onClick={() => handlePay(bill._id, "MoMo")}

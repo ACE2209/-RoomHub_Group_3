@@ -3,8 +3,11 @@ import { Button, Card, Table, Tag, message } from "antd";
 import { EyeOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
+import { getProfileAPI } from "../../api/accountAPI";
 import { getMyMonthlyRents } from "../../api/monthlyRentAPI";
-import AdminLayout from "../layout/admin/AdminLayout";
+import Header from "../layout/homepage/header";
+import Footer from "../layout/homepage/footer";
+import ProfileSidebar from "../profile/ProfileSidebar";
 
 const formatCurrency = (value) =>
   Number(value || 0).toLocaleString("vi-VN", {
@@ -12,10 +15,17 @@ const formatCurrency = (value) =>
     currency: "VND",
   });
 
+const getStatusColor = (status) => {
+  if (status === "Done" || status === "Paid") return "green";
+  if (status === "Cancel") return "red";
+  return "gold";
+};
+
 const MyMonthlyRentsPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [payments, setPayments] = useState([]);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     loadPayments();
@@ -24,7 +34,12 @@ const MyMonthlyRentsPage = () => {
   const loadPayments = async () => {
     try {
       setLoading(true);
-      const res = await getMyMonthlyRents();
+      const [profileRes, rentRes] = await Promise.all([
+        getProfileAPI(),
+        getMyMonthlyRents(),
+      ]);
+      setUser(profileRes?.data || profileRes || null);
+      const res = rentRes;
       setPayments(res.data || []);
     } catch (error) {
       message.error(error.message || "Failed to load monthly rents");
@@ -57,7 +72,7 @@ const MyMonthlyRentsPage = () => {
       title: "Status",
       dataIndex: "status",
       render: (status) => (
-        <Tag color={status === "Paid" ? "green" : "gold"}>{status}</Tag>
+        <Tag color={getStatusColor(status)}>{status}</Tag>
       ),
     },
     {
@@ -76,8 +91,11 @@ const MyMonthlyRentsPage = () => {
   ];
 
   return (
-    <AdminLayout>
-      <div style={{ padding: 24 }}>
+    <>
+      <Header />
+      <div style={styles.page}>
+        <ProfileSidebar user={user} />
+        <main style={styles.content}>
         <Card title="My Monthly Rents">
           <Table
             rowKey="_id"
@@ -86,9 +104,26 @@ const MyMonthlyRentsPage = () => {
             dataSource={payments}
           />
         </Card>
+        </main>
       </div>
-    </AdminLayout>
+      <Footer />
+    </>
   );
+};
+
+const styles = {
+  page: {
+    display: "flex",
+    gap: 24,
+    maxWidth: 1200,
+    margin: "32px auto",
+    padding: "0 24px",
+    alignItems: "flex-start",
+  },
+  content: {
+    flex: 1,
+    minWidth: 0,
+  },
 };
 
 export default MyMonthlyRentsPage;

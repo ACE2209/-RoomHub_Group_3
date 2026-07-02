@@ -5,6 +5,7 @@ import Room from "../models/room.js";
 import BoardingHouse from "../models/boardingHouse.js";
 import { Account } from "../models/account.js";
 import paginate from "../utils/pagination.js";
+import { updateBoardingHouseRoomCounts } from "../utils/updateBoardingHouseRoomCounts.js";
 class DepositController {
   async getDepositsByOwnerOrStaff(req, res) {
     try {
@@ -36,7 +37,8 @@ class DepositController {
 
       if (boardingHouseId && !boardingHouseIds.includes(boardingHouseId)) {
         return res.status(403).json({
-          message: "You do not have permission to view this boarding house deposits.",
+          message:
+            "You do not have permission to view this boarding house deposits.",
           success: false,
           error: true,
         });
@@ -61,7 +63,7 @@ class DepositController {
             roomNumber: room.roomNumber,
             boardingHouseId: room.boardingHouseId.toString(),
           },
-        ])
+        ]),
       );
 
       const roomIds = [...roomMap.keys()];
@@ -131,11 +133,11 @@ class DepositController {
       const paginatedResult = await paginate(
         DepositRoom,
         paginationOptions,
-        req
+        req,
       );
 
       const boardingHouseMap = new Map(
-        boardingHouses.map((bh) => [bh._id.toString(), bh.name])
+        boardingHouses.map((bh) => [bh._id.toString(), bh.name]),
       );
 
       paginatedResult.data = paginatedResult.data.map((deposit) => {
@@ -314,7 +316,7 @@ class DepositController {
             <p>Khoản đặt cọc của bạn cho phòng <strong>${deposit.roomId.roomNumber}</strong>
             tại nhà trọ <strong>${boardingHouseName}</strong> đã bị từ chối.</p>
             <p><strong>Lý do:</strong> ${reasonForCancel}</p>
-          `
+          `,
         );
 
         return res.status(200).json({
@@ -347,7 +349,7 @@ class DepositController {
               <p>Xin chào <strong>${recipientAccount.fullname}</strong>,</p>
               <p>Phòng <strong>${deposit.roomId.roomNumber}</strong>
               tại nhà trọ <strong>${boardingHouseName}</strong> đã đủ người.</p>
-            `
+            `,
           );
 
           return res.status(200).json({
@@ -364,6 +366,15 @@ class DepositController {
       deposit.status = "accepted";
       await deposit.save();
 
+      await Room.updateOne(
+        { _id: deposit.roomId._id },
+        { $set: { isAvailable: false } },
+      );
+
+      if (boardingHouse?._id) {
+        await updateBoardingHouseRoomCounts(boardingHouse._id);
+      }
+
       const emailSent = await sendEmailSafe(
         recipientAccount.email,
         "Đặt cọc phòng trọ đã được chấp nhận",
@@ -372,42 +383,35 @@ class DepositController {
           <p>Khoản đặt cọc của bạn cho phòng <strong>${deposit.roomId.roomNumber}</strong>
           tại nhà trọ <strong>${boardingHouseName}</strong> đã được chấp nhận.</p>
           <p>Vui lòng thanh toán tiền cọc để hoàn tất giữ phòng.</p>
-        `
+        `,
       );
 
-      if (
-        ["mini_house", "nha_tro_truyen_thong"].includes(boardingHouseTypeCode)
-      ) {
-        const otherPendingDeposits = await DepositRoom.find({
-          _id: { $ne: depositId },
-          roomId: deposit.roomId._id,
-          status: "pending",
-        }).populate({
-          path: "accountId",
-          select: "fullname email",
-        });
+      const otherPendingDeposits = await DepositRoom.find({
+        _id: { $ne: depositId },
+        roomId: deposit.roomId._id,
+        status: "pending",
+      }).populate({
+        path: "accountId",
+        select: "fullname email",
+      });
 
-        for (const item of otherPendingDeposits) {
-          const itemRecipientAccount = await getRecipientAccount(
-            item.accountId
-          );
+      for (const item of otherPendingDeposits) {
+        const itemRecipientAccount = await getRecipientAccount(item.accountId);
 
-          item.status = "rejected";
-          item.reasonForCancel =
-            "Phòng đã được đặt cọc bởi người khác.";
-          await item.save();
+        item.status = "rejected";
+        item.reasonForCancel = "Phòng đã được đặt cọc bởi người khác.";
+        await item.save();
 
-          await sendEmailSafe(
-            itemRecipientAccount?.email,
-            "Yêu cầu đặt cọc đã bị từ chối",
-            `
+        await sendEmailSafe(
+          itemRecipientAccount?.email,
+          "Yêu cầu đặt cọc đã bị từ chối",
+          `
               <p>Xin chào <strong>${itemRecipientAccount?.fullname || "bạn"}</strong>,</p>
               <p>Phòng <strong>${deposit.roomId.roomNumber}</strong>
               tại nhà trọ <strong>${boardingHouseName}</strong>
               đã được người khác đặt cọc trước.</p>
-            `
-          );
-        }
+            `,
+        );
       }
 
       return res.status(200).json({
@@ -416,6 +420,7 @@ class DepositController {
         error: false,
         status: "accepted",
         depositId: deposit._id,
+        rejectedOtherDeposits: otherPendingDeposits.length,
         emailSent,
       });
     } catch (error) {
@@ -425,182 +430,182 @@ class DepositController {
       });
     }
   }
-async createDeposit(req, res) {
-  try {
-    const accountId = req.user.userId;
-    const { roomId, rentalTime, depositMonths, startDate, note } = req.body;
+  async createDeposit(req, res) {
+    try {
+      const accountId = req.user.userId;
+      const { roomId, rentalTime, depositMonths, startDate, note } = req.body;
 
-    if (!roomId || !rentalTime || !depositMonths || !startDate) {
-      return res.status(400).json({
+      if (!roomId || !rentalTime || !depositMonths || !startDate) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required fields",
+        });
+      }
+
+      const allowedRentalTimes = [1, 3, 6, 12];
+      const allowedDepositMonths = [1, 2];
+
+      const rentalTimeNumber = Number(rentalTime);
+      const depositMonthsNumber = Number(depositMonths);
+
+      if (!allowedRentalTimes.includes(rentalTimeNumber)) {
+        return res.status(400).json({
+          success: false,
+          message: "Rental time must be 1, 3, 6 or 12 months",
+        });
+      }
+
+      if (!allowedDepositMonths.includes(depositMonthsNumber)) {
+        return res.status(400).json({
+          success: false,
+          message: "Deposit must be 1 or 2 months",
+        });
+      }
+
+      const room = await Room.findById(roomId).populate({
+        path: "roomTypeId",
+        select: "typeName price peopleNumber roomSize",
+      });
+
+      if (!room) {
+        return res.status(404).json({
+          success: false,
+          message: "Room not found",
+        });
+      }
+
+      if (!room.isAvailable) {
+        return res.status(400).json({
+          success: false,
+          message: "This room is not available",
+        });
+      }
+
+      const roomPrice = Number(room.roomTypeId?.price || 0);
+
+      if (!roomPrice || roomPrice <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Room price is invalid",
+        });
+      }
+
+      const start = new Date(startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (Number.isNaN(start.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Start date is invalid",
+        });
+      }
+
+      if (start < today) {
+        return res.status(400).json({
+          success: false,
+          message: "Start date cannot be in the past",
+        });
+      }
+
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + rentalTimeNumber);
+
+      const existedSameRoom = await DepositRoom.findOne({
+        accountId,
+        roomId,
+        status: { $in: ["pending", "accepted", "confirmed"] },
+      });
+
+      if (existedSameRoom) {
+        return res.status(400).json({
+          success: false,
+          message: "You already have a deposit request for this room",
+        });
+      }
+
+      const roomHasAcceptedDeposit = await DepositRoom.findOne({
+        roomId,
+        status: { $in: ["accepted", "confirmed"] },
+      });
+
+      if (roomHasAcceptedDeposit) {
+        return res.status(400).json({
+          success: false,
+          message: "This room already has an accepted or confirmed deposit",
+        });
+      }
+
+      const totalPendingDeposits = await DepositRoom.countDocuments({
+        accountId,
+        status: "pending",
+      });
+
+      if (totalPendingDeposits >= 3) {
+        return res.status(400).json({
+          success: false,
+          message: "You can only have up to 3 pending deposit requests",
+        });
+      }
+
+      const amount = roomPrice * depositMonthsNumber;
+
+      const deposit = await DepositRoom.create({
+        accountId,
+        roomId,
+        amount,
+        depositMonths: depositMonthsNumber,
+        rentalTime: rentalTimeNumber,
+        startDate: start,
+        endDate: end,
+        note: note || "",
+        status: "pending",
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "Deposit request created successfully",
+        data: deposit,
+      });
+    } catch (error) {
+      return res.status(500).json({
         success: false,
-        message: "Missing required fields",
+        message: error.message,
       });
     }
-
-    const allowedRentalTimes = [1, 3, 6, 12];
-    const allowedDepositMonths = [1, 2];
-
-    const rentalTimeNumber = Number(rentalTime);
-    const depositMonthsNumber = Number(depositMonths);
-
-    if (!allowedRentalTimes.includes(rentalTimeNumber)) {
-      return res.status(400).json({
-        success: false,
-        message: "Rental time must be 1, 3, 6 or 12 months",
-      });
-    }
-
-    if (!allowedDepositMonths.includes(depositMonthsNumber)) {
-      return res.status(400).json({
-        success: false,
-        message: "Deposit must be 1 or 2 months",
-      });
-    }
-
-    const room = await Room.findById(roomId).populate({
-      path: "roomTypeId",
-      select: "typeName price peopleNumber roomSize",
-    });
-
-    if (!room) {
-      return res.status(404).json({
-        success: false,
-        message: "Room not found",
-      });
-    }
-
-    if (!room.isAvailable) {
-      return res.status(400).json({
-        success: false,
-        message: "This room is not available",
-      });
-    }
-
-    const roomPrice = Number(room.roomTypeId?.price || 0);
-
-    if (!roomPrice || roomPrice <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Room price is invalid",
-      });
-    }
-
-    const start = new Date(startDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (Number.isNaN(start.getTime())) {
-      return res.status(400).json({
-        success: false,
-        message: "Start date is invalid",
-      });
-    }
-
-    if (start < today) {
-      return res.status(400).json({
-        success: false,
-        message: "Start date cannot be in the past",
-      });
-    }
-
-    const end = new Date(start);
-    end.setMonth(end.getMonth() + rentalTimeNumber);
-
-    const existedSameRoom = await DepositRoom.findOne({
-      accountId,
-      roomId,
-      status: { $in: ["pending", "accepted", "confirmed"] },
-    });
-
-    if (existedSameRoom) {
-      return res.status(400).json({
-        success: false,
-        message: "You already have a deposit request for this room",
-      });
-    }
-
-    const roomHasAcceptedDeposit = await DepositRoom.findOne({
-      roomId,
-      status: { $in: ["accepted", "confirmed"] },
-    });
-
-    if (roomHasAcceptedDeposit) {
-      return res.status(400).json({
-        success: false,
-        message: "This room already has an accepted or confirmed deposit",
-      });
-    }
-
-    const totalPendingDeposits = await DepositRoom.countDocuments({
-      accountId,
-      status: "pending",
-    });
-
-    if (totalPendingDeposits >= 3) {
-      return res.status(400).json({
-        success: false,
-        message: "You can only have up to 3 pending deposit requests",
-      });
-    }
-
-    const amount = roomPrice * depositMonthsNumber;
-
-    const deposit = await DepositRoom.create({
-      accountId,
-      roomId,
-      amount,
-      depositMonths: depositMonthsNumber,
-      rentalTime: rentalTimeNumber,
-      startDate: start,
-      endDate: end,
-      note: note || "",
-      status: "pending",
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: "Deposit request created successfully",
-      data: deposit,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-}
 
-async getMyDeposits(req, res) {
-  try {
-    const deposits = await DepositRoom.find({
-      accountId: req.user.userId,
-    })
-      .populate({
-        path: "roomId",
-        populate: [
-          {
-            path: "boardingHouseId",
-            select: "name address",
-          },
-          {
-            path: "roomTypeId",
-            select: "typeName price peopleNumber roomSize",
-          },
-        ],
+  async getMyDeposits(req, res) {
+    try {
+      const deposits = await DepositRoom.find({
+        accountId: req.user.userId,
       })
-      .sort({ createdAt: -1 });
+        .populate({
+          path: "roomId",
+          populate: [
+            {
+              path: "boardingHouseId",
+              select: "name address",
+            },
+            {
+              path: "roomTypeId",
+              select: "typeName price peopleNumber roomSize",
+            },
+          ],
+        })
+        .sort({ createdAt: -1 });
 
-    return res.status(200).json({
-      success: true,
-      data: deposits,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+      return res.status(200).json({
+        success: true,
+        data: deposits,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
   }
-}
   async deleteDepositRoom(req, res) {
     try {
       const depositRoomId = req.params.depositRoomId || req.params.depositId;
@@ -639,13 +644,14 @@ async getMyDeposits(req, res) {
       if (!deletableStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: "Only rejected, accepted, or confirmed deposits can be deleted",
+          message:
+            "Only rejected, accepted, or confirmed deposits can be deleted",
         });
       }
 
       if (status === "confirmed" && depositRoom.roomId?.rentBy) {
         depositRoom.roomId.rentBy = depositRoom.roomId.rentBy.filter(
-          (id) => id.toString() !== depositRoom.accountId.toString()
+          (id) => id.toString() !== depositRoom.accountId.toString(),
         );
 
         await depositRoom.roomId.save();
@@ -668,8 +674,6 @@ async getMyDeposits(req, res) {
       });
     }
   }
-
-  
 }
 
 export default new DepositController();

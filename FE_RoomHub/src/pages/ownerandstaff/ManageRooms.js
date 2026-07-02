@@ -53,6 +53,21 @@ const getTenantNames = (rentBy = []) => {
     .join(", ");
 };
 
+const hasAcceptedDeposit = (room) =>
+  room?.hasAcceptedDeposit || room?.depositStatus === "accepted";
+
+const renderRoomStatus = (room) => {
+  if (hasAcceptedDeposit(room)) {
+    return <span style={{ color: "#b7791f", fontWeight: 700 }}>Đã đặt cọc</span>;
+  }
+
+  if (room.isAvailable) {
+    return <span style={{ color: "#087443", fontWeight: 700 }}>Available</span>;
+  }
+
+  return <span style={{ color: "#b32f1f", fontWeight: 700 }}>Occupied</span>;
+};
+
 const ManageRooms = () => {
   const [loading, setLoading] = useState(false);
   const [boardingHouses, setBoardingHouses] = useState([]);
@@ -278,12 +293,7 @@ const ManageRooms = () => {
     {
       title: "Status",
       key: "status",
-      render: (_, record) =>
-        record.isAvailable ? (
-          <span style={{ color: "#087443", fontWeight: 700 }}>Available</span>
-        ) : (
-          <span style={{ color: "#b32f1f", fontWeight: 700 }}>Occupied</span>
-        ),
+      render: (_, record) => renderRoomStatus(record),
     },
     {
       title: "Description",

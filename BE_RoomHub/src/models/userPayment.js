@@ -24,18 +24,19 @@ const userPaymentSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Pending", "Paid", "Failed"],
+      enum: ["Pending", "Done", "Cancel", "Paid", "Failed"],
       default: "Pending",
     },
     paymentMethod: {
       type: String,
       required: true,
-      enum: ["VNPay", "MoMo"],
+      enum: ["Unpaid", "Cash", "Bank Transfer", "Momo", "MoMo", "VNPay"],
+      default: "Unpaid",
     },
      orderId: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true,
     },
     orderInfo: {
       type: String,

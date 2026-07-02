@@ -112,10 +112,6 @@ export default function Sidebar() {
             <NavLink to="/manage-monthly-rents">
               Monthly Rent Management
             </NavLink>
-
-            <NavLink to="/rent-payments">
-              Rent Payments
-            </NavLink>
           </>
         )}
 

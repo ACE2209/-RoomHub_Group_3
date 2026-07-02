@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Card, Descriptions, Table, Tag, message } from "antd";
-import { useParams } from "react-router-dom";
+import { ArrowLeftOutlined } from "@ant-design/icons";
+import { Button, Card, Descriptions, Table, Tag, message } from "antd";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { getManagedMonthlyRentDetail } from "../../api/monthlyRentAPI";
 import AdminLayout from "../layout/admin/AdminLayout";
@@ -23,8 +24,15 @@ const getTenantNames = (rentBy = []) => {
     .join(", ");
 };
 
+const getStatusColor = (status) => {
+  if (status === "Done" || status === "Paid") return "green";
+  if (status === "Cancel") return "red";
+  return "gold";
+};
+
 const ManageMonthlyRentDetail = () => {
   const { billId } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState(null);
 
@@ -74,7 +82,7 @@ const ManageMonthlyRentDetail = () => {
       title: "Status",
       dataIndex: "status",
       render: (status) => (
-        <Tag color={status === "Paid" ? "green" : "gold"}>{status}</Tag>
+        <Tag color={getStatusColor(status)}>{status}</Tag>
       ),
     },
   ];
@@ -153,7 +161,20 @@ const ManageMonthlyRentDetail = () => {
     <AdminLayout>
       <div className="monthly-rent-detail">
         <Card
-          title="Monthly Rent Detail"
+          title={
+            <div className="monthly-rent-detail__header">
+              <Button
+                className="monthly-rent-detail__back"
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate("/manage-monthly-rents")}
+              >
+                Back
+              </Button>
+              <span className="monthly-rent-detail__title">
+                Monthly Rent Detail
+              </span>
+            </div>
+          }
           loading={loading}
           className="monthly-rent-detail__card monthly-rent-detail__hero"
         >
@@ -177,7 +198,7 @@ const ManageMonthlyRentDetail = () => {
                   {bill.month}/{bill.year}
                 </Descriptions.Item>
                 <Descriptions.Item label="Status">
-                  <Tag color={bill.status === "Paid" ? "green" : "gold"}>
+                  <Tag color={getStatusColor(bill.status)}>
                     {bill.status}
                   </Tag>
                 </Descriptions.Item>

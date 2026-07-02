@@ -35,6 +35,7 @@ ownerRouter.get("/room-addition-fee/:roomId", roomAdditionFeeController.getRoomA
 ownerRouter.get("/monthly-rent-payments", monthlyRentController.getManagedRentPayments);
 ownerRouter.get("/monthly-rents", monthlyRentController.getManagedMonthlyRents);
 ownerRouter.post("/monthly-rents/calculate/:roomId", monthlyRentController.calculateMonthlyRent);
+ownerRouter.patch("/monthly-rents/:billId/status", monthlyRentController.updateManagedMonthlyRentStatus);
 ownerRouter.get("/monthly-rents/:billId", monthlyRentController.getManagedMonthlyRentDetail);
 
 export { ownerRouter };
