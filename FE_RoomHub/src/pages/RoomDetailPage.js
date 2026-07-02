@@ -22,6 +22,25 @@ const getRoomImage = (room) => (
     getImageSource(room?.images || room?.image)
 );
 
+const hasAcceptedDeposit = (room) =>
+    room?.hasAcceptedDeposit || room?.depositStatus === "accepted";
+
+const getRoomStatus = (room) => {
+    if (hasAcceptedDeposit(room)) {
+        return {
+            className: "room-status deposited",
+            label: "Đã đặt cọc",
+        };
+    }
+
+    return {
+        className: room?.isAvailable
+            ? "room-status available"
+            : "room-status unavailable",
+        label: room?.isAvailable ? "Available" : "Unavailable",
+    };
+};
+
 const RoomDetailPage = () => {
     const { roomId } = useParams();
     const navigate = useNavigate();
@@ -109,8 +128,8 @@ const RoomDetailPage = () => {
                                     </div>
 
                                     <div className="room-detail-info">
-                                        <span className={room.isAvailable ? "room-status available" : "room-status unavailable"}>
-                                            {room.isAvailable ? "Available" : "Unavailable"}
+                                        <span className={getRoomStatus(room).className}>
+                                            {getRoomStatus(room).label}
                                         </span>
                                         <h3>Room {room.roomNumber || "N/A"}</h3>
                                         <p>

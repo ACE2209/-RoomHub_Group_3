@@ -4,7 +4,8 @@ import { Link, useLocation } from "react-router-dom";
 const ProfileSidebar = ({ user }) => {
     const location = useLocation();
 
-    const isActive = (path) => location.pathname === path;
+    const isActive = (path) =>
+        location.pathname === path || location.pathname.startsWith(`${path}/`);
 
     return (
         <aside
@@ -69,11 +70,11 @@ const ProfileSidebar = ({ user }) => {
   />
 </Link>
 
-<Link to="/monthly-rent" style={{ textDecoration: "none" }}>
+<Link to="/monthly-rents" style={{ textDecoration: "none" }}>
   <MenuItem
     icon={<Receipt size={18} />}
     label="Monthly Rent"
-    active={isActive("/monthly-rent")}
+    active={isActive("/monthly-rents")}
   />
 </Link>
             </div>

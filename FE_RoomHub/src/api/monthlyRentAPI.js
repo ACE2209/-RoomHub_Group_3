@@ -34,17 +34,6 @@ export const getManagedMonthlyRents = async (params = {}) => {
   return parseJsonResponse(res);
 };
 
-export const getManagedRentPayments = async (params = {}) => {
-  const res = await fetch(
-    `${API_URL}${getRolePrefix()}/monthly-rent-payments${buildQuery(params)}`,
-    {
-      headers: authHeaders(),
-    }
-  );
-
-  return parseJsonResponse(res);
-};
-
 export const getManagedMonthlyRentDetail = async (billId) => {
   const res = await fetch(`${API_URL}${getRolePrefix()}/monthly-rents/${billId}`, {
     headers: authHeaders(),
@@ -63,6 +52,22 @@ export const calculateMonthlyRent = async (roomId, data) => {
         ...authHeaders(),
       },
       body: JSON.stringify(data),
+    }
+  );
+
+  return parseJsonResponse(res);
+};
+
+export const updateManagedMonthlyRentStatus = async (billId, status) => {
+  const res = await fetch(
+    `${API_URL}${getRolePrefix()}/monthly-rents/${billId}/status`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify({ status }),
     }
   );
 

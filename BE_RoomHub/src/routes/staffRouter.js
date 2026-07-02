@@ -51,6 +51,7 @@ staffRouter.get("/room-addition-fee/:roomId", roomAdditionFeeController.getRoomA
 staffRouter.get("/monthly-rent-payments", monthlyRentController.getManagedRentPayments);
 staffRouter.get("/monthly-rents", monthlyRentController.getManagedMonthlyRents);
 staffRouter.post("/monthly-rents/calculate/:roomId", monthlyRentController.calculateMonthlyRent);
+staffRouter.patch("/monthly-rents/:billId/status", monthlyRentController.updateManagedMonthlyRentStatus);
 staffRouter.get("/monthly-rents/:billId", monthlyRentController.getManagedMonthlyRentDetail);
 
 // room

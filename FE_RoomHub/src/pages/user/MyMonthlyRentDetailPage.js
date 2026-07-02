@@ -1,12 +1,16 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Button, Card, Descriptions, Form, Modal, Select, Table, Tag, message } from "antd";
-import { useParams } from "react-router-dom";
+import { ArrowLeftOutlined } from "@ant-design/icons";
+import { Button, Card, Descriptions, Form, Modal, Select, Space, Table, Tag, message } from "antd";
+import { useNavigate, useParams } from "react-router-dom";
 
+import { getProfileAPI } from "../../api/accountAPI";
 import {
   getMyMonthlyRentDetail,
   payMyMonthlyRent,
 } from "../../api/monthlyRentAPI";
-import AdminLayout from "../layout/admin/AdminLayout";
+import Header from "../layout/homepage/header";
+import Footer from "../layout/homepage/footer";
+import ProfileSidebar from "../profile/ProfileSidebar";
 import "../ownerandstaff/MonthlyRentDetail.css";
 
 const { Option } = Select;
@@ -17,19 +21,31 @@ const formatCurrency = (value) =>
     currency: "VND",
   });
 
+const getStatusColor = (status) => {
+  if (status === "Done" || status === "Paid") return "green";
+  if (status === "Cancel") return "red";
+  return "gold";
+};
+
 const MyMonthlyRentDetailPage = () => {
   const { userPaymentId } = useParams();
+  const navigate = useNavigate();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payment, setPayment] = useState(null);
+  const [user, setUser] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const loadDetail = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await getMyMonthlyRentDetail(userPaymentId);
-      setPayment(res.data);
+      const [profileRes, detailRes] = await Promise.all([
+        getProfileAPI(),
+        getMyMonthlyRentDetail(userPaymentId),
+      ]);
+      setUser(profileRes?.data || profileRes || null);
+      setPayment(detailRes.data);
     } catch (error) {
       message.error(error.message || "Failed to load monthly rent detail");
     } finally {
@@ -118,21 +134,43 @@ const MyMonthlyRentDetailPage = () => {
       render: (value) => <strong>{formatCurrency(value)}</strong>,
     },
   ];
+  const feeColumns = [
+    {
+      title: "Fee",
+      dataIndex: "feeName",
+    },
+    {
+      title: "Amount",
+      dataIndex: "feeAmount",
+      align: "right",
+      render: (value) => <strong>{formatCurrency(value)}</strong>,
+    },
+  ];
 
   return (
-    <AdminLayout>
-      <div className="monthly-rent-detail">
+    <>
+      <Header />
+      <div style={styles.page}>
+        <ProfileSidebar user={user} />
+        <main style={styles.content}>
+      <div className="monthly-rent-detail" style={{ padding: 0 }}>
         <Card
-          title="Monthly Rent Detail"
+          title={
+            <div className="monthly-rent-detail__header">
+              <Button
+                className="monthly-rent-detail__back"
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate("/monthly-rents")}
+              >
+                Back
+              </Button>
+              <span className="monthly-rent-detail__title">
+                Monthly Rent Detail
+              </span>
+            </div>
+          }
           loading={loading}
           className="monthly-rent-detail__card monthly-rent-detail__hero"
-          extra={
-            payment?.status === "Pending" && (
-              <Button type="primary" onClick={() => setIsModalOpen(true)}>
-                Pay Rent
-              </Button>
-            )
-          }
         >
           {payment && (
             <>
@@ -151,7 +189,7 @@ const MyMonthlyRentDetailPage = () => {
                   {bill?.month}/{bill?.year}
                 </Descriptions.Item>
                 <Descriptions.Item label="Your Status">
-                  <Tag color={payment.status === "Paid" ? "green" : "gold"}>
+                  <Tag color={getStatusColor(payment.status)}>
                     {payment.status}
                   </Tag>
                 </Descriptions.Item>
@@ -187,6 +225,44 @@ const MyMonthlyRentDetailPage = () => {
                   className="monthly-rent-detail__table"
                 />
               </Card>
+
+              <Card
+                type="inner"
+                title="Additional Fees"
+                className="monthly-rent-detail__section"
+              >
+                <Table
+                  rowKey={(record, index) => `${record.feeName}-${index}`}
+                  columns={feeColumns}
+                  dataSource={bill?.additionalFee || []}
+                  pagination={false}
+                  locale={{ emptyText: "No additional fees" }}
+                  className="monthly-rent-detail__table"
+                  summary={() => (
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell>
+                        <strong>Total Fees</strong>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell align="right">
+                        <strong>{formatCurrency(additionalFeeTotal)}</strong>
+                      </Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  )}
+                />
+              </Card>
+
+              {payment.status === "Pending" && (
+                <Space className="monthly-rent-detail__actions">
+                  <Button
+                    type="primary"
+                    size="large"
+                    className="monthly-rent-detail__pay-btn"
+                    onClick={() => setIsModalOpen(true)}
+                  >
+                    Pay Rent
+                  </Button>
+                </Space>
+              )}
             </>
           )}
         </Card>
@@ -218,8 +294,26 @@ const MyMonthlyRentDetailPage = () => {
           </Form>
         </Modal>
       </div>
-    </AdminLayout>
+        </main>
+      </div>
+      <Footer />
+    </>
   );
+};
+
+const styles = {
+  page: {
+    display: "flex",
+    gap: 24,
+    maxWidth: 1200,
+    margin: "32px auto",
+    padding: "0 24px",
+    alignItems: "flex-start",
+  },
+  content: {
+    flex: 1,
+    minWidth: 0,
+  },
 };
 
 export default MyMonthlyRentDetailPage;

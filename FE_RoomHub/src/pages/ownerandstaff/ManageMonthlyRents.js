@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   Col,
+  Dropdown,
   Form,
   InputNumber,
   Modal,
@@ -13,7 +14,12 @@ import {
   Tag,
   message,
 } from "antd";
-import { CalculatorOutlined, EyeOutlined } from "@ant-design/icons";
+import {
+  CalculatorOutlined,
+  DownOutlined,
+  EditOutlined,
+  EyeOutlined,
+} from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
 import { getOwnBoardingHouses } from "../../api/boardingHouse";
@@ -21,8 +27,10 @@ import { getRoomsByBoardingHouse } from "../../api/room";
 import {
   calculateMonthlyRent,
   getManagedMonthlyRents,
+  updateManagedMonthlyRentStatus,
 } from "../../api/monthlyRentAPI";
 import AdminLayout from "../layout/admin/AdminLayout";
+import "./ManageMonthlyRents.css";
 
 const { Option } = Select;
 
@@ -43,6 +51,14 @@ const getTenantNames = (rentBy = []) => {
     .join(", ");
 };
 
+const getRoomTenantNames = (room) => {
+  const acceptedTenantNames = getTenantNames(room?.acceptedTenants || []);
+
+  return acceptedTenantNames !== "No tenants"
+    ? acceptedTenantNames
+    : getTenantNames(room?.rentBy || []);
+};
+
 const getCurrentPeriod = () => {
   const date = new Date();
   return {
@@ -50,6 +66,28 @@ const getCurrentPeriod = () => {
     year: date.getFullYear(),
   };
 };
+
+const hasAcceptedDeposit = (room) =>
+  room?.hasAcceptedDeposit || room?.depositStatus === "accepted";
+
+const MONTHLY_RENT_STATUSES = ["Pending", "Done", "Cancel"];
+
+const getStatusColor = (status) => {
+  if (status === "Done" || status === "Paid") return "green";
+  if (status === "Cancel") return "red";
+  return "gold";
+};
+
+const getStatusMenuItems = (currentStatus) =>
+  MONTHLY_RENT_STATUSES.map((status) => ({
+    key: status,
+    disabled: status === currentStatus,
+    label: (
+      <span className="manage-monthly-rents__status-menu-item">
+        <Tag color={getStatusColor(status)}>{status}</Tag>
+      </span>
+    ),
+  }));
 
 const ManageMonthlyRents = () => {
   const navigate = useNavigate();
@@ -59,9 +97,12 @@ const ManageMonthlyRents = () => {
   const [boardingHouses, setBoardingHouses] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [bills, setBills] = useState([]);
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
   const [selectedBoardingHouse, setSelectedBoardingHouse] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const selectedRoomData = rooms.find((item) => item._id === selectedRoom);
 
   useEffect(() => {
     loadBoardingHouses();
@@ -83,7 +124,7 @@ const ManageMonthlyRents = () => {
         page: 1,
         limit: 100,
       });
-      setRooms(res.data || []);
+      setRooms((res.data || []).filter(hasAcceptedDeposit));
     } catch (error) {
       message.error(error.message || "Failed to load rooms");
     }
@@ -118,14 +159,13 @@ const ManageMonthlyRents = () => {
       return message.warning("Please select a room first");
     }
 
-    const room = rooms.find((item) => item._id === selectedRoom);
     const period = getCurrentPeriod();
 
     form.setFieldsValue({
       month: period.month,
       year: period.year,
-      currentElectricityReading: room?.currentElectricityReading || 0,
-      currentWaterReading: room?.currentWaterReading || 0,
+      currentElectricityReading: selectedRoomData?.currentElectricityReading || 0,
+      currentWaterReading: selectedRoomData?.currentWaterReading || 0,
     });
     setIsModalOpen(true);
   };
@@ -134,14 +174,44 @@ const ManageMonthlyRents = () => {
     try {
       const values = await form.validateFields();
       setSubmitting(true);
-      await calculateMonthlyRent(selectedRoom, values);
+      const res = await calculateMonthlyRent(selectedRoom, values);
+
+      if (!res?.success) {
+        throw new Error(res?.message || "Failed to calculate monthly rent");
+      }
+
       message.success("Monthly rent calculated successfully");
       setIsModalOpen(false);
       await loadBills({ roomId: selectedRoom });
     } catch (error) {
+      await loadBills({ roomId: selectedRoom });
+
+      const errorMessage = String(error.message || "");
+      if (
+        errorMessage.toLowerCase().includes("already exists") ||
+        errorMessage.toLowerCase().includes("already been calculated")
+      ) {
+        setIsModalOpen(false);
+        message.warning(errorMessage || "Bill for this month already exists.");
+        return;
+      }
+
       message.error(error.message || "Failed to calculate monthly rent");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleStatusChange = async (billId, status) => {
+    try {
+      setUpdatingStatusId(billId);
+      await updateManagedMonthlyRentStatus(billId, status);
+      message.success("Monthly rent status updated successfully");
+      await loadBills(selectedRoom ? { roomId: selectedRoom } : {});
+    } catch (error) {
+      message.error(error.message || "Failed to update monthly rent status");
+    } finally {
+      setUpdatingStatusId(null);
     }
   };
 
@@ -152,7 +222,10 @@ const ManageMonthlyRents = () => {
     },
     {
       title: "Tenants",
-      render: (_, record) => getTenantNames(record.roomId?.rentBy || []),
+      render: (_, record) =>
+        getTenantNames(
+          record.tenants?.length ? record.tenants : record.roomId?.rentBy || []
+        ),
     },
     {
       title: "Boarding House",
@@ -179,32 +252,51 @@ const ManageMonthlyRents = () => {
       title: "Status",
       dataIndex: "status",
       render: (status) => (
-        <Tag color={status === "Paid" ? "green" : "gold"}>{status}</Tag>
+        <Tag color={getStatusColor(status)}>{status}</Tag>
       ),
     },
     {
       title: "Actions",
       render: (_, record) => (
-        <Button
-          type="primary"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={() => navigate(`/manage-monthly-rents/${record._id}`)}
-        >
-          Detail
-        </Button>
+        <Space>
+          <Button
+            type="primary"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/manage-monthly-rents/${record._id}`)}
+          >
+            Detail
+          </Button>
+          <Dropdown
+            trigger={["click"]}
+            disabled={updatingStatusId === record._id}
+            menu={{
+              items: getStatusMenuItems(record.status),
+              onClick: ({ key }) => handleStatusChange(record._id, key),
+            }}
+          >
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              loading={updatingStatusId === record._id}
+              className="manage-monthly-rents__update-btn"
+            >
+              Update <DownOutlined />
+            </Button>
+          </Dropdown>
+        </Space>
       ),
     },
   ];
 
   return (
     <AdminLayout>
-      <div style={{ padding: 24 }}>
-        <Card title="Manage Monthly Rent">
-          <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+      <div className="manage-monthly-rents">
+        <Card title="Manage Monthly Rent" className="manage-monthly-rents__card">
+          <Row gutter={[16, 16]} className="manage-monthly-rents__filters">
             <Col xs={24} md={9}>
               <Select
-                style={{ width: "100%" }}
+                className="manage-monthly-rents__select"
                 placeholder="Select Boarding House"
                 value={selectedBoardingHouse}
                 onChange={handleBoardingHouseChange}
@@ -218,7 +310,7 @@ const ManageMonthlyRents = () => {
             </Col>
             <Col xs={24} md={9}>
               <Select
-                style={{ width: "100%" }}
+                className="manage-monthly-rents__select"
                 placeholder="Select Room"
                 value={selectedRoom}
                 onChange={handleRoomChange}
@@ -226,13 +318,13 @@ const ManageMonthlyRents = () => {
               >
                 {rooms.map((room) => (
                   <Option key={room._id} value={room._id}>
-                    Room {room.roomNumber} - {getTenantNames(room.rentBy || [])}
+                    Room {room.roomNumber} - {getRoomTenantNames(room)}
                   </Option>
                 ))}
               </Select>
             </Col>
             <Col xs={24} md={6}>
-              <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+              <Space className="manage-monthly-rents__actions">
                 <Button onClick={() => loadBills()}>Show All</Button>
                 <Button
                   type="primary"
@@ -250,12 +342,14 @@ const ManageMonthlyRents = () => {
             loading={loading}
             columns={columns}
             dataSource={bills}
+            className="manage-monthly-rents__table"
           />
         </Card>
 
         <Modal
           open={isModalOpen}
           title="Calculate Monthly Rent"
+          className="manage-monthly-rents__modal"
           okText="Calculate"
           confirmLoading={submitting}
           onOk={handleCalculate}
@@ -285,16 +379,60 @@ const ManageMonthlyRents = () => {
             <Form.Item
               name="currentElectricityReading"
               label="Current Electricity Reading"
-              rules={[{ required: true, message: "Please enter electricity reading" }]}
+              rules={[
+                { required: true, message: "Please enter electricity reading" },
+                {
+                  validator: (_, value) => {
+                    const previous = Number(
+                      selectedRoomData?.previousElectricityReading || 0
+                    );
+
+                    if (Number(value || 0) < previous) {
+                      return Promise.reject(
+                        new Error(
+                          `Current electricity reading must be at least ${previous}`
+                        )
+                      );
+                    }
+
+                    return Promise.resolve();
+                  },
+                },
+              ]}
             >
-              <InputNumber min={0} style={{ width: "100%" }} />
+              <InputNumber
+                min={Number(selectedRoomData?.previousElectricityReading || 0)}
+                style={{ width: "100%" }}
+              />
             </Form.Item>
             <Form.Item
               name="currentWaterReading"
               label="Current Water Reading"
-              rules={[{ required: true, message: "Please enter water reading" }]}
+              rules={[
+                { required: true, message: "Please enter water reading" },
+                {
+                  validator: (_, value) => {
+                    const previous = Number(
+                      selectedRoomData?.previousWaterReading || 0
+                    );
+
+                    if (Number(value || 0) < previous) {
+                      return Promise.reject(
+                        new Error(
+                          `Current water reading must be at least ${previous}`
+                        )
+                      );
+                    }
+
+                    return Promise.resolve();
+                  },
+                },
+              ]}
             >
-              <InputNumber min={0} style={{ width: "100%" }} />
+              <InputNumber
+                min={Number(selectedRoomData?.previousWaterReading || 0)}
+                style={{ width: "100%" }}
+              />
             </Form.Item>
           </Form>
         </Modal>
