@@ -5,7 +5,7 @@ import PaymentBill from "../models/paymentBill.js";
 import paginate from "../utils/pagination.js";
 import DepositRoom from "../models/depositRoom.js";
 import { updateBoardingHouseRoomCounts } from '../utils/updateBoardingHouseRoomCounts.js';
-
+import BoardingHouse from "../models/boardingHouse.js";
 
 class RoomController {
   async getRoomsByRoomType(req, res) {
@@ -114,12 +114,31 @@ class RoomController {
 
   async getAllRooms(req, res) {
     try {
+      const userId = req.user?.userId || req.user?._id;
+
+      const managedBoardingHouses = await BoardingHouse.find({
+        $or: [
+          { ownerId: userId },
+          { staffId: userId }
+        ]
+      }).select("_id");
+
+      const boardingHouseIds = managedBoardingHouses.map(
+        (item) => item._id
+      );
+
       const paginationOptions = {
         defaultPage: 1,
         defaultLimit: 10,
         maxLimit: 100,
         sortField: "createdAt",
         sortOrder: "desc",
+
+        filter: {
+          boardingHouseId: {
+            $in: boardingHouseIds,
+          },
+        },
 
         populate: [
           {
@@ -263,7 +282,7 @@ class RoomController {
       if (isAvailable !== undefined && isAvailable !== null && isAvailable !== '') {
         const boolValue = isAvailable === true || isAvailable === 'true';
         room.isAvailable = boolValue;
-        room.manuallySet = true;  
+        room.manuallySet = true;
       }
       if (
         previousElectricityReading !== undefined &&
