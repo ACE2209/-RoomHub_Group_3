@@ -507,6 +507,11 @@
   background: #b42318;
 }
 
+.room-card-image .deposited,
+.room-status.deposited {
+  background: #b7791f;
+}
+
 .room-card-body {
   padding: 16px;
 }

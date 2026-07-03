@@ -1,10 +1,11 @@
-import { User, Lock, Calendar } from "lucide-react";
+import { User, Lock, Calendar, WalletCards, Receipt } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 const ProfileSidebar = ({ user }) => {
     const location = useLocation();
 
-    const isActive = (path) => location.pathname === path;
+    const isActive = (path) =>
+        location.pathname === path || location.pathname.startsWith(`${path}/`);
 
     return (
         <aside
@@ -61,7 +62,21 @@ const ProfileSidebar = ({ user }) => {
                         label="Appointments"
                         active={isActive("/appointments")}
                     />
-                </Link>
+                </Link><Link to="/my-deposits" style={{ textDecoration: "none" }}>
+  <MenuItem
+    icon={<WalletCards size={18} />}
+    label="My Deposits"
+    active={isActive("/my-deposits")}
+  />
+</Link>
+
+<Link to="/monthly-rents" style={{ textDecoration: "none" }}>
+  <MenuItem
+    icon={<Receipt size={18} />}
+    label="Monthly Rent"
+    active={isActive("/monthly-rents")}
+  />
+</Link>
             </div>
         </aside>
     );

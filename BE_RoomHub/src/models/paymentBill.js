@@ -33,6 +33,8 @@ const paymentBillSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
+      enum: ["Pending", "Done", "Cancel", "Paid", "Failed"],
+      default: "Pending",
     },
     additionalFee: [
       {
@@ -58,6 +60,18 @@ const paymentBillSchema = new mongoose.Schema(
     timestamps: {
       createdAt: true,
       updatedAt: false,
+    },
+  }
+);
+
+paymentBillSchema.index(
+  { roomId: 1, month: 1, year: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      roomId: { $exists: true },
+      month: { $exists: true },
+      year: { $exists: true },
     },
   }
 );

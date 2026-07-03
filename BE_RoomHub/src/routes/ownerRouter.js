@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { boardingHouseController, appointmentController, depositController, roomAdditionFeeController, ReviewController } from '../controllers/index.js';
+import { boardingHouseController, appointmentController, depositController, roomAdditionFeeController, ReviewController, monthlyRentController } from '../controllers/index.js';
 import { upload } from '../config/cloudinary.config.js';
 
 const ownerRouter = Router();
@@ -31,5 +31,11 @@ ownerRouter.get("/room-addition-fee/calculate-rent/:roomId", roomAdditionFeeCont
 ownerRouter.put("/room-addition-fee/:id", roomAdditionFeeController.updateRoomAdditionFee);
 ownerRouter.delete("/room-addition-fee/:id", roomAdditionFeeController.deleteRoomAdditionFee);
 ownerRouter.get("/room-addition-fee/:roomId", roomAdditionFeeController.getRoomAdditionFeesByRoomId);
+
+ownerRouter.get("/monthly-rent-payments", monthlyRentController.getManagedRentPayments);
+ownerRouter.get("/monthly-rents", monthlyRentController.getManagedMonthlyRents);
+ownerRouter.post("/monthly-rents/calculate/:roomId", monthlyRentController.calculateMonthlyRent);
+ownerRouter.patch("/monthly-rents/:billId/status", monthlyRentController.updateManagedMonthlyRentStatus);
+ownerRouter.get("/monthly-rents/:billId", monthlyRentController.getManagedMonthlyRentDetail);
 
 export { ownerRouter };

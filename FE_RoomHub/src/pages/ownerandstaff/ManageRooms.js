@@ -42,6 +42,32 @@ import "./ManageRoom.css";
 const { Option } = Select;
 const { TextArea } = Input;
 
+const getTenantNames = (rentBy = []) => {
+  if (!rentBy.length) {
+    return "No tenants";
+  }
+
+  return rentBy
+    .map((tenant) => tenant?.fullname || tenant?.username || tenant?.email)
+    .filter(Boolean)
+    .join(", ");
+};
+
+const hasAcceptedDeposit = (room) =>
+  room?.hasAcceptedDeposit || room?.depositStatus === "accepted";
+
+const renderRoomStatus = (room) => {
+  if (hasAcceptedDeposit(room)) {
+    return <span style={{ color: "#b7791f", fontWeight: 700 }}>Đã đặt cọc</span>;
+  }
+
+  if (room.isAvailable) {
+    return <span style={{ color: "#087443", fontWeight: 700 }}>Available</span>;
+  }
+
+  return <span style={{ color: "#b32f1f", fontWeight: 700 }}>Occupied</span>;
+};
+
 const ManageRooms = () => {
   const [loading, setLoading] = useState(false);
   const [boardingHouses, setBoardingHouses] = useState([]);
@@ -260,14 +286,14 @@ const ManageRooms = () => {
       render: (_, record) => record.roomTypeId?.peopleNumber || "N/A",
     },
     {
+      title: "Tenants",
+      key: "tenants",
+      render: (_, record) => getTenantNames(record.rentBy || []),
+    },
+    {
       title: "Status",
       key: "status",
-      render: (_, record) =>
-        record.isAvailable ? (
-          <span style={{ color: "#087443", fontWeight: 700 }}>Available</span>
-        ) : (
-          <span style={{ color: "#b32f1f", fontWeight: 700 }}>Occupied</span>
-        ),
+      render: (_, record) => renderRoomStatus(record),
     },
     {
       title: "Description",
