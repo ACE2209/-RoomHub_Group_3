@@ -174,13 +174,13 @@ export default function MyDepositsPage() {
                       <div style={styles.actions}>
                         <button
                           type="button"
-                          onClick={() => handlePay(deposit._id, "MoMo")}
-                          disabled={paying === `${deposit._id}-MoMo`}
+onClick={() => handlePay(deposit._id, "ZaloPay")}
+disabled={paying === `${deposit._id}-ZaloPay`}
                           style={styles.momoBtn}
                         >
-                          {paying === `${deposit._id}-MoMo`
-                            ? "Processing..."
-                            : "Pay with MoMo"}
+                          {paying === `${deposit._id}-ZaloPay`
+  ? "Processing..."
+  : "Pay with ZaloPay"}
                         </button>
 
                         <button
