@@ -108,6 +108,6 @@ commonRouter.patch(
 // Payment Callback
 // ======================
 commonRouter.get("/payment/vnpay-return", paymentController.vnpayReturn);
-commonRouter.get("/payment/momo-return", paymentController.momoReturn);
-
+commonRouter.get("/payment/zalopay-redirect", paymentController.zalopayRedirect);
+commonRouter.post("/payment/zalopay-return", paymentController.zalopayReturn);
 export { commonRouter };
