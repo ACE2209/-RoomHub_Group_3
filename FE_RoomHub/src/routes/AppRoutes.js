@@ -48,6 +48,8 @@ import ManageRoomAdditionalFees from "../pages/ownerandstaff/ManageRoomAdditiona
 import ManageMonthlyRents from "../pages/ownerandstaff/ManageMonthlyRents";
 import ManageMonthlyRentDetail from "../pages/ownerandstaff/ManageMonthlyRentDetail";
 
+import ManageRoomTypes from "../pages/ownerandstaff/ManageRoomTypes";
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -273,6 +275,15 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["owner", "staff"]}>
             <ManageMonthlyRentDetail />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/manage-room-types"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManageRoomTypes />
           </ProtectedRoute>
         }
       />

@@ -105,6 +105,10 @@ export default function Sidebar() {
               Manage Rooms
             </NavLink>
 
+            <NavLink to="/manage-room-types">
+              Manage Room Types
+            </NavLink>
+
             <NavLink to="/manage-room-additional-fees">
               Manage Room Additional Fees
             </NavLink>
