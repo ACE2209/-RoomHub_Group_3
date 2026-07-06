@@ -1,0 +1,155 @@
+.manage-room-types-container {
+  padding: 20px;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+.manage-room-types__card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+}
+
+.manage-room-types__card .ant-card-head {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.manage-room-types__card .ant-card-head .ant-card-head-title {
+  font-weight: 600;
+  color: #27364a;
+}
+
+.manage-room-types__select {
+  border-radius: 6px;
+}
+
+.manage-room-types__select .ant-select-selector {
+  border-color: #d0d5dd !important;
+  height: 38px;
+}
+
+.manage-room-types__btn-add {
+  background-color: #12b76a;
+  border-color: #12b76a;
+  height: 38px;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.manage-room-types__btn-add:hover {
+  background-color: #0fa853;
+  border-color: #0fa853;
+}
+
+.manage-room-types__table .ant-table {
+  background-color: #ffffff;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.manage-room-types__table .ant-table-thead > tr > th {
+  background-color: #f9fafb;
+  color: #344054;
+  font-weight: 600;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.manage-room-types__table .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #e5e7eb;
+  color: #344054;
+}
+
+.manage-room-types__table .ant-table-tbody > tr:hover > td {
+  background-color: #f9fafb;
+}
+
+.manage-room-types__modal .ant-modal-content {
+  border-radius: 8px;
+}
+
+.manage-room-types__modal .ant-modal-header {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 8px 8px 0 0;
+}
+
+.manage-room-types__modal .ant-modal-title {
+  font-weight: 600;
+  color: #27364a;
+}
+
+.manage-room-types__modal .ant-form-item-label > label {
+  font-weight: 600;
+  color: #344054;
+}
+
+.manage-room-types__modal .ant-input,
+.manage-room-types__modal .ant-input-number,
+.manage-room-types__modal .ant-select-selector {
+  border-color: #d0d5dd;
+  border-radius: 6px;
+  height: 38px;
+}
+
+.manage-room-types__modal .ant-input:focus,
+.manage-room-types__modal .ant-input-number:focus,
+.manage-room-types__modal .ant-select-selector:focus {
+  border-color: #12b76a;
+  box-shadow: 0 0 0 3px rgba(18, 183, 106, 0.1);
+}
+
+.manage-room-types__modal .ant-btn-primary {
+  background-color: #12b76a;
+  border-color: #12b76a;
+  height: 36px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.manage-room-types__modal .ant-btn-primary:hover {
+  background-color: #0fa853;
+  border-color: #0fa853;
+}
+
+.manage-room-types__modal .ant-btn-default {
+  border-color: #d0d5dd;
+  border-radius: 6px;
+  height: 36px;
+  font-weight: 600;
+}
+
+.manage-room-types__modal .ant-btn-default:hover {
+  color: #12b76a;
+  border-color: #12b76a;
+}
+
+.manage-room-types__modal .ant-upload-wrapper {
+  margin-top: 8px;
+}
+
+.manage-room-types__modal .ant-btn-dashed {
+  border-color: #d0d5dd;
+  color: #344054;
+  height: 38px;
+}
+
+.manage-room-types__modal .ant-btn-dashed:hover {
+  color: #12b76a;
+  border-color: #12b76a;
+}
+
+@media (max-width: 768px) {
+  .manage-room-types-container {
+    padding: 12px;
+  }
+
+  .manage-room-types__table .ant-table {
+    font-size: 12px;
+  }
+
+  .manage-room-types__modal {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}
