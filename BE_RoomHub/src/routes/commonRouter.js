@@ -98,10 +98,10 @@ commonRouter.get(
   authMiddleware,
   monthlyRentController.getMyMonthlyRentDetail
 );
-commonRouter.patch(
+commonRouter.post(
   "/monthly-rents/my/:userPaymentId/pay",
   authMiddleware,
-  monthlyRentController.payMyMonthlyRent
+  paymentController.payUserMonthlyRent
 );
 
 // ======================
