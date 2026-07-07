@@ -317,20 +317,24 @@ const completePayment = async (payment, rawData) => {
     await deposit.save();
   }
 
-  if (payment.paymentBillId) {
-    const bill = await PaymentBill.findById(payment.paymentBillId);
+if (payment.paymentBillId) {
+  const bill = await PaymentBill.findById(payment.paymentBillId);
 
-    if (!bill) throw new Error("Payment bill not found");
+  if (!bill) throw new Error("Payment bill not found");
 
-    if (String(bill.status).toLowerCase() === "paid") {
-      payment.status = "Paid";
-      await payment.save();
-      return payment;
-    }
+  payment.status = "Paid";
 
-    bill.status = "Paid";
+  const pendingOtherPayments = await UserPayment.exists({
+    paymentBillId: bill._id,
+    _id: { $ne: payment._id },
+    status: { $nin: ["Paid", "Done"] },
+  });
+
+  if (!pendingOtherPayments) {
+    bill.status = "Done";
     await bill.save();
   }
+}
 
   payment.status = "Paid";
   payment.transactionNo =
@@ -612,7 +616,110 @@ class PaymentController {
       });
     }
   }
+async payUserMonthlyRent(req, res) {
+  try {
+    const { userPaymentId } = req.params;
+    const { method } = req.body;
+    const accountId = req.user.userId;
 
+    const paymentMethod = normalizeMethod(method);
+
+    if (!paymentMethod) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment method. Use VNPay or ZaloPay",
+      });
+    }
+
+    const userPayment = await UserPayment.findOne({
+      _id: userPaymentId,
+      accountId,
+    }).populate({
+      path: "paymentBillId",
+      populate: {
+        path: "roomId",
+      },
+    });
+
+    if (!userPayment) {
+      return res.status(404).json({
+        success: false,
+        message: "Monthly rent payment not found",
+      });
+    }
+
+    if (!userPayment.paymentBillId) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid monthly rent payment",
+      });
+    }
+
+    if (["Paid", "Done"].includes(userPayment.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Monthly rent already paid",
+      });
+    }
+
+    if (userPayment.status === "Cancel") {
+      return res.status(400).json({
+        success: false,
+        message: "Monthly rent was canceled",
+      });
+    }
+
+    if (!validateAmount(userPayment.paymentAmount)) {
+      return res.status(400).json({
+        success: false,
+        message: "Monthly rent amount is invalid",
+      });
+    }
+
+    const orderId =
+      paymentMethod === "ZaloPay"
+        ? makeZaloPayOrderId("RENT")
+        : makeOrderId("RENT");
+
+    const orderInfo = `RENT_${userPayment._id}`;
+
+    userPayment.status = "Pending";
+    userPayment.paymentMethod = paymentMethod;
+    userPayment.orderId = orderId;
+    userPayment.orderInfo = orderInfo;
+    userPayment.transactionNo = "";
+    await userPayment.save();
+
+    const paymentUrl =
+      paymentMethod === "VNPay"
+        ? buildVNPayUrl({
+            req,
+            orderId,
+            amount: userPayment.paymentAmount,
+            orderInfo,
+          })
+        : await buildZaloPayUrl({
+            orderId,
+            amount: userPayment.paymentAmount,
+            orderInfo,
+          });
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment URL created",
+      data: {
+        paymentUrl,
+        payUrl: paymentUrl,
+        payment: userPayment,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
   async vnpayReturn(req, res) {
     try {
       if (!verifyVNPay(req.query)) {
