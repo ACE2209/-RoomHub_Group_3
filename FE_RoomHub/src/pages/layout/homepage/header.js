@@ -3,11 +3,8 @@ import {
     Heart,
     Clock,
     Bell,
-    Search,
-    MapPin,
     MessageCircle,
     ChevronDown,
-    Building2,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { getFavorites } from "../../../api/favorite";
@@ -16,7 +13,6 @@ const Header = () => {
     const navigate = useNavigate();
 
     const [isScrolled, setIsScrolled] = useState(false);
-    const [showLocation, setShowLocation] = useState(false);
 
     const [user, setUser] = useState(null);
     const [showUserMenu, setShowUserMenu] = useState(false);
@@ -24,28 +20,49 @@ const Header = () => {
     const [favorites, setFavorites] = useState([]);
     const [watchLater, setWatchLater] = useState([]);
 
+    const loadFavorites = async () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            setFavorites([]);
+            return;
+        }
+
+        try {
+            const res = await getFavorites();
+
+            if (res?.favorites) {
+                setFavorites(res.favorites.map(f => f.id));
+            } else {
+                setFavorites([]);
+            }
+        } catch (err) {
+            console.log(err);
+        }
+    };
     useEffect(() => {
         const userData = localStorage.getItem("user");
         if (userData) setUser(JSON.parse(userData));
     }, []);
 
     useEffect(() => {
-        const loadFavorites = async () => {
-            const token = localStorage.getItem("token");
-            if (!token) return;
-
-            try {
-                const res = await getFavorites();
-                if (res?.favorites) {
-                    setFavorites(res.favorites.map(f => f.id));
-                }
-            } catch (err) {
-                console.log(err);
-            }
-        };
-
         loadFavorites();
     }, [user]);
+
+    useEffect(() => {
+        const handleFavoriteUpdated = () => {
+            loadFavorites();
+        };
+
+        window.addEventListener("favoriteUpdated", handleFavoriteUpdated);
+
+        return () => {
+            window.removeEventListener(
+                "favoriteUpdated",
+                handleFavoriteUpdated
+            );
+        };
+    }, []);
 
     useEffect(() => {
         const loadWatchLater = async () => {
@@ -151,35 +168,6 @@ const Header = () => {
                                 />
                             </a>
                         </div>
-                        <div
-                            className="flex-grow-1 mx-4 d-none d-md-block"
-                            style={{ maxWidth: "800px" }}
-                        >
-                            <div className="position-relative">
-                                <input
-                                    type="text"
-                                    className="form-control rounded-pill ps-4 pe-5"
-                                    placeholder="Search properties..."
-                                    style={{
-                                        height: "48px",
-                                        background: "#f5f5f5",
-                                        border: "1px solid #e5e5e5",
-                                    }}
-                                />
-
-                                <button
-                                    className="btn position-absolute top-50 end-0 translate-middle-y me-1 rounded-circle"
-                                    style={{
-                                        width: "40px",
-                                        height: "40px",
-                                        backgroundColor: "#ff6b00",
-                                        color: "#fff",
-                                    }}
-                                >
-                                    <Search size={18} />
-                                </button>
-                            </div>
-                        </div>
                         <div className="d-flex align-items-center gap-3">
 
                             <button
@@ -194,7 +182,7 @@ const Header = () => {
 
                                 {favorites.length > 0 && (
                                     <span
-                                        className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                        className="position-absolute top-0 inset-s-100 translate-middle badge rounded-pill bg-danger"
                                         style={{ fontSize: "10px" }}
                                     >
                                         {favorites.length}
@@ -214,7 +202,7 @@ const Header = () => {
 
                                 {watchLater.length > 0 && (
                                     <span
-                                        className="position-absolute top-0 start-100 translate-middle badge rounded-pill"
+                                        className="position-absolute top-0 inset-s-100 translate-middle badge rounded-pill"
                                         style={{ fontSize: "10px", backgroundColor: "#ff6b00" }}
                                     >
                                         {watchLater.length}
