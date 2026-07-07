@@ -93,6 +93,7 @@ const BoardingHouseDetailPage = () => {
     const [error, setError] = useState("");
     const [favorites, setFavorites] = useState([]);
     const [isWatchLater, setIsWatchLater] = useState(false);
+    const [favoriteLoading, setFavoriteLoading] = useState(false);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -221,20 +222,39 @@ const BoardingHouseDetailPage = () => {
         }
 
         try {
+            setFavoriteLoading(true);
             const res = await toggleFavorite(boardingHouseId);
 
             if (res.isFavorite) {
                 setFavorites(prev => [...prev, boardingHouseId]);
+                toastSuccess("Added to favorites");
             } else {
                 setFavorites(prev =>
                     prev.filter(id => id !== boardingHouseId)
                 );
+                toastInfo("Removed from favorites");
+            }
+
+            window.dispatchEvent(new Event("favoriteUpdated"));
+
+            try {
+                const updatedRes = await getBoardingHouseDetail(boardingHouseId);
+                const updatedDetail = updatedRes?.data || updatedRes;
+                if (updatedDetail?._id) {
+                    setBoardingHouse(updatedDetail);
+                }
+            } catch (reloadErr) {
+                console.error("Failed to reload boarding house:", reloadErr);
             }
         } catch (err) {
             console.error(err);
+            toastInfo("Error updating favorite. Please try again.");
+        } finally {
+            setFavoriteLoading(false);
         }
     };
 
+    // ✅ Handle watch later
     const handleWatchLater = async () => {
         const token = localStorage.getItem("token");
 
@@ -344,7 +364,9 @@ const BoardingHouseDetailPage = () => {
 
                                                 <button
                                                     onClick={handleFavorite}
+                                                    disabled={favoriteLoading}
                                                     className="btn p-0 border-0 bg-transparent"
+                                                    title={favorites.includes(boardingHouseId) ? "Remove from favorites" : "Add to favorites"}
                                                 >
                                                     <Heart
                                                         size={22}
@@ -358,17 +380,24 @@ const BoardingHouseDetailPage = () => {
                                                                 ? "red"
                                                                 : "none"
                                                         }
+                                                        style={{
+                                                            opacity: favoriteLoading ? 0.6 : 1,
+                                                            cursor: favoriteLoading ? "not-allowed" : "pointer",
+                                                            transition: "all 0.3s ease",
+                                                        }}
                                                     />
                                                 </button>
 
                                                 <button
                                                     onClick={handleWatchLater}
                                                     className="btn p-0 border-0 bg-transparent"
+                                                    title={isWatchLater ? "Remove from watch later" : "Add to watch later"}
                                                 >
                                                     <Clock
                                                         size={22}
                                                         fill="none"
                                                         color={isWatchLater ? "#ff6b00" : "black"}
+                                                        style={{ transition: "all 0.3s ease" }}
                                                     />
                                                 </button>
                                             </div>
@@ -402,6 +431,7 @@ const BoardingHouseDetailPage = () => {
                                             <div>
                                                 <Heart size={20} />
                                                 <span>Likes</span>
+                                                {/* ✅ FIX: Display updated likes count in real-time */}
                                                 <strong>{boardingHouse.likes ?? 0}</strong>
                                             </div>
                                         </div>

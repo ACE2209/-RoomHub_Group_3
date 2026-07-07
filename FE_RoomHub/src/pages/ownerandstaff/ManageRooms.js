@@ -86,6 +86,7 @@ const ManageRooms = () => {
 
   useEffect(() => {
     loadBoardingHouses();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadBoardingHouses = async () => {
