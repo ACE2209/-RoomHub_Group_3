@@ -2,11 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
     ArrowLeft,
+    BadgeCheck,
     BedDouble,
+    Building2,
+    CalendarDays,
+    CheckCircle2,
     Clock,
     Droplets,
     Heart,
     Home,
+    Images,
+    Info,
     Mail,
     MapPin,
     Phone,
@@ -20,16 +26,16 @@ import {
 import {
     getBoardingHouseDetail,
     getRoomTypesByBoardingHouseForGuest,
-} from "../api/boardingHouse";
-import Footer from "./layout/homepage/footer";
-import Header from "./layout/homepage/header";
+} from "../../api/boardingHouse";
+import Footer from "../layout/homepage/footer";
+import Header from "../layout/homepage/header";
 import "./BoardingHouseDetailPage.css";
-import { getImageSource, setFallbackImage } from "../api/config";
-import ReviewSection from "../components/ReviewSection";
-import MapSection from "../components/MapSection";
-import { toggleFavorite, getFavorites } from "../api/favorite";
-import { toggleWatchLater, getWatchLater } from "../api/watchLater";
-import { toastSuccess, toastInfo, confirmAction } from "../utils/notify";
+import { getImageSource, setFallbackImage } from "../../api/config";
+import ReviewSection from "../../components/ReviewSection";
+import MapSection from "../../components/MapSection";
+import { toggleFavorite, getFavorites } from "../../api/favorite";
+import { toggleWatchLater, getWatchLater } from "../../api/watchLater";
+import { toastSuccess, toastInfo, confirmAction } from "../../utils/notify";
 
 const formatCurrency = (value) => {
     const numberValue = Number(value);
@@ -41,6 +47,25 @@ const formatCurrency = (value) => {
     }).format(numberValue);
 };
 
+const getPriceRangeLabel = (roomTypes = [], fallbackPrice) => {
+    const prices = roomTypes
+        .map((roomType) => Number(roomType?.price))
+        .filter((price) => !Number.isNaN(price) && price > 0);
+
+    if (!prices.length) {
+        return formatCurrency(fallbackPrice);
+    }
+
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+
+    if (min === max) {
+        return formatCurrency(min);
+    }
+
+    return `${formatCurrency(min)} - ${formatCurrency(max)}`;
+};
+
 const formatAddress = (address) => {
     if (!address) return "Address is updating";
     return [
@@ -49,6 +74,16 @@ const formatAddress = (address) => {
         address.district?.name,
         address.province?.name,
     ].filter(Boolean).join(", ");
+};
+
+const formatJoinDate = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat("en-US", {
+        month: "long",
+        year: "numeric",
+    }).format(date);
 };
 
 const getPrimaryImage = (house) => {
@@ -62,17 +97,22 @@ const getOwnerName = (owner) => (
     "RoomHub owner"
 );
 
+const getOwnerInitials = (owner) => {
+    const name = getOwnerName(owner);
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "RH";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+};
+
 const getRoomTypeImage = (roomType) => (
     getImageSource(roomType?.image || roomType?.images)
 );
 
-const getFacilityText = (facilities = []) => {
-    if (!facilities.length) return "Facilities are updating";
-
+const getFacilityChips = (facilities = []) => {
     return facilities
         .map((facility) => facility?.name)
-        .filter(Boolean)
-        .join(", ");
+        .filter(Boolean);
 };
 
 const getListData = (res) => {
@@ -87,6 +127,7 @@ const BoardingHouseDetailPage = () => {
     const [boardingHouse, setBoardingHouse] = useState(null);
     const [roomTypes, setRoomTypes] = useState([]);
     const [selectedImage, setSelectedImage] = useState("");
+    const [selectedIndex, setSelectedIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [roomTypesLoading, setRoomTypesLoading] = useState(false);
     const [roomTypesError, setRoomTypesError] = useState("");
@@ -112,6 +153,7 @@ const BoardingHouseDetailPage = () => {
 
                 setBoardingHouse(detail);
                 setSelectedImage(getPrimaryImage(detail));
+                setSelectedIndex(0);
             } catch (err) {
                 console.error("Get boarding house detail failed:", err);
                 setBoardingHouse(null);
@@ -163,6 +205,28 @@ const BoardingHouseDetailPage = () => {
 
         return images;
     }, [boardingHouse]);
+
+    const facilityCoverage = useMemo(() => {
+        const unique = new Map();
+        roomTypes.forEach((roomType) => {
+            (roomType.facilities || []).forEach((facility) => {
+                if (facility?.name && !unique.has(facility.name)) {
+                    unique.set(facility.name, facility);
+                }
+            });
+        });
+        return Array.from(unique.values());
+    }, [roomTypes]);
+
+    const isCompanyOwner = boardingHouse?.ownerId?.businessType === "company";
+    const ownerJoinDate = formatJoinDate(boardingHouse?.ownerId?.createdAt);
+    const listedSince = formatJoinDate(boardingHouse?.createdAt);
+    const isTopRated = Number(boardingHouse?.rating) >= 4.5;
+    const priceLabel = useMemo(
+        () => getPriceRangeLabel(roomTypes, boardingHouse?.priceRange),
+        [roomTypes, boardingHouse]
+    );
+    const hasPriceRange = priceLabel.includes(" - ");
 
     const handleRoomTypeClick = (roomType) => {
         navigate(`/room-types/${roomType._id}/rooms`, {
@@ -329,15 +393,22 @@ const BoardingHouseDetailPage = () => {
                                                 alt={boardingHouse.name || "Boarding house"}
                                                 onError={setFallbackImage}
                                             />
+                                            <span className="detail-gallery-count">
+                                                <Images size={14} />
+                                                {selectedIndex + 1}/{galleryImages.length}
+                                            </span>
                                         </div>
 
                                         <div className="detail-thumbs" aria-label="Boarding house images">
-                                            {galleryImages.map((image) => (
+                                            {galleryImages.map((image, index) => (
                                                 <button
                                                     type="button"
                                                     key={image._id || getImageSource(image)}
                                                     className={getImageSource(image) === selectedImage ? "active" : ""}
-                                                    onClick={() => setSelectedImage(getImageSource(image))}
+                                                    onClick={() => {
+                                                        setSelectedImage(getImageSource(image));
+                                                        setSelectedIndex(index);
+                                                    }}
                                                 >
                                                     <img
                                                         src={getImageSource(image)}
@@ -350,9 +421,27 @@ const BoardingHouseDetailPage = () => {
                                     </div>
 
                                     <div className="detail-content">
-                                        <span className="detail-type">
-                                            {boardingHouse.boardingHouseType?.name || "Boarding house"}
-                                        </span>
+                                        <div className="detail-type-row">
+                                            <span className="detail-type">
+                                                {boardingHouse.boardingHouseType?.name || "Boarding house"}
+                                            </span>
+
+                                            {boardingHouse.boardingHouseType?.description && (
+                                                <span
+                                                    className="detail-type-info"
+                                                    title={boardingHouse.boardingHouseType.description}
+                                                >
+                                                    <Info size={14} />
+                                                </span>
+                                            )}
+
+                                            {isTopRated && (
+                                                <span className="detail-badge-top">
+                                                    <BadgeCheck size={14} />
+                                                    Top rated
+                                                </span>
+                                            )}
+                                        </div>
 
                                         <div className="detail-title-row">
                                             <h1>{boardingHouse.name || "Unnamed boarding house"}</h1>
@@ -408,7 +497,21 @@ const BoardingHouseDetailPage = () => {
                                             <span>{formatAddress(boardingHouse.address)}</span>
                                         </p>
 
-                                        <div className="detail-price">{formatCurrency(boardingHouse.priceRange)}</div>
+                                        <div className="detail-price-row">
+                                            <div>
+                                                <span className="detail-price-label">
+                                                    {hasPriceRange ? "Price range" : "Starting from"}
+                                                </span>
+                                                <div className="detail-price detail-price--range">{priceLabel}</div>
+                                                <span className="detail-price-unit">per month</span>
+                                            </div>
+                                            {listedSince && (
+                                                <span className="detail-listed-since">
+                                                    <CalendarDays size={14} />
+                                                    Listed since {listedSince}
+                                                </span>
+                                            )}
+                                        </div>
 
                                         <div className="detail-stats">
                                             <div>
@@ -421,12 +524,12 @@ const BoardingHouseDetailPage = () => {
                                             <div>
                                                 <Zap size={20} />
                                                 <span>Electricity</span>
-                                                <strong>{formatCurrency(boardingHouse.electricityPrice)}</strong>
+                                                <strong>{formatCurrency(boardingHouse.electricityPrice)}<em>/kWh</em></strong>
                                             </div>
                                             <div>
                                                 <Droplets size={20} />
                                                 <span>Water</span>
-                                                <strong>{formatCurrency(boardingHouse.waterPrice)}</strong>
+                                                <strong>{formatCurrency(boardingHouse.waterPrice)}<em>/m³</em></strong>
                                             </div>
                                             <div>
                                                 <Heart size={20} />
@@ -444,25 +547,69 @@ const BoardingHouseDetailPage = () => {
                                             </p>
                                         </section>
 
+                                        {facilityCoverage.length > 0 && (
+                                            <section className="detail-section">
+                                                <h2>Facilities available</h2>
+                                                <div className="detail-facility-chips">
+                                                    {facilityCoverage.map((facility) => (
+                                                        <span
+                                                            className="detail-facility-chip"
+                                                            key={facility._id || facility.name}
+                                                            title={facility.description || facility.name}
+                                                        >
+                                                            <CheckCircle2 size={14} />
+                                                            {facility.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </section>
+                                        )}
+
                                         <section className="detail-section detail-owner">
                                             <h2>Owner contact</h2>
-                                            <div className="detail-owner-grid">
-                                                <div>
-                                                    <User size={18} />
-                                                    <span>{getOwnerName(boardingHouse.ownerId)}</span>
+                                            <div className="detail-owner-card">
+                                                <div className="detail-owner-avatar">
+                                                    {getOwnerInitials(boardingHouse.ownerId)}
                                                 </div>
-                                                {boardingHouse.ownerId?.phoneNumber && (
-                                                    <a href={`tel:${boardingHouse.ownerId.phoneNumber}`}>
-                                                        <Phone size={18} />
-                                                        <span>{boardingHouse.ownerId.phoneNumber}</span>
-                                                    </a>
-                                                )}
-                                                {boardingHouse.ownerId?.email && (
-                                                    <a href={`mailto:${boardingHouse.ownerId.email}`}>
-                                                        <Mail size={18} />
-                                                        <span>{boardingHouse.ownerId.email}</span>
-                                                    </a>
-                                                )}
+                                                <div className="detail-owner-info">
+                                                    <div className="detail-owner-name-row">
+                                                        <User size={16} />
+                                                        <span>{getOwnerName(boardingHouse.ownerId)}</span>
+                                                        {isCompanyOwner && (
+                                                            <span className="detail-owner-tag">
+                                                                <Building2 size={12} />
+                                                                Company
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {isCompanyOwner && boardingHouse.ownerId?.businessName && (
+                                                        <div className="detail-owner-business">
+                                                            {boardingHouse.ownerId.businessName}
+                                                        </div>
+                                                    )}
+
+                                                    <div className="detail-owner-grid">
+                                                        {boardingHouse.ownerId?.phoneNumber && (
+                                                            <a href={`tel:${boardingHouse.ownerId.phoneNumber}`}>
+                                                                <Phone size={18} />
+                                                                <span>{boardingHouse.ownerId.phoneNumber}</span>
+                                                            </a>
+                                                        )}
+                                                        {boardingHouse.ownerId?.email && (
+                                                            <a href={`mailto:${boardingHouse.ownerId.email}`}>
+                                                                <Mail size={18} />
+                                                                <span>{boardingHouse.ownerId.email}</span>
+                                                            </a>
+                                                        )}
+                                                    </div>
+
+                                                    {ownerJoinDate && (
+                                                        <span className="detail-owner-since">
+                                                            Host on RoomHub since {ownerJoinDate}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </section>
                                     </div>
@@ -507,43 +654,62 @@ const BoardingHouseDetailPage = () => {
                                     </div>
                                 ) : roomTypes.length ? (
                                     <div className="room-types-grid">
-                                        {roomTypes.map((roomType) => (
-                                            <button
-                                                type="button"
-                                                className="room-type-card room-flow-card"
-                                                key={roomType._id}
-                                                onClick={() => handleRoomTypeClick(roomType)}
-                                            >
-                                                <div className="room-type-image">
-                                                    <img
-                                                        src={getRoomTypeImage(roomType)}
-                                                        alt={roomType.typeName || "Room type"}
-                                                        onError={setFallbackImage}
-                                                    />
-                                                    <span>{roomType.availableRoom ?? 0} available</span>
-                                                </div>
+                                        {roomTypes.map((roomType) => {
+                                            const chips = getFacilityChips(roomType.facilities);
+                                            const visibleChips = chips.slice(0, 3);
+                                            const extraChips = chips.length - visibleChips.length;
 
-                                                <div className="room-type-body">
-                                                    <div className="room-type-title-row">
-                                                        <h3>{roomType.typeName || "Room type"}</h3>
-                                                        <strong>{formatCurrency(roomType.price)}</strong>
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    className="room-type-card room-flow-card"
+                                                    key={roomType._id}
+                                                    onClick={() => handleRoomTypeClick(roomType)}
+                                                >
+                                                    <div className="room-type-image">
+                                                        <img
+                                                            src={getRoomTypeImage(roomType)}
+                                                            alt={roomType.typeName || "Room type"}
+                                                            onError={setFallbackImage}
+                                                        />
+                                                        <span>{roomType.availableRoom ?? 0} available</span>
                                                     </div>
 
-                                                    <div className="room-type-meta">
-                                                        <span>
-                                                            <Ruler size={17} />
-                                                            {roomType.roomSize || "Updating size"}
-                                                        </span>
-                                                        <span>
-                                                            <Users size={17} />
-                                                            {roomType.peopleNumber || 0} people
-                                                        </span>
-                                                    </div>
+                                                    <div className="room-type-body">
+                                                        <div className="room-type-title-row">
+                                                            <h3>{roomType.typeName || "Room type"}</h3>
+                                                            <strong>{formatCurrency(roomType.price)}</strong>
+                                                        </div>
 
-                                                    <p>{getFacilityText(roomType.facilities)}</p>
-                                                </div>
-                                            </button>
-                                        ))}
+                                                        <div className="room-type-meta">
+                                                            <span>
+                                                                <Ruler size={17} />
+                                                                {roomType.roomSize || "Updating size"}
+                                                            </span>
+                                                            <span>
+                                                                <Users size={17} />
+                                                                {roomType.peopleNumber || 0} people
+                                                            </span>
+                                                        </div>
+
+                                                        {visibleChips.length > 0 ? (
+                                                            <div className="room-type-facility-chips">
+                                                                {visibleChips.map((name) => (
+                                                                    <span key={name}>{name}</span>
+                                                                ))}
+                                                                {extraChips > 0 && (
+                                                                    <span className="room-type-facility-more">
+                                                                        +{extraChips}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <p>Facilities are updating</p>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div className="room-types-empty">

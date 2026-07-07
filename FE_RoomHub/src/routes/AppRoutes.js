@@ -1,11 +1,13 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
-import HomePage from "../pages/HomePage";
+import HomePage from "../pages/home/HomePage";
+
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 import ChangePassword from "../pages/auth/ChangePassword";
+
 import Profile from "../pages/profile/Profile";
 
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
@@ -21,9 +23,9 @@ import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
 import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
 import BoardingHouseReportManagementPage from "../pages/admin/BoardingHouseReportManagementPage";
 
-import BoardingHouseDetailPage from "../pages/BoardingHouseDetailPage";
-import RoomDetailPage from "../pages/RoomDetailPage";
-import RoomTypeRoomsPage from "../pages/RoomTypeRoomsPage";
+import BoardingHouseDetailPage from "../pages/home/BoardingHouseDetailPage";
+import RoomDetailPage from "../pages/home/RoomDetailPage";
+import RoomTypeRoomsPage from "../pages/home/RoomTypeRoomsPage";
 
 import MyBoardingHousesPage from "../pages/ownerandstaff/MyBoardingHousesPage";
 import OwnerBoardingHouseDetailPage from "../pages/ownerandstaff/OwnerBoardingHouseDetailPage";
