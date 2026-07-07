@@ -4,8 +4,12 @@ import { Button, Checkbox, Form, Select, Slider } from "antd";
 import {
   getBoardingHouseTypesForGuest,
   getMaxPriceBHForGuest,
-} from "../api/boardingHouseAPI";
-import { fetchDistricts, fetchProvinces, fetchWards } from "../api/apiAddress";
+} from "../../api/boardingHouseAPI";
+import {
+  fetchDistricts,
+  fetchProvinces,
+  fetchWards,
+} from "../../api/apiAddress";
 
 const DEFAULT_PRICE_RANGE = [0, 100000000];
 const DEFAULT_RATING_RANGE = [1, 5];
@@ -75,7 +79,7 @@ const FilterBoardingHouseUser = ({ setFilterValue }) => {
         value: type.value || type._id,
         label: type.label || type.name || "Boarding house",
       })),
-    [boardingHouseTypes]
+    [boardingHouseTypes],
   );
 
   useEffect(() => {
@@ -117,7 +121,12 @@ const FilterBoardingHouseUser = ({ setFilterValue }) => {
       try {
         const res = await getMaxPriceBHForGuest();
         const maxPrice = Number(res?.maxPrice);
-        const nextRange = [0, Number.isFinite(maxPrice) && maxPrice > 0 ? maxPrice : DEFAULT_PRICE_RANGE[1]];
+        const nextRange = [
+          0,
+          Number.isFinite(maxPrice) && maxPrice > 0
+            ? maxPrice
+            : DEFAULT_PRICE_RANGE[1],
+        ];
 
         setMaxPriceRange(nextRange);
         setPriceRange(nextRange);
@@ -190,11 +199,17 @@ const FilterBoardingHouseUser = ({ setFilterValue }) => {
   };
 
   const toggleType = (value) => {
-    form.setFieldValue("boardingHouseType", selectedType === value ? undefined : value);
+    form.setFieldValue(
+      "boardingHouseType",
+      selectedType === value ? undefined : value,
+    );
   };
 
   const togglePrice = (value) => {
-    form.setFieldValue("priceBucket", selectedPriceBucket === value ? undefined : value);
+    form.setFieldValue(
+      "priceBucket",
+      selectedPriceBucket === value ? undefined : value,
+    );
   };
 
   return (
@@ -273,7 +288,9 @@ const FilterBoardingHouseUser = ({ setFilterValue }) => {
           <Form.Item name="boardingHouseType">
             <div className="guest-filter__checks">
               {typeLoading ? (
-                <span className="guest-filter__muted">Đang tải loại chỗ ở...</span>
+                <span className="guest-filter__muted">
+                  Đang tải loại chỗ ở...
+                </span>
               ) : (
                 typeOptions.map((type) => (
                   <Checkbox
@@ -292,10 +309,16 @@ const FilterBoardingHouseUser = ({ setFilterValue }) => {
         <section className="guest-filter__group">
           <h4>Mức giá</h4>
           <div className="guest-filter__quick-actions">
-            <button type="button" onClick={() => form.setFieldValue("priceBucket", undefined)}>
+            <button
+              type="button"
+              onClick={() => form.setFieldValue("priceBucket", undefined)}
+            >
               Chọn tất cả
             </button>
-            <button type="button" onClick={() => form.setFieldValue("priceBucket", undefined)}>
+            <button
+              type="button"
+              onClick={() => form.setFieldValue("priceBucket", undefined)}
+            >
               Xóa tất cả
             </button>
           </div>

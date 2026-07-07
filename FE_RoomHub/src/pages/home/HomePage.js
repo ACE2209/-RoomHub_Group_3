@@ -16,12 +16,12 @@ import {
 import {
     getNewestBH,
     getHighRatingBH
-} from "../api/boardingHouse";
-import { getBhByArea } from "../api/boardingHouseAPI";
-import { getImageSource, setFallbackImage } from "../api/config";
+} from "../../api/boardingHouse";
+import { getBhByArea } from "../../api/boardingHouseAPI";
+import { getImageSource, setFallbackImage } from "../../api/config";
 
-import Footer from "./layout/homepage/footer";
-import Header from "./layout/homepage/header";
+import Footer from "../layout/homepage/footer";
+import Header from "../layout/homepage/header";
 import FilterBoardingHouseUser from "./FilterBoardingHouseUser";
 import "./HomePage.css";
 
@@ -393,72 +393,72 @@ const HomePage = () => {
                                 </label>
                             </div>
 
-                    {loading ? (
-                        <div className="guest-grid">
-                            {Array.from({ length: 6 }).map((_, index) => (
-                                <div className="guest-card guest-card--loading" key={index}>
-                                    <div className="guest-card__image-skeleton" />
-                                    <div className="guest-card__line guest-card__line--wide" />
-                                    <div className="guest-card__line" />
-                                    <div className="guest-card__line guest-card__line--short" />
-                                </div>
-                            ))}
-                        </div>
-                    ) : error ? (
-                        <div className="guest-empty">
-                            <Home size={36} />
-                            <h3>Cannot load boarding houses</h3>
-                            <p>{error}</p>
-                            <button type="button" onClick={fetchBoardingHouses}>
-                                Try again
-                            </button>
-                        </div>
-                    ) : boardingHouses.length > 0 ? (
-                        <>
-                            <div className="guest-grid">
-                                {boardingHouses.map((house) => (
-                                    <BoardingHouseCard key={house._id} house={house} />
-                                ))}
-                            </div>
-
-                            <div className="guest-pagination">
-                                <button
-                                    type="button"
-                                    disabled={!pagination.hasPrevPage || loading}
-                                    onClick={() => handlePageChange((pagination.currentPage || 1) - 1)}
-                                >
-                                    <ChevronLeft size={18} /> Previous
-                                </button>
-
-                                <div className="guest-pagination__numbers">
-                                    {visiblePages.map((page) => (  // visiblePages vẫn giữ nguyên
-                                        <button
-                                            key={page}
-                                            className={page === pagination.currentPage ? "active" : ""}
-                                            disabled={loading}
-                                            onClick={() => handlePageChange(page)}
-                                        >
-                                            {page}
-                                        </button>
+                            {loading ? (
+                                <div className="guest-grid">
+                                    {Array.from({ length: 6 }).map((_, index) => (
+                                        <div className="guest-card guest-card--loading" key={index}>
+                                            <div className="guest-card__image-skeleton" />
+                                            <div className="guest-card__line guest-card__line--wide" />
+                                            <div className="guest-card__line" />
+                                            <div className="guest-card__line guest-card__line--short" />
+                                        </div>
                                     ))}
                                 </div>
+                            ) : error ? (
+                                <div className="guest-empty">
+                                    <Home size={36} />
+                                    <h3>Cannot load boarding houses</h3>
+                                    <p>{error}</p>
+                                    <button type="button" onClick={fetchBoardingHouses}>
+                                        Try again
+                                    </button>
+                                </div>
+                            ) : boardingHouses.length > 0 ? (
+                                <>
+                                    <div className="guest-grid">
+                                        {boardingHouses.map((house) => (
+                                            <BoardingHouseCard key={house._id} house={house} />
+                                        ))}
+                                    </div>
 
-                                <button
-                                    type="button"
-                                    disabled={!pagination.hasNextPage || loading}
-                                    onClick={() => handlePageChange((pagination.currentPage || 1) + 1)}
-                                >
-                                    Next <ChevronRight size={18} />
-                                </button>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="guest-empty">
-                            <Search size={36} />
-                            <h3>No boarding houses found</h3>
-                            <p>Try another name or reset the filters.</p>
-                        </div>
-                    )}
+                                    <div className="guest-pagination">
+                                        <button
+                                            type="button"
+                                            disabled={!pagination.hasPrevPage || loading}
+                                            onClick={() => handlePageChange((pagination.currentPage || 1) - 1)}
+                                        >
+                                            <ChevronLeft size={18} /> Previous
+                                        </button>
+
+                                        <div className="guest-pagination__numbers">
+                                            {visiblePages.map((page) => (  // visiblePages vẫn giữ nguyên
+                                                <button
+                                                    key={page}
+                                                    className={page === pagination.currentPage ? "active" : ""}
+                                                    disabled={loading}
+                                                    onClick={() => handlePageChange(page)}
+                                                >
+                                                    {page}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            disabled={!pagination.hasNextPage || loading}
+                                            onClick={() => handlePageChange((pagination.currentPage || 1) + 1)}
+                                        >
+                                            Next <ChevronRight size={18} />
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="guest-empty">
+                                    <Search size={36} />
+                                    <h3>No boarding houses found</h3>
+                                    <p>Try another name or reset the filters.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </section>
