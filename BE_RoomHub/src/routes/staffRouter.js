@@ -8,7 +8,9 @@ import {
   depositController,
   ReviewController,
   monthlyRentController,
-  roomTypeController
+  roomTypeController,
+  refundRequestController,
+  revenueController,
 } from "../controllers/index.js";
 import { upload } from '../config/cloudinary.config.js';
 
@@ -66,5 +68,19 @@ staffRouter.post("/boardinghouse/roomtype/:id/create", upload.single("roomType")
 staffRouter.put("/boardinghouse/roomtype/:roomTypeId/", upload.single("roomType"), roomTypeController.updateRoomTypeToBoardingHouse);
 staffRouter.delete("/boardinghouse/roomtype/:roomTypeId/", roomTypeController.softDeleteRoomType);
 
+// REFUND MANAGEMENT
+staffRouter.get(
+  "/refund-requests",
+  refundRequestController.getManagedRefundRequests
+);
 
+staffRouter.patch(
+  "/refund-requests/:refundRequestId/reject",
+  refundRequestController.rejectRefundRequest
+);
+
+staffRouter.post(
+  "/refund-requests/:refundRequestId/pay",
+  refundRequestController.createRefundPayment
+);
 export { staffRouter };

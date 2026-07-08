@@ -51,7 +51,9 @@ import ManageMonthlyRents from "../pages/ownerandstaff/ManageMonthlyRents";
 import ManageMonthlyRentDetail from "../pages/ownerandstaff/ManageMonthlyRentDetail";
 
 import ManageRoomTypes from "../pages/ownerandstaff/ManageRoomTypes";
-
+import MyPaymentBillsPage from "../pages/user/MyPaymentBillsPage";
+import MyRefundRequestsPage from "../pages/user/MyRefundRequestsPage";
+import ManagedRefundRequestsPage from "../pages/ownerandstaff/ManagedRefundRequestsPage";
 const AppRoutes = () => {
   return (
     <Routes>
@@ -389,6 +391,25 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+  path="/my-payment-bills"
+  element={
+    <ProtectedRoute>
+      <MyPaymentBillsPage />
+    </ProtectedRoute>
+  }
+/>
+<Route path="/my-refund-requests" element={<MyRefundRequestsPage />} />
+<Route path="/owner/refund-requests" element={<ManagedRefundRequestsPage />} />
+<Route path="/staff/refund-requests" element={<ManagedRefundRequestsPage />} />
+<Route
+  path="/managed-refund-requests"
+  element={
+    <ProtectedRoute allowedRoles={["owner", "staff"]}>
+      <ManagedRefundRequestsPage />
+    </ProtectedRoute>
+  }
+/>
     </Routes>
   );
 };

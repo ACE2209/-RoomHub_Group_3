@@ -5,6 +5,7 @@ import moment from "moment";
 import DepositRoom from "../models/depositRoom.js";
 import PaymentBill from "../models/paymentBill.js";
 import UserPayment from "../models/userPayment.js";
+import RefundRequest from "../models/refundRequest.js";
 
 const sortObject = (obj) => {
   const sorted = {};
@@ -150,10 +151,6 @@ const buildZaloPayUrl = async ({ orderId, amount, orderInfo }) => {
 
   const embeddata = JSON.stringify({
     merchantinfo: orderInfo,
-
-    // Quan trọng:
-    // Không redirect thẳng về FE nữa.
-    // Phải redirect về BE để BE check trạng thái và update DB.
     redirecturl: getZaloPayRedirectUrl(),
   });
 
@@ -257,7 +254,6 @@ const queryZaloPayStatus = async (apptransid) => {
     "https://sandbox.zalopay.com.vn/v001/tpe/getstatusbyapptransid";
 
   const data = `${appid}|${apptransid}|${key1}`;
-
   const mac = crypto.createHmac("sha256", key1).update(data).digest("hex");
 
   const response = await axios.post(
@@ -317,31 +313,28 @@ const completePayment = async (payment, rawData) => {
     await deposit.save();
   }
 
-if (payment.paymentBillId) {
-  const bill = await PaymentBill.findById(payment.paymentBillId);
+  if (payment.paymentBillId) {
+    const bill = await PaymentBill.findById(payment.paymentBillId);
 
-  if (!bill) throw new Error("Payment bill not found");
+    if (!bill) throw new Error("Payment bill not found");
 
-  payment.status = "Paid";
+    const pendingOtherPayments = await UserPayment.exists({
+      paymentBillId: bill._id,
+      _id: { $ne: payment._id },
+      status: { $nin: ["Paid", "Done"] },
+    });
 
-  const pendingOtherPayments = await UserPayment.exists({
-    paymentBillId: bill._id,
-    _id: { $ne: payment._id },
-    status: { $nin: ["Paid", "Done"] },
-  });
-
-  if (!pendingOtherPayments) {
-    bill.status = "Done";
-    await bill.save();
+    if (!pendingOtherPayments) {
+      bill.status = "Done";
+      await bill.save();
+    }
   }
-}
 
   payment.status = "Paid";
   payment.transactionNo =
     rawData.vnp_TransactionNo ||
     rawData.transId ||
     rawData.zp_trans_id ||
-    rawData.zptransid ||
     rawData.zptransid ||
     payment.transactionNo ||
     "";
@@ -351,7 +344,102 @@ if (payment.paymentBillId) {
   return payment;
 };
 
+const completeRefundPayment = async (refundRequestId, rawData = {}) => {
+  const refundRequest = await RefundRequest.findById(refundRequestId).populate({
+    path: "depositRoomId",
+    populate: {
+      path: "roomId",
+    },
+  });
+
+  if (!refundRequest) {
+    throw new Error("Refund request not found");
+  }
+
+  if (refundRequest.status === "accepted") {
+    return refundRequest;
+  }
+
+  if (refundRequest.status !== "pending") {
+    throw new Error("Only pending refund requests can be completed");
+  }
+
+  const deposit = refundRequest.depositRoomId;
+  const room = deposit?.roomId;
+
+  if (!deposit || !room) {
+    throw new Error("Related deposit or room not found");
+  }
+
+  refundRequest.status = "accepted";
+  refundRequest.processedAt = new Date();
+  refundRequest.refundTransactionNo =
+    rawData.vnp_TransactionNo ||
+    rawData.transId ||
+    rawData.zp_trans_id ||
+    rawData.zptransid ||
+    refundRequest.refundTransactionNo ||
+    "";
+
+  deposit.status = "refunded";
+
+  if (Array.isArray(room.rentBy)) {
+    room.rentBy = room.rentBy.filter(
+      (id) => id.toString() !== deposit.accountId.toString()
+    );
+  }
+
+  await room.save();
+  await deposit.save();
+  await refundRequest.save();
+
+  return refundRequest;
+};
+
 class PaymentController {
+  async createRefundPaymentUrl({ req, refundRequest, amount, method }) {
+    const paymentMethod = normalizeMethod(method);
+
+    if (!paymentMethod) {
+      throw new Error("Invalid payment method. Use VNPay or ZaloPay");
+    }
+
+    if (!validateAmount(amount)) {
+      throw new Error("Refund amount is invalid");
+    }
+
+    const orderId =
+      paymentMethod === "ZaloPay"
+        ? makeZaloPayOrderId("REFUND")
+        : makeOrderId("REFUND");
+
+    const orderInfo = `REFUND_${refundRequest._id}`;
+
+    const paymentUrl =
+      paymentMethod === "VNPay"
+        ? buildVNPayUrl({
+            req,
+            orderId,
+            amount,
+            orderInfo,
+          })
+        : await buildZaloPayUrl({
+            orderId,
+            amount,
+            orderInfo,
+          });
+
+    return {
+      paymentUrl,
+      payUrl: paymentUrl,
+      orderId,
+      orderInfo,
+      amount,
+      paymentMethod,
+      refundRequestId: refundRequest._id,
+    };
+  }
+
   async payDeposit(req, res) {
     try {
       const { depositId } = req.params;
@@ -616,110 +704,112 @@ class PaymentController {
       });
     }
   }
-async payUserMonthlyRent(req, res) {
-  try {
-    const { userPaymentId } = req.params;
-    const { method } = req.body;
-    const accountId = req.user.userId;
 
-    const paymentMethod = normalizeMethod(method);
+  async payUserMonthlyRent(req, res) {
+    try {
+      const { userPaymentId } = req.params;
+      const { method } = req.body;
+      const accountId = req.user.userId;
 
-    if (!paymentMethod) {
-      return res.status(400).json({
+      const paymentMethod = normalizeMethod(method);
+
+      if (!paymentMethod) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid payment method. Use VNPay or ZaloPay",
+        });
+      }
+
+      const userPayment = await UserPayment.findOne({
+        _id: userPaymentId,
+        accountId,
+      }).populate({
+        path: "paymentBillId",
+        populate: {
+          path: "roomId",
+        },
+      });
+
+      if (!userPayment) {
+        return res.status(404).json({
+          success: false,
+          message: "Monthly rent payment not found",
+        });
+      }
+
+      if (!userPayment.paymentBillId) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid monthly rent payment",
+        });
+      }
+
+      if (["Paid", "Done"].includes(userPayment.status)) {
+        return res.status(400).json({
+          success: false,
+          message: "Monthly rent already paid",
+        });
+      }
+
+      if (userPayment.status === "Cancel") {
+        return res.status(400).json({
+          success: false,
+          message: "Monthly rent was canceled",
+        });
+      }
+
+      if (!validateAmount(userPayment.paymentAmount)) {
+        return res.status(400).json({
+          success: false,
+          message: "Monthly rent amount is invalid",
+        });
+      }
+
+      const orderId =
+        paymentMethod === "ZaloPay"
+          ? makeZaloPayOrderId("RENT")
+          : makeOrderId("RENT");
+
+      const orderInfo = `RENT_${userPayment._id}`;
+
+      userPayment.status = "Pending";
+      userPayment.paymentMethod = paymentMethod;
+      userPayment.orderId = orderId;
+      userPayment.orderInfo = orderInfo;
+      userPayment.transactionNo = "";
+      await userPayment.save();
+
+      const paymentUrl =
+        paymentMethod === "VNPay"
+          ? buildVNPayUrl({
+              req,
+              orderId,
+              amount: userPayment.paymentAmount,
+              orderInfo,
+            })
+          : await buildZaloPayUrl({
+              orderId,
+              amount: userPayment.paymentAmount,
+              orderInfo,
+            });
+
+      return res.status(200).json({
+        success: true,
+        message: "Payment URL created",
+        data: {
+          paymentUrl,
+          payUrl: paymentUrl,
+          payment: userPayment,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({
         success: false,
-        message: "Invalid payment method. Use VNPay or ZaloPay",
+        message: error.message,
       });
     }
-
-    const userPayment = await UserPayment.findOne({
-      _id: userPaymentId,
-      accountId,
-    }).populate({
-      path: "paymentBillId",
-      populate: {
-        path: "roomId",
-      },
-    });
-
-    if (!userPayment) {
-      return res.status(404).json({
-        success: false,
-        message: "Monthly rent payment not found",
-      });
-    }
-
-    if (!userPayment.paymentBillId) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid monthly rent payment",
-      });
-    }
-
-    if (["Paid", "Done"].includes(userPayment.status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Monthly rent already paid",
-      });
-    }
-
-    if (userPayment.status === "Cancel") {
-      return res.status(400).json({
-        success: false,
-        message: "Monthly rent was canceled",
-      });
-    }
-
-    if (!validateAmount(userPayment.paymentAmount)) {
-      return res.status(400).json({
-        success: false,
-        message: "Monthly rent amount is invalid",
-      });
-    }
-
-    const orderId =
-      paymentMethod === "ZaloPay"
-        ? makeZaloPayOrderId("RENT")
-        : makeOrderId("RENT");
-
-    const orderInfo = `RENT_${userPayment._id}`;
-
-    userPayment.status = "Pending";
-    userPayment.paymentMethod = paymentMethod;
-    userPayment.orderId = orderId;
-    userPayment.orderInfo = orderInfo;
-    userPayment.transactionNo = "";
-    await userPayment.save();
-
-    const paymentUrl =
-      paymentMethod === "VNPay"
-        ? buildVNPayUrl({
-            req,
-            orderId,
-            amount: userPayment.paymentAmount,
-            orderInfo,
-          })
-        : await buildZaloPayUrl({
-            orderId,
-            amount: userPayment.paymentAmount,
-            orderInfo,
-          });
-
-    return res.status(200).json({
-      success: true,
-      message: "Payment URL created",
-      data: {
-        paymentUrl,
-        payUrl: paymentUrl,
-        payment: userPayment,
-      },
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-}
+
   async vnpayReturn(req, res) {
     try {
       if (!verifyVNPay(req.query)) {
@@ -729,6 +819,34 @@ async payUserMonthlyRent(req, res) {
             type: "unknown",
             provider: "vnpay",
             message: "Invalid VNPay signature",
+          })
+        );
+      }
+
+      const orderInfo = String(req.query.vnp_OrderInfo || "");
+
+      if (orderInfo.startsWith("REFUND_")) {
+        const refundRequestId = orderInfo.replace("REFUND_", "");
+
+        if (req.query.vnp_ResponseCode !== "00") {
+          return res.redirect(
+            getClientReturnUrl({
+              status: "failed",
+              type: "refund",
+              provider: "vnpay",
+              message: "VNPay refund payment failed",
+            })
+          );
+        }
+
+        await completeRefundPayment(refundRequestId, req.query);
+
+        return res.redirect(
+          getClientReturnUrl({
+            status: "success",
+            type: "refund",
+            provider: "vnpay",
+            message: "Refund payment successful",
           })
         );
       }
@@ -785,106 +903,136 @@ async payUserMonthlyRent(req, res) {
     }
   }
 
-async zalopayRedirect(req, res) {
-  const redirectToClient = (status, type, message) => {
-    return res.redirect(
-      getClientReturnUrl({
-        status,
-        type,
-        provider: "zalopay",
-        message,
-      })
-    );
-  };
-
-  try {
-    console.log("ZaloPay redirect query:", req.query);
-
-    if (!verifyZaloPayRedirect(req.query)) {
-      return redirectToClient(
-        "failed",
-        "unknown",
-        "Invalid ZaloPay redirect checksum"
+  async zalopayRedirect(req, res) {
+    const redirectToClient = (status, type, message) => {
+      return res.redirect(
+        getClientReturnUrl({
+          status,
+          type,
+          provider: "zalopay",
+          message,
+        })
       );
-    }
+    };
 
-    const appTransId = req.query.apptransid;
+    try {
+      console.log("ZaloPay redirect query:", req.query);
 
-    const payment = await UserPayment.findOne({
-      orderId: appTransId,
-    });
+      if (!verifyZaloPayRedirect(req.query)) {
+        return redirectToClient(
+          "failed",
+          "unknown",
+          "Invalid ZaloPay redirect checksum"
+        );
+      }
 
-    if (!payment) {
-      return redirectToClient("failed", "unknown", "Payment not found");
-    }
+      const appTransId = req.query.apptransid;
+      const zaloPayStatus = await queryZaloPayStatus(appTransId);
 
-    const type = payment.depositRoomId ? "deposit" : "rent";
+      console.log("ZaloPay status response:", zaloPayStatus);
 
-    if (payment.status === "Paid") {
-      return redirectToClient("success", type, "Payment already completed");
-    }
-
-    if (payment.status !== "Pending") {
-      return redirectToClient(
-        "failed",
-        type,
-        `Payment is ${payment.status}, please create a new payment`
+      const returnCode = Number(
+        zaloPayStatus.returncode ?? zaloPayStatus.return_code
       );
-    }
 
-    const zaloPayStatus = await queryZaloPayStatus(appTransId);
+      const description = String(zaloPayStatus.description || "");
+      const orderInfo = String(zaloPayStatus.order_info || "");
+      const rawInfo = `${description} ${orderInfo}`;
 
-    console.log("ZaloPay status response:", zaloPayStatus);
+      const refundMatch = rawInfo.match(/REFUND_([0-9a-fA-F]{24})/);
 
-    const returnCode = Number(
-      zaloPayStatus.returncode ?? zaloPayStatus.return_code
-    );
+      if (refundMatch) {
+        const refundRequestId = refundMatch[1];
 
-    if (returnCode === 1) {
-      await completePayment(payment, {
-        ...req.query,
-        ...zaloPayStatus,
-        zp_trans_id:
-          zaloPayStatus.zptransid ||
-          zaloPayStatus.zp_trans_id ||
-          req.query.zptransid,
+        if (returnCode !== 1) {
+          return redirectToClient(
+            "failed",
+            "refund",
+            zaloPayStatus.returnmessage ||
+              zaloPayStatus.return_message ||
+              "ZaloPay refund payment failed"
+          );
+        }
+
+        await completeRefundPayment(refundRequestId, {
+          ...req.query,
+          ...zaloPayStatus,
+        });
+
+        return redirectToClient(
+          "success",
+          "refund",
+          "Refund payment successful"
+        );
+      }
+
+      const payment = await UserPayment.findOne({
+        orderId: appTransId,
       });
 
-      return redirectToClient("success", type, "Payment successful");
-    }
+      if (!payment) {
+        return redirectToClient("failed", "unknown", "Payment not found");
+      }
 
-    if (returnCode === 3) {
+      const type = payment.depositRoomId ? "deposit" : "rent";
+
+      if (payment.status === "Paid") {
+        return redirectToClient("success", type, "Payment already completed");
+      }
+
+      if (payment.status !== "Pending") {
+        return redirectToClient(
+          "failed",
+          type,
+          `Payment is ${payment.status}, please create a new payment`
+        );
+      }
+
+      if (returnCode === 1) {
+        await completePayment(payment, {
+          ...req.query,
+          ...zaloPayStatus,
+          zp_trans_id:
+            zaloPayStatus.zptransid ||
+            zaloPayStatus.zp_trans_id ||
+            req.query.zptransid,
+        });
+
+        return redirectToClient("success", type, "Payment successful");
+      }
+
+      if (returnCode === 3) {
+        return redirectToClient(
+          "pending",
+          type,
+          zaloPayStatus.returnmessage ||
+            zaloPayStatus.return_message ||
+            "ZaloPay payment is still processing, please check again later"
+        );
+      }
+
+      payment.status = "Failed";
+      payment.transactionNo =
+        zaloPayStatus.zptransid ||
+        zaloPayStatus.zp_trans_id ||
+        req.query.zptransid ||
+        payment.transactionNo ||
+        "";
+
+      await payment.save();
+
       return redirectToClient(
-        "pending",
+        "failed",
         type,
         zaloPayStatus.returnmessage ||
           zaloPayStatus.return_message ||
-          "ZaloPay payment is still processing, please check again later"
+          "ZaloPay payment failed"
       );
+    } catch (error) {
+      console.error("ZaloPay redirect error:", error);
+      return redirectToClient("failed", "unknown", error.message);
     }
-
-    payment.status = "Failed";
-    payment.transactionNo =
-      zaloPayStatus.zptransid ||
-      zaloPayStatus.zp_trans_id ||
-      req.query.zptransid ||
-      payment.transactionNo ||
-      "";
-
-    await payment.save();
-
-    return redirectToClient(
-      "failed",
-      type,
-      zaloPayStatus.returnmessage ||
-        zaloPayStatus.return_message ||
-        "ZaloPay payment failed"
-    );
-  } catch (error) {
-    console.error("ZaloPay redirect error:", error);
-    return redirectToClient("failed", "unknown", error.message);
   }
-}
 
   async zalopayReturn(req, res) {
     try {
@@ -902,6 +1050,24 @@ async zalopayRedirect(req, res) {
         return res.json({
           returncode: -1,
           returnmessage: "Missing apptransid",
+        });
+      }
+
+      const description = String(data.description || "");
+      const orderInfo = String(data.order_info || "");
+      const rawInfo = `${description} ${orderInfo}`;
+
+      const refundMatch = rawInfo.match(/REFUND_([0-9a-fA-F]{24})/);
+
+      if (refundMatch) {
+        await completeRefundPayment(refundMatch[1], {
+          ...data,
+          zp_trans_id: data.zptransid || data.zp_trans_id,
+        });
+
+        return res.json({
+          returncode: 1,
+          returnmessage: "success",
         });
       }
 

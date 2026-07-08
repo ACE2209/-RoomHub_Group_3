@@ -33,3 +33,24 @@ export const payDeposit = async (depositId, method) => {
 
   return parseJsonResponse(res);
 };
+
+export const createRefundRequest = async (data) => {
+  const res = await fetch(`${API_URL}/auth/refund-requests`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const getMyRefundRequests = async () => {
+  const res = await fetch(`${API_URL}/auth/refund-requests`, {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+};

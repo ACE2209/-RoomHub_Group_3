@@ -16,7 +16,6 @@ export default function Sidebar() {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        console.log("Click outside detected - closing dropdown");
         setShowUserMenu(false);
       }
     };
@@ -51,23 +50,13 @@ export default function Sidebar() {
       </Link>
 
       <nav className="menu">
-        {isAdmin && (
-          <NavLink to="/admin">
-            Dashboard
-          </NavLink>
-        )}
+        {isAdmin && <NavLink to="/admin">Dashboard</NavLink>}
 
-        {isAdmin && (
-          <NavLink to="/admin/accounts">
-            Account Management
-          </NavLink>
-        )}
+        {isAdmin && <NavLink to="/admin/accounts">Account Management</NavLink>}
 
         {isAdmin && (
           <>
-            <NavLink to="/admin/review-reports">
-              Review Reports
-            </NavLink>
+            <NavLink to="/admin/review-reports">Review Reports</NavLink>
 
             <NavLink to="/admin/boarding-house-reports">
               Boarding House Reports
@@ -77,37 +66,29 @@ export default function Sidebar() {
               Boarding House Management
             </NavLink>
 
-            <NavLink to="/admin/reviews">
-              Review Management
-            </NavLink>
+            <NavLink to="/admin/reviews">Review Management</NavLink>
           </>
         )}
 
         {canManageOwnBoardingHouses && (
           <>
-            <NavLink to="/my-boarding-houses">
-              My Boarding Houses
-            </NavLink>
+            <NavLink to="/my-boarding-houses">My Boarding Houses</NavLink>
 
             <NavLink to="/managed-appointments">
               Appointment Management
             </NavLink>
 
-            <NavLink to="/managed-deposits">
-              Deposit Management
+            <NavLink to="/managed-deposits">Deposit Management</NavLink>
+
+            <NavLink to="/managed-refund-requests">
+              Refund Requests
             </NavLink>
 
-            <NavLink to="/managed-reviews">
-              Review Management
-            </NavLink>
+            <NavLink to="/managed-reviews">Review Management</NavLink>
 
-            <NavLink to="/manage-rooms">
-              Manage Rooms
-            </NavLink>
+            <NavLink to="/manage-rooms">Manage Rooms</NavLink>
 
-            <NavLink to="/manage-room-types">
-              Manage Room Types
-            </NavLink>
+            <NavLink to="/manage-room-types">Manage Room Types</NavLink>
 
             <NavLink to="/manage-room-additional-fees">
               Manage Room Additional Fees
@@ -120,21 +101,15 @@ export default function Sidebar() {
         )}
 
         {!isAdmin && !canManageOwnBoardingHouses && (
-          <NavLink to="/monthly-rents">
-            My Monthly Rents
-          </NavLink>
+          <NavLink to="/monthly-rents">My Monthly Rents</NavLink>
         )}
-
       </nav>
 
       <div className="sidebar-bottom">
         <div className="sidebar-user-container" ref={dropdownRef}>
           <button
             className="sidebar-user-trigger"
-            onClick={() => {
-              console.log("Button clicked - toggling dropdown");
-              setShowUserMenu(!showUserMenu);
-            }}
+            onClick={() => setShowUserMenu(!showUserMenu)}
             aria-expanded={showUserMenu}
             aria-label="User menu"
           >
