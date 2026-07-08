@@ -4,7 +4,9 @@ import {
   rejectRefundRequest,
   payRefundRequest,
 } from "../../api/refundRequest";
+import { getOwnBoardingHouses } from "../../api/boardingHouse";
 import AdminLayout from "../layout/admin/AdminLayout";
+
 const formatCurrency = (value) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -47,8 +49,11 @@ const formatAddress = (address) => {
 };
 
 export default function ManagedRefundRequestsPage() {
+  const [boardingHouses, setBoardingHouses] = useState([]);
   const [refunds, setRefunds] = useState([]);
   const [status, setStatus] = useState("all");
+  const [selectedBoardingHouse, setSelectedBoardingHouse] = useState("all");
+  const [selectedRoom, setSelectedRoom] = useState("all");
   const [loading, setLoading] = useState(false);
 
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -57,10 +62,17 @@ export default function ManagedRefundRequestsPage() {
 
   const [rejectReason, setRejectReason] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("ZaloPay");
-  const [damageAssessment, setDamageAssessment] = useState([
-    { damageName: "", estimatedCost: 0 },
-  ]);
+  const [damageAssessment, setDamageAssessment] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+
+  const loadBoardingHouses = async () => {
+    try {
+      const res = await getOwnBoardingHouses({ page: 1, limit: 100 });
+      setBoardingHouses(res?.data || []);
+    } catch (error) {
+      alert(error.message || "Load boarding houses failed");
+    }
+  };
 
   const loadRefunds = async () => {
     try {
@@ -75,8 +87,48 @@ export default function ManagedRefundRequestsPage() {
   };
 
   useEffect(() => {
+    loadBoardingHouses();
+  }, []);
+
+  useEffect(() => {
     loadRefunds();
   }, [status]);
+
+  const roomOptions = Array.from(
+    new Map(
+      refunds
+        .filter((item) => {
+          if (selectedBoardingHouse === "all") return true;
+          return item.boardingHouse?._id === selectedBoardingHouse;
+        })
+        .filter((item) => item.room?._id)
+        .map((item) => [item.room._id, item.room])
+    ).values()
+  );
+
+  const filteredRefunds = refunds
+    .filter((item) => {
+      const matchBoardingHouse =
+        selectedBoardingHouse === "all" ||
+        item.boardingHouse?._id === selectedBoardingHouse;
+
+      const matchRoom =
+        selectedRoom === "all" || item.room?._id === selectedRoom;
+
+      return matchBoardingHouse && matchRoom;
+    })
+    .sort((a, b) => {
+      const priority = {
+        pending: 1,
+        accepted: 2,
+        rejected: 3,
+      };
+
+      return (
+        (priority[String(a.status || "").toLowerCase()] || 99) -
+        (priority[String(b.status || "").toLowerCase()] || 99)
+      );
+    });
 
   const openRejectModal = (refund) => {
     setSelectedRefund(refund);
@@ -87,7 +139,7 @@ export default function ManagedRefundRequestsPage() {
   const openPayModal = (refund) => {
     setSelectedRefund(refund);
     setPaymentMethod("ZaloPay");
-    setDamageAssessment([{ damageName: "", estimatedCost: 0 }]);
+    setDamageAssessment([]);
     setPayOpen(true);
   };
 
@@ -96,7 +148,7 @@ export default function ManagedRefundRequestsPage() {
     setPayOpen(false);
     setSelectedRefund(null);
     setRejectReason("");
-    setDamageAssessment([{ damageName: "", estimatedCost: 0 }]);
+    setDamageAssessment([]);
   };
 
   const submitReject = async () => {
@@ -107,7 +159,6 @@ export default function ManagedRefundRequestsPage() {
       }
 
       setSubmitting(true);
-
       await rejectRefundRequest(selectedRefund._id, rejectReason.trim());
 
       alert("Refund request rejected successfully");
@@ -200,311 +251,389 @@ export default function ManagedRefundRequestsPage() {
     }
   };
 
- return (
+  return (
     <AdminLayout>
-        <div style={styles.page}>
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.title}>Refund Requests</h1>
-          <p style={styles.subtitle}>
-            View, reject, or process deposit refund requests from tenants.
-          </p>
-        </div>
-
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          style={styles.filter}
-        >
-          <option value="all">All</option>
-          <option value="pending">Pending</option>
-          <option value="accepted">Accepted</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </div>
-
-      {loading ? (
-        <div style={styles.emptyBox}>Loading...</div>
-      ) : refunds.length === 0 ? (
-        <div style={styles.emptyBox}>No refund request found.</div>
-      ) : (
-        <div style={styles.list}>
-          {refunds.map((item) => {
-            const itemStatus = String(item.status || "").toLowerCase();
-            const canProcess = itemStatus === "pending";
-
-            return (
-              <div key={item._id} style={styles.card}>
-                <div style={styles.cardHeader}>
-                  <div>
-                    <h2 style={styles.roomTitle}>
-                      Room {item.room?.roomNumber || "N/A"}
-                    </h2>
-                    <p>
-                      Boarding house:{" "}
-                      <b>{item.boardingHouse?.name || "N/A"}</b>
-                    </p>
-                    <p>
-                      Address:{" "}
-                      <b>{formatAddress(item.boardingHouse?.address)}</b>
-                    </p>
-                  </div>
-
-                  <span
-                    style={{
-                      ...styles.statusBadge,
-                      background:
-                        itemStatus === "pending"
-                          ? "#fff7ed"
-                          : itemStatus === "accepted"
-                          ? "#dcfce7"
-                          : "#fee2e2",
-                      color:
-                        itemStatus === "pending"
-                          ? "#c2410c"
-                          : itemStatus === "accepted"
-                          ? "#15803d"
-                          : "#b91c1c",
-                    }}
-                  >
-                    {item.status}
-                  </span>
-                </div>
-
-                <div style={styles.infoGrid}>
-                  <Info label="Tenant" value={item.user?.fullname || "N/A"} />
-                  <Info label="Email" value={item.user?.email || "N/A"} />
-                  <Info
-                    label="Phone"
-                    value={item.user?.phoneNumber || "N/A"}
-                  />
-                  <Info
-                    label="Original deposit"
-                    value={formatCurrency(item.originalDepositAmount)}
-                  />
-                  <Info
-                    label="Damage cost"
-                    value={formatCurrency(item.totalDamageAmount)}
-                  />
-                  <Info
-                    label="Actual refund"
-                    value={formatCurrency(item.actualRefundAmount)}
-                  />
-                </div>
-
-                <div style={styles.section}>
-                  <h3 style={styles.sectionTitle}>User Refund Reason</h3>
-                  <pre style={styles.reasonBox}>{item.reason || "N/A"}</pre>
-                </div>
-
-                {item.damageAssessment?.length > 0 && (
-                  <div style={styles.section}>
-                    <h3 style={styles.sectionTitle}>Damage Assessment</h3>
-                    {item.damageAssessment.map((damage, index) => (
-                      <div key={index} style={styles.damageItem}>
-                        <span>{damage.damageName || "N/A"}</span>
-                        <b>{formatCurrency(damage.estimatedCost)}</b>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {item.reasonForCancel && (
-                  <div style={styles.section}>
-                    <h3 style={styles.sectionTitle}>Reject Reason</h3>
-                    <div style={styles.rejectBox}>{item.reasonForCancel}</div>
-                  </div>
-                )}
-
-                <div style={styles.meta}>
-                  <span>Created at: {item.createdAt || "N/A"}</span>
-                  <span>Processed at: {item.processedAt || "N/A"}</span>
-                  <span>
-                    Processed by:{" "}
-                    {item.processedBy?.fullname ||
-                      item.processedBy?.email ||
-                      "Not processed yet"}
-                  </span>
-                </div>
-
-                {canProcess && (
-                  <div style={styles.actions}>
-                    <button
-                      type="button"
-                      onClick={() => openRejectModal(item)}
-                      style={styles.rejectBtn}
-                    >
-                      Reject
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => openPayModal(item)}
-                      style={styles.payBtn}
-                    >
-                      Accept / Pay Refund
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {rejectOpen && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <h2>Reject Refund Request</h2>
-
-            <p>
-              Room: <b>{selectedRefund?.room?.roomNumber || "N/A"}</b>
+      <div style={styles.page}>
+        <div style={styles.header}>
+          <div>
+            <h1 style={styles.title}>Refund Requests</h1>
+            <p style={styles.subtitle}>
+              Manage deposit refund requests and process deductions if needed.
             </p>
+          </div>
 
-            <label style={styles.label}>Reject Reason *</label>
-            <textarea
-              rows={5}
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Enter reject reason..."
-              style={styles.textarea}
-            />
-
-            <div style={styles.modalActions}>
-              <button
-                type="button"
-                onClick={closeModals}
-                disabled={submitting}
-                style={styles.cancelBtn}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={submitReject}
-                disabled={submitting}
-                style={styles.rejectBtn}
-              >
-                {submitting ? "Submitting..." : "Reject"}
-              </button>
-            </div>
+          <div style={styles.summaryBox}>
+            {filteredRefunds.length} request(s)
           </div>
         </div>
-      )}
 
-      {payOpen && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <h2>Accept / Pay Refund</h2>
-
-            <div style={styles.refundSummary}>
-              <p>
-                Room: <b>{selectedRefund?.room?.roomNumber || "N/A"}</b>
-              </p>
-              <p>
-                Original deposit:{" "}
-                <b>{formatCurrency(selectedRefund?.originalDepositAmount)}</b>
-              </p>
-              <p>
-                Total damage: <b>{formatCurrency(getTotalDamage())}</b>
-              </p>
-              <p>
-                Actual refund:{" "}
-                <b style={{ color: "green" }}>
-                  {formatCurrency(getActualRefundAmount())}
-                </b>
-              </p>
-            </div>
-
-            <label style={styles.label}>Damage Assessment</label>
-
-            {damageAssessment.map((item, index) => (
-              <div key={index} style={styles.damageRow}>
-                <input
-                  value={item.damageName}
-                  onChange={(e) =>
-                    updateDamage(index, "damageName", e.target.value)
-                  }
-                  placeholder="Damage name"
-                  style={styles.input}
-                />
-
-                <input
-                  type="number"
-                  value={item.estimatedCost}
-                  onChange={(e) =>
-                    updateDamage(index, "estimatedCost", e.target.value)
-                  }
-                  placeholder="Cost"
-                  style={styles.input}
-                />
-
-                {damageAssessment.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeDamageRow(index)}
-                    style={styles.smallRejectBtn}
-                  >
-                    X
-                  </button>
-                )}
-              </div>
-            ))}
-
-            <button type="button" onClick={addDamageRow} style={styles.addBtn}>
-              + Add Damage
-            </button>
-
-            <label style={styles.label}>Payment Method *</label>
+        <div style={styles.filterRow}>
+          <div style={styles.filterItem}>
+            <label style={styles.filterLabel}>Boarding House</label>
             <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              style={styles.select}
+              value={selectedBoardingHouse}
+              onChange={(e) => {
+                setSelectedBoardingHouse(e.target.value);
+                setSelectedRoom("all");
+              }}
+              style={styles.filter}
             >
-              <option value="ZaloPay">ZaloPay</option>
-              <option value="VNPay">VNPay</option>
+              <option value="all">All Boarding Houses</option>
+              {boardingHouses.map((bh) => (
+                <option key={bh._id} value={bh._id}>
+                  {bh.name || bh.boardingHouseName || "N/A"}
+                </option>
+              ))}
             </select>
+          </div>
 
-            <div style={styles.warningBox}>
-              After payment success, refund request will become accepted and
-              deposit will become refunded.
-            </div>
+          <div style={styles.filterItem}>
+            <label style={styles.filterLabel}>Room</label>
+            <select
+              value={selectedRoom}
+              onChange={(e) => setSelectedRoom(e.target.value)}
+              style={styles.filter}
+            >
+              <option value="all">All Rooms</option>
+              {roomOptions.map((room) => (
+                <option key={room._id} value={room._id}>
+                  Room {room.roomNumber || "N/A"}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div style={styles.modalActions}>
-              <button
-                type="button"
-                onClick={closeModals}
-                disabled={submitting}
-                style={styles.cancelBtn}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={submitPayRefund}
-                disabled={submitting}
-                style={styles.payBtn}
-              >
-                {submitting ? "Processing..." : "Pay Refund"}
-              </button>
-            </div>
+          <div style={styles.filterItem}>
+            <label style={styles.filterLabel}>Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              style={styles.filter}
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending - Need Processing</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected">Rejected</option>
+            </select>
           </div>
         </div>
-            )}
-        </div>
+
+        {loading ? (
+          <div style={styles.emptyBox}>Loading...</div>
+        ) : filteredRefunds.length === 0 ? (
+          <div style={styles.emptyBox}>No refund request found.</div>
+        ) : (
+          <div style={styles.list}>
+            {filteredRefunds.map((item) => {
+              const itemStatus = String(item.status || "").toLowerCase();
+              const canProcess = itemStatus === "pending";
+
+              return (
+                <div key={item._id} style={styles.card}>
+                  <div style={styles.cardTop}>
+                    <div>
+                      <div style={styles.roomLine}>
+                        Room {item.room?.roomNumber || "N/A"} ·{" "}
+                        {item.boardingHouse?.name || "N/A"}
+                      </div>
+
+                      <div style={styles.addressLine}>
+                        {formatAddress(item.boardingHouse?.address)}
+                      </div>
+                    </div>
+
+                    <span style={getStatusStyle(itemStatus)}>
+                      {item.status}
+                    </span>
+                  </div>
+
+                  <div style={styles.compactGrid}>
+                    <Info label="Tenant" value={item.user?.fullname || "N/A"} />
+                    <Info label="Phone" value={item.user?.phoneNumber || "N/A"} />
+                    <Info
+                      label="Deposit"
+                      value={formatCurrency(item.originalDepositAmount)}
+                    />
+                    <Info
+                      label="Damage"
+                      value={formatCurrency(item.totalDamageAmount)}
+                    />
+                    <Info
+                      label="Refund"
+                      value={formatCurrency(item.actualRefundAmount)}
+                    />
+                    <Info label="Created" value={item.createdAt || "N/A"} />
+                  </div>
+
+                  <details style={styles.detailsBox}>
+                    <summary style={styles.summaryText}>
+                      View reason and processing detail
+                    </summary>
+
+                    <div style={styles.section}>
+                      <h3 style={styles.sectionTitle}>User Refund Reason</h3>
+                      <pre style={styles.reasonBox}>{item.reason || "N/A"}</pre>
+                    </div>
+
+                    {item.damageAssessment?.length > 0 && (
+                      <div style={styles.section}>
+                        <h3 style={styles.sectionTitle}>Damage Assessment</h3>
+                        {item.damageAssessment.map((damage, index) => (
+                          <div key={index} style={styles.damageItem}>
+                            <span>{damage.damageName || "N/A"}</span>
+                            <b>{formatCurrency(damage.estimatedCost)}</b>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {item.reasonForCancel && (
+                      <div style={styles.section}>
+                        <h3 style={styles.sectionTitle}>Reject Reason</h3>
+                        <div style={styles.rejectBox}>
+                          {item.reasonForCancel}
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={styles.meta}>
+                      <span>Processed at: {item.processedAt || "N/A"}</span>
+                      <span>
+                        Processed by:{" "}
+                        {item.processedBy?.fullname ||
+                          item.processedBy?.email ||
+                          "Not processed yet"}
+                      </span>
+                    </div>
+                  </details>
+
+                  {canProcess && (
+                    <div style={styles.actions}>
+                      <button
+                        type="button"
+                        onClick={() => openRejectModal(item)}
+                        style={styles.rejectBtn}
+                      >
+                        Reject
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openPayModal(item)}
+                        style={styles.payBtn}
+                      >
+                        Accept / Pay Refund
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {rejectOpen && (
+          <div style={styles.modalOverlay}>
+            <div style={styles.modalSmall}>
+              <h2 style={styles.modalTitle}>Reject Refund Request</h2>
+
+              <div style={styles.compactInfoGrid}>
+                <Info
+                  label="Tenant"
+                  value={selectedRefund?.user?.fullname || "N/A"}
+                />
+                <Info
+                  label="Room"
+                  value={selectedRefund?.room?.roomNumber || "N/A"}
+                />
+              </div>
+
+              <label style={styles.label}>Reject Reason *</label>
+              <textarea
+                rows={5}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Enter reject reason..."
+                style={styles.textarea}
+              />
+
+              <div style={styles.modalActions}>
+                <button
+                  type="button"
+                  onClick={closeModals}
+                  disabled={submitting}
+                  style={styles.cancelBtn}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={submitReject}
+                  disabled={submitting}
+                  style={styles.rejectBtn}
+                >
+                  {submitting ? "Submitting..." : "Reject"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {payOpen && (
+          <div style={styles.modalOverlay}>
+            <div style={styles.modal}>
+              <h2 style={styles.modalTitle}>Accept / Pay Refund</h2>
+
+              <div style={styles.compactInfoGrid}>
+                <Info
+                  label="Tenant"
+                  value={selectedRefund?.user?.fullname || "N/A"}
+                />
+                <Info
+                  label="Phone"
+                  value={selectedRefund?.user?.phoneNumber || "N/A"}
+                />
+                <Info
+                  label="Boarding House"
+                  value={selectedRefund?.boardingHouse?.name || "N/A"}
+                />
+                <Info
+                  label="Room"
+                  value={selectedRefund?.room?.roomNumber || "N/A"}
+                />
+              </div>
+
+              <div style={styles.refundSummaryCompact}>
+                <div>
+                  <span>Original Deposit</span>
+                  <b>{formatCurrency(selectedRefund?.originalDepositAmount)}</b>
+                </div>
+
+                <div>
+                  <span>Total Damage</span>
+                  <b>{formatCurrency(getTotalDamage())}</b>
+                </div>
+
+                <div>
+                  <span>Actual Refund</span>
+                  <b style={{ color: "green" }}>
+                    {formatCurrency(getActualRefundAmount())}
+                  </b>
+                </div>
+              </div>
+
+              <label style={styles.label}>Damage Assessment</label>
+
+              {damageAssessment.length === 0 && (
+                <div style={styles.noDamageBox}>
+                  No damage added. User will receive full deposit refund.
+                </div>
+              )}
+
+              <div style={styles.damageTable}>
+                {damageAssessment.map((item, index) => (
+                  <div key={index} style={styles.damageRowCompact}>
+                    <input
+                      value={item.damageName}
+                      onChange={(e) =>
+                        updateDamage(index, "damageName", e.target.value)
+                      }
+                      placeholder="Damage description"
+                      style={styles.damageNameInput}
+                    />
+
+                    <input
+                      type="number"
+                      value={item.estimatedCost}
+                      onChange={(e) =>
+                        updateDamage(index, "estimatedCost", e.target.value)
+                      }
+                      placeholder="Cost"
+                      style={styles.damageCostInput}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => removeDamageRow(index)}
+                      style={styles.removeDamageBtn}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button type="button" onClick={addDamageRow} style={styles.addBtn}>
+                + Add Damage
+              </button>
+
+              <label style={styles.label}>Payment Method *</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                style={styles.select}
+              >
+                <option value="ZaloPay">ZaloPay</option>
+                <option value="VNPay">VNPay</option>
+              </select>
+
+              <div style={styles.warningBox}>
+                After successful payment, the request will be marked as accepted
+                and the deposit will be marked as refunded.
+              </div>
+
+              <div style={styles.modalActions}>
+                <button
+                  type="button"
+                  onClick={closeModals}
+                  disabled={submitting}
+                  style={styles.cancelBtn}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={submitPayRefund}
+                  disabled={submitting}
+                  style={styles.payBtn}
+                >
+                  {submitting ? "Processing..." : "Pay Refund"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </AdminLayout>
   );
 }
+
 function Info({ label, value }) {
   return (
     <div style={styles.infoBox}>
-      <span>{label}</span>
-      <b>{value}</b>
+      <span style={styles.infoLabel}>{label}</span>
+      <b style={styles.infoValue}>{value}</b>
     </div>
   );
 }
+
+const getStatusStyle = (status) => ({
+  ...styles.statusBadge,
+  background:
+    status === "pending"
+      ? "#fff7ed"
+      : status === "accepted"
+      ? "#dcfce7"
+      : "#fee2e2",
+  color:
+    status === "pending"
+      ? "#c2410c"
+      : status === "accepted"
+      ? "#15803d"
+      : "#b91c1c",
+});
 
 const styles = {
   page: {
@@ -515,21 +644,55 @@ const styles = {
     justifyContent: "space-between",
     gap: 16,
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 18,
   },
   title: {
     margin: 0,
     fontSize: 28,
+    color: "#27364a",
   },
   subtitle: {
-    color: "#666",
+    color: "#667085",
     marginTop: 6,
   },
-  filter: {
+  summaryBox: {
+    background: "#fff",
+    border: "1px solid #e5e7eb",
+    borderRadius: 10,
     padding: "10px 14px",
+    fontWeight: 700,
+    color: "#344054",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+  },
+  filterRow: {
+    display: "grid",
+    gridTemplateColumns: "1.2fr 1fr 220px",
+    gap: 16,
+    marginBottom: 22,
+    background: "#fff",
+    border: "1px solid #e5e7eb",
+    borderRadius: 14,
+    padding: 18,
+    boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
+  },
+  filterItem: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  },
+  filterLabel: {
+    fontSize: 12,
+    color: "#667085",
+    fontWeight: 800,
+    textTransform: "uppercase",
+  },
+  filter: {
+    height: 42,
     borderRadius: 8,
-    border: "1px solid #ddd",
-    minWidth: 160,
+    border: "1px solid #d0d5dd",
+    padding: "0 12px",
+    color: "#344054",
+    background: "#fff",
   },
   list: {
     display: "grid",
@@ -537,27 +700,29 @@ const styles = {
   },
   card: {
     background: "#fff",
-    borderRadius: 14,
-    border: "1px solid #eee",
+    borderRadius: 16,
+    border: "1px solid #e5e7eb",
     padding: 22,
-    boxShadow: "0 4px 14px rgba(0,0,0,0.05)",
+    boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
   },
-  cardHeader: {
+  cardTop: {
     display: "flex",
     justifyContent: "space-between",
-    gap: 16,
+    gap: 14,
+    alignItems: "flex-start",
+    marginBottom: 14,
   },
-  roomTitle: {
-    marginTop: 0,
+  roomLine: {
+    fontSize: 18,
+    fontWeight: 800,
+    color: "#27364a",
   },
-  statusBadge: {
-    padding: "8px 14px",
-    borderRadius: 999,
-    height: "fit-content",
-    fontWeight: 700,
-    textTransform: "capitalize",
+  addressLine: {
+    marginTop: 4,
+    color: "#667085",
+    fontSize: 13,
   },
-  infoGrid: {
+  compactGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
     gap: 12,
@@ -566,15 +731,30 @@ const styles = {
   infoBox: {
     background: "#f8fafc",
     border: "1px solid #e5e7eb",
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
+    minHeight: 64,
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: "#667085",
+    fontWeight: 800,
+    textTransform: "uppercase",
+  },
+  infoValue: {
+    color: "#27364a",
+    fontSize: 14,
+    wordBreak: "break-word",
   },
   section: {
-    marginTop: 18,
+    marginTop: 14,
   },
   sectionTitle: {
     margin: "0 0 8px",
-    fontSize: 16,
+    fontSize: 15,
   },
   reasonBox: {
     whiteSpace: "pre-wrap",
@@ -582,16 +762,26 @@ const styles = {
     background: "#f8fafc",
     border: "1px solid #e5e7eb",
     borderRadius: 10,
-    padding: 14,
-    lineHeight: 1.6,
+    padding: 12,
+    lineHeight: 1.5,
+    margin: 0,
   },
-  rejectBox: {
-    background: "#fee2e2",
-    color: "#b91c1c",
-    border: "1px solid #fecaca",
-    borderRadius: 10,
-    padding: 14,
-    fontWeight: 600,
+  detailsBox: {
+    marginTop: 14,
+    background: "#fff",
+  },
+  summaryText: {
+    cursor: "pointer",
+    color: "#2563eb",
+    fontWeight: 700,
+  },
+  statusBadge: {
+    padding: "7px 12px",
+    borderRadius: 999,
+    height: "fit-content",
+    fontWeight: 800,
+    textTransform: "capitalize",
+    whiteSpace: "nowrap",
   },
   damageItem: {
     display: "flex",
@@ -599,20 +789,29 @@ const styles = {
     background: "#fff7ed",
     border: "1px solid #fed7aa",
     borderRadius: 10,
-    padding: 12,
+    padding: 10,
     marginBottom: 8,
+  },
+  rejectBox: {
+    background: "#fee2e2",
+    color: "#b91c1c",
+    border: "1px solid #fecaca",
+    borderRadius: 10,
+    padding: 12,
+    fontWeight: 600,
   },
   meta: {
     display: "grid",
-    gap: 6,
-    marginTop: 18,
-    color: "#666",
-    fontSize: 14,
+    gap: 4,
+    marginTop: 12,
+    color: "#667085",
+    fontSize: 13,
   },
   actions: {
     display: "flex",
-    gap: 12,
-    marginTop: 18,
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 14,
   },
   rejectBtn: {
     border: "none",
@@ -621,7 +820,7 @@ const styles = {
     borderRadius: 8,
     padding: "10px 16px",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   payBtn: {
     border: "none",
@@ -630,7 +829,7 @@ const styles = {
     borderRadius: 8,
     padding: "10px 16px",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
   },
   emptyBox: {
     background: "#fff",
@@ -651,16 +850,44 @@ const styles = {
   },
   modal: {
     width: "100%",
-    maxWidth: 650,
-    maxHeight: "90vh",
+    maxWidth: 720,
+    maxHeight: "86vh",
     overflowY: "auto",
     background: "#fff",
     borderRadius: 16,
-    padding: 24,
+    padding: 22,
+  },
+  modalSmall: {
+    width: "100%",
+    maxWidth: 520,
+    background: "#fff",
+    borderRadius: 16,
+    padding: 22,
+  },
+  modalTitle: {
+    marginTop: 0,
+    marginBottom: 14,
+    color: "#27364a",
+  },
+  compactInfoGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: 10,
+    marginTop: 12,
+  },
+  refundSummaryCompact: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 10,
+    background: "#f8fafc",
+    border: "1px solid #e5e7eb",
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 14,
   },
   label: {
     display: "block",
-    fontWeight: 700,
+    fontWeight: 800,
     marginBottom: 8,
     marginTop: 14,
   },
@@ -672,33 +899,44 @@ const styles = {
     fontSize: 15,
     boxSizing: "border-box",
   },
-  input: {
-    flex: 1,
+  damageTable: {
+    display: "grid",
+    gap: 8,
+  },
+  damageRowCompact: {
+    display: "grid",
+    gridTemplateColumns: "1fr 160px 36px",
+    gap: 8,
+    alignItems: "center",
+  },
+  damageNameInput: {
     border: "1px solid #ddd",
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 15,
-  },
-  select: {
-    width: "100%",
-    border: "1px solid #ddd",
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 15,
-    boxSizing: "border-box",
-  },
-  damageRow: {
-    display: "flex",
-    gap: 10,
-    marginBottom: 10,
-  },
-  smallRejectBtn: {
-    border: "none",
-    background: "#dc2626",
-    color: "#fff",
     borderRadius: 8,
-    padding: "0 12px",
+    padding: "9px 10px",
+    fontSize: 14,
+  },
+  damageCostInput: {
+    border: "1px solid #ddd",
+    borderRadius: 8,
+    padding: "9px 10px",
+    fontSize: 14,
+  },
+  removeDamageBtn: {
+    border: "none",
+    background: "#fee2e2",
+    color: "#b91c1c",
+    borderRadius: 8,
+    height: 38,
     cursor: "pointer",
+    fontWeight: 800,
+  },
+  noDamageBox: {
+    background: "#ecfdf3",
+    color: "#087443",
+    border: "1px solid #abefc6",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
     fontWeight: 700,
   },
   addBtn: {
@@ -708,13 +946,16 @@ const styles = {
     borderRadius: 8,
     padding: "9px 14px",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
+    marginTop: 10,
   },
-  refundSummary: {
-    background: "#f8fafc",
-    border: "1px solid #e5e7eb",
-    borderRadius: 12,
-    padding: 14,
+  select: {
+    width: "100%",
+    border: "1px solid #ddd",
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    boxSizing: "border-box",
   },
   warningBox: {
     background: "#fff7ed",
@@ -736,6 +977,6 @@ const styles = {
     borderRadius: 8,
     padding: "10px 16px",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
   },
 };
