@@ -16,9 +16,9 @@ import roomTypeController from "./roomTypeController.js";
 // import tenantController from "./tenantController.js";
 // import renewalController from "./renewalController.js";
 // import bhExpenseController from "./bhExpenseController.js";
-// import revenueController from "./revenueController.js";
+import revenueController from "./revenueController.js";
 // import userPaymentController from "./userPaymentController.js";
-// import refundRequestController from "./refundRequestController.js";
+import refundRequestController from "./refundRequestController.js";
 // import paymentBillController from "./paymentBillController.js";
 // import managerController from "./managerController.js";
 import roomAdditionFeeController from "./roomAdditionFeeController.js";
@@ -46,8 +46,8 @@ export {
   // tenantController,
   // renewalController,
   // bhExpenseController,
-  // revenueController,
-  // refundRequestController,
+  revenueController,
+  refundRequestController,
   // paymentBillController,
   // managerController,
   roomAdditionFeeController,

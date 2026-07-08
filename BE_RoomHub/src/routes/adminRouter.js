@@ -6,6 +6,7 @@ import {
   accountController,
   reportController,
   boardingHouseController,
+  revenueController,
 } from '../controllers/index.js';
 import reviewController from '../controllers/reviewController.js';
 import { upload } from '../config/cloudinary.config.js';
@@ -51,4 +52,6 @@ adminRouter.delete('/boardinghouse/:id/images/:imageId', BoardingHouseController
 adminRouter.get('/boardinghouse/:id/images', BoardingHouseController.getBoardingHouseImages);
 adminRouter.get('/types', BoardingHouseController.getAllBoardingHouseTypes);
 
+adminRouter.get("/revenue/total", revenueController.getTotalRevenue);
+adminRouter.get("/revenue/boarding-houses", revenueController.getRevenuePerBoardingHouse);
 export { adminRouter };

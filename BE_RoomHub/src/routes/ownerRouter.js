@@ -1,5 +1,13 @@
 import { Router } from 'express';
-import { boardingHouseController, appointmentController, depositController, roomAdditionFeeController, ReviewController, monthlyRentController, roomTypeController } from '../controllers/index.js';
+import { boardingHouseController,
+     appointmentController,
+     depositController,
+     roomAdditionFeeController,
+     ReviewController,
+     monthlyRentController,
+     roomTypeController,
+    refundRequestController,
+ } from '../controllers/index.js';
 import { upload } from '../config/cloudinary.config.js';
 
 const ownerRouter = Router();
@@ -43,4 +51,20 @@ ownerRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeB
 ownerRouter.post("/boardinghouse/roomtype/:id/create", upload.single("roomType"), roomTypeController.addRoomTypeToBoardingHouse);
 ownerRouter.put("/boardinghouse/roomtype/:roomTypeId/", upload.single("roomType"), roomTypeController.updateRoomTypeToBoardingHouse);
 ownerRouter.delete("/boardinghouse/roomtype/:roomTypeId/", roomTypeController.softDeleteRoomType);
+// REFUND MANAGEMENT
+// REFUND MANAGEMENT
+ownerRouter.get(
+  "/refund-requests",
+  refundRequestController.getManagedRefundRequests
+);
+
+ownerRouter.patch(
+  "/refund-requests/:refundRequestId/reject",
+  refundRequestController.rejectRefundRequest
+);
+
+ownerRouter.post(
+  "/refund-requests/:refundRequestId/pay",
+  refundRequestController.createRefundPayment
+);
 export { ownerRouter };

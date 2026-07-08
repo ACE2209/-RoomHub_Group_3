@@ -9,6 +9,7 @@ import {
   watchLaterController,
   depositController,
 paymentController,
+refundRequestController,
 } from "../controllers/index.js";
 import { upload } from "../config/cloudinary.config.js";
 
@@ -59,7 +60,11 @@ authRouter.put("/profile", accountController.updateAccountFromProfile);
 authRouter.post("/deposits", depositController.createDeposit);
 authRouter.get("/deposits", depositController.getMyDeposits);
 authRouter.post("/deposits/:depositId/pay", paymentController.payDeposit);
-
+// USER REFUND REQUEST
+authRouter.post("/refund-requests", refundRequestController.createRefundRequest);
+authRouter.get("/refund-requests", refundRequestController.getMyRefundRequests);
+authRouter.get("/refund-requests/check-exists/:depositRoomId", refundRequestController.checkRefundRequestExists
+);
 // USER RENT PAYMENT
 authRouter.get("/payment-bills", paymentController.getMyPaymentBills);
 authRouter.post("/payment-bills/:billId/pay", paymentController.payRent);
