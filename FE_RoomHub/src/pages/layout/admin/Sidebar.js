@@ -87,6 +87,8 @@ export default function Sidebar() {
 
             <NavLink to="/managed-reviews">Review Management</NavLink>
 
+            <NavLink to="/task-management">Task Management</NavLink>
+
             <NavLink to="/manage-rooms">Manage Rooms</NavLink>
 
             <NavLink to="/manage-room-types">Manage Room Types</NavLink>
