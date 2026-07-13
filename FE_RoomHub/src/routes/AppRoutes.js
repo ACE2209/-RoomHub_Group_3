@@ -412,24 +412,24 @@ const AppRoutes = () => {
         }
       />
       <Route
-  path="/my-payment-bills"
-  element={
-    <ProtectedRoute>
-      <MyPaymentBillsPage />
-    </ProtectedRoute>
-  }
-/>
-<Route path="/my-refund-requests" element={<MyRefundRequestsPage />} />
-<Route path="/owner/refund-requests" element={<ManagedRefundRequestsPage />} />
-<Route path="/staff/refund-requests" element={<ManagedRefundRequestsPage />} />
-<Route
-  path="/managed-refund-requests"
-  element={
-    <ProtectedRoute allowedRoles={["owner", "staff"]}>
-      <ManagedRefundRequestsPage />
-    </ProtectedRoute>
-  }
-/>
+        path="/my-payment-bills"
+        element={
+          <ProtectedRoute>
+            <MyPaymentBillsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/my-refund-requests" element={<MyRefundRequestsPage />} />
+      <Route path="/owner/refund-requests" element={<ManagedRefundRequestsPage />} />
+      <Route path="/staff/refund-requests" element={<ManagedRefundRequestsPage />} />
+      <Route
+        path="/managed-refund-requests"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManagedRefundRequestsPage />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 };
