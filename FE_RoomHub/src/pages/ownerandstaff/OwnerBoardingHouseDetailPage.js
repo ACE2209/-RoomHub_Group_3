@@ -31,6 +31,8 @@ const emptyForm = {
   wardName: "",
   wardNameEn: "",
   detail: "",
+  staffId: "",
+  assignedStaff: null,
   images: [],
   existingImages: [],
 };
@@ -113,6 +115,8 @@ export default function OwnerBoardingHouseDetailPage() {
           wardName: house?.address?.ward?.name || "",
           wardNameEn: house?.address?.ward?.name_en || "",
           detail: house?.address?.detail || "",
+          staffId: house?.staffId?._id || house?.staffId || "",
+          assignedStaff: house?.staffId || null,
           images: [],
           existingImages: house?.images || [],
         });
@@ -174,6 +178,7 @@ export default function OwnerBoardingHouseDetailPage() {
     data.append("address[ward][name]", form.wardName);
     data.append("address[ward][name_en]", form.wardName);
     data.append("address[detail]", form.detail);
+    data.append("staffId", form.staffId || "");
 
     if (!isCreate) {
       data.append("boardingHouse", JSON.stringify(form.existingImages || []));
@@ -338,6 +343,23 @@ export default function OwnerBoardingHouseDetailPage() {
               <TextField label="Số phòng còn trống *" type="number" value={form.availableRooms} onChange={(value) => updateField("availableRooms", value)} disabled={isReadOnly} />
               <TextField label="Giá điện (VNĐ/kWh) *" type="text" formatCurrency value={form.electricityPrice} onChange={(value) => updateField("electricityPrice", value)} disabled={isReadOnly} />
               <TextField label="Giá nước (VNĐ/m3) *" type="text" formatCurrency value={form.waterPrice} onChange={(value) => updateField("waterPrice", value)} disabled={isReadOnly} />
+              {!isCreate && (
+                <label style={fieldStyle}>
+                  <span style={labelStyle}>Assigned Staff</span>
+                  <div style={readonlyInfoStyle}>
+                    <strong>{getStaffDisplayName(form.assignedStaff)}</strong>
+                    {form.assignedStaff ? (
+                      <span>
+                        {[form.assignedStaff.email, form.assignedStaff.phoneNumber]
+                          .filter(Boolean)
+                          .join(" | ") || "No contact info"}
+                      </span>
+                    ) : (
+                      <span>No staff assigned</span>
+                    )}
+                  </div>
+                </label>
+              )}
             </div>
 
             <label style={{ ...fieldStyle, marginTop: 16 }}>
@@ -575,6 +597,12 @@ function TextField({ label, value, onChange, type = "text", disabled = false, fo
   );
 }
 
+const getStaffDisplayName = (staff) => {
+  if (!staff) return "Not assigned";
+  if (typeof staff === "string") return "Assigned staff";
+  return staff.fullname || staff.username || staff.email || "Assigned staff";
+};
+
 const headerStyle = { display: "flex", alignItems: "center", gap: 16, marginBottom: 18 };
 const titleStyle = { margin: 0, color: "#27364a", fontWeight: 700 };
 const subtitleStyle = { margin: "4px 0 0", color: "#667085", fontSize: 13 };
@@ -583,6 +611,7 @@ const gridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minm
 const fieldStyle = { display: "flex", flexDirection: "column", gap: 8 };
 const labelStyle = { color: "#344054", fontSize: 13, fontWeight: 700 };
 const inputStyle = { minHeight: 42, border: "1px solid #d0d5dd", borderRadius: 6, padding: "0 12px", color: "#344054", outline: "none", background: "#fff" };
+const readonlyInfoStyle = { minHeight: 42, border: "1px solid #d0d5dd", borderRadius: 6, padding: "8px 12px", color: "#344054", background: "#f9fafb", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3 };
 const textareaStyle = { ...inputStyle, padding: 12, resize: "vertical", fontFamily: "inherit" };
 const sectionTitleStyle = { margin: "22px 0 14px", color: "#27364a", fontSize: 18 };
 const uploadStyle = { display: "inline-flex", alignItems: "center", gap: 8, border: "1px dashed #98a2b3", borderRadius: 8, padding: "12px 16px", cursor: "pointer", color: "#344054", fontWeight: 700 };
