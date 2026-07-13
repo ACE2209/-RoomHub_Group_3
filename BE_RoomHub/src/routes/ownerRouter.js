@@ -9,6 +9,7 @@ import {
   roomTypeController,
   refundRequestController,
   staffManagementController,
+  taskController,
 } from '../controllers/index.js';
 import { upload } from '../config/cloudinary.config.js';
 
@@ -58,6 +59,12 @@ ownerRouter.get("/staffs", staffManagementController.getOwnerStaffs.bind(staffMa
 ownerRouter.post("/staffs", staffManagementController.createOwnerStaff.bind(staffManagementController));
 ownerRouter.put("/staffs/:staffId", staffManagementController.updateOwnerStaff.bind(staffManagementController));
 ownerRouter.delete("/staffs/:staffId", staffManagementController.deleteOwnerStaff.bind(staffManagementController));
+
+ownerRouter.get("/tasks", taskController.getManagedTasks.bind(taskController));
+ownerRouter.post("/tasks", taskController.createManagedTask.bind(taskController));
+ownerRouter.get("/tasks/:taskId", taskController.getManagedTaskDetail.bind(taskController));
+ownerRouter.put("/tasks/:taskId", taskController.updateManagedTask.bind(taskController));
+ownerRouter.delete("/tasks/:taskId", taskController.deleteManagedTask.bind(taskController));
 // REFUND MANAGEMENT
 // REFUND MANAGEMENT
 ownerRouter.get(
