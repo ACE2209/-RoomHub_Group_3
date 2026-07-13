@@ -51,6 +51,7 @@ import ManageMonthlyRents from "../pages/ownerandstaff/ManageMonthlyRents";
 import ManageMonthlyRentDetail from "../pages/ownerandstaff/ManageMonthlyRentDetail";
 
 import ManageRoomTypes from "../pages/ownerandstaff/ManageRoomTypes";
+import StaffManagementPage from "../pages/ownerandstaff/StaffManagementPage";
 import MyPaymentBillsPage from "../pages/user/MyPaymentBillsPage";
 import MyRefundRequestsPage from "../pages/user/MyRefundRequestsPage";
 import ManagedRefundRequestsPage from "../pages/ownerandstaff/ManagedRefundRequestsPage";
@@ -288,6 +289,15 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["owner", "staff"]}>
             <ManageRoomTypes />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/staff-management"
+        element={
+          <ProtectedRoute allowedRoles={["owner"]}>
+            <StaffManagementPage />
           </ProtectedRoute>
         }
       />
