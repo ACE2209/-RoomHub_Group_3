@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     Card,
     Table,
@@ -13,13 +13,10 @@ import {
     Popconfirm,
     Row,
     Col,
-    Empty,
-    DatePicker,
+    Tag,
 } from "antd";
 
-import {
-    PlusOutlined,
-} from "@ant-design/icons";
+import { PlusOutlined } from "@ant-design/icons";
 
 import {
     createRoomAdditionFee,
@@ -27,21 +24,64 @@ import {
     deleteRoomAdditionFee,
     getRoomAdditionFeesByRoomId,
     getAllRoomAdditionFees,
+    getRoomAdditionFeeNameOptions,
 } from "../../api/ownerandstaff/roomAdditionFeeAPI";
 
-import {
-    getOwnBoardingHouses,
-} from "../../api/boardingHouse";
-
-import {
-    getRoomsByBoardingHouse,
-} from "../../api/room";
+import { getOwnBoardingHouses } from "../../api/boardingHouse";
+import { getRoomsByBoardingHouse } from "../../api/room";
 
 import AdminLayout from "../layout/admin/AdminLayout";
 import "./ManageRoomAdditionalFees.css";
 
-const { Option } = Select;
-const { MonthPicker } = DatePicker;
+const { Option, OptGroup } = Select;
+
+// Giá trị đặc biệt đại diện cho lựa chọn "Khác" (tự nhập tên phí).
+const CUSTOM_FEE_VALUE = "Khác";
+
+// Danh mục mặc định (dự phòng khi chưa gọi được API BE) - phải khớp với
+// ROOM_ADDITIONAL_FEE_NAME_OPTIONS ở BE để trải nghiệm nhất quán.
+const DEFAULT_FEE_NAME_OPTIONS = [
+    {
+        group: "Phí dịch vụ",
+        options: [
+            { value: "Internet", label: "Internet" },
+            { value: "Truyền hình cáp", label: "Truyền hình cáp" },
+            { value: "Phí vệ sinh", label: "Phí vệ sinh" },
+            { value: "Phí thang máy", label: "Phí thang máy" },
+        ],
+    },
+    {
+        group: "Phí tiện ích",
+        options: [{ value: "Phí gửi xe", label: "Phí gửi xe (bãi đậu xe)" }],
+    },
+    {
+        group: "Phí sử dụng vượt định mức",
+        options: [
+            { value: "Phí điện vượt định mức", label: "Phí điện vượt định mức" },
+            { value: "Phí nước vượt định mức", label: "Phí nước vượt định mức" },
+        ],
+    },
+    {
+        group: "Phí phạt",
+        options: [
+            { value: "Phí phạt đóng trễ", label: "Phí phạt đóng tiền muộn" },
+            {
+                value: "Phí bồi thường hư hỏng",
+                label: "Phí bồi thường hư hỏng tài sản",
+            },
+        ],
+    },
+    {
+        group: "Khác",
+        options: [
+            {
+                value: CUSTOM_FEE_VALUE,
+                label: "Khác (tự nhập tên phí)",
+                isCustom: true,
+            },
+        ],
+    },
+];
 
 const ManageRoomAdditionalFees = () => {
     const [loading, setLoading] = useState(false);
@@ -51,9 +91,9 @@ const ManageRoomAdditionalFees = () => {
     const [selectedRoom, setSelectedRoom] = useState(null);
     const [fees, setFees] = useState([]);
 
-    const [filterMonth, setFilterMonth] = useState(null);
-    const [filterYear, setFilterYear] = useState(null);
-    const [showAllFees, setShowAllFees] = useState(true);  // ✅ Toggle to show all
+    const [feeNameOptions, setFeeNameOptions] = useState(
+        DEFAULT_FEE_NAME_OPTIONS
+    );
 
     const [pagination, setPagination] = useState({
         currentPage: 1,
@@ -61,21 +101,43 @@ const ManageRoomAdditionalFees = () => {
         totalItems: 0,
         limit: 10,
     });
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingFee, setEditingFee] = useState(null);
+    const [isCustomFeeName, setIsCustomFeeName] = useState(false);
     const [form] = Form.useForm();
+
+    // Tập hợp toàn bộ value có sẵn trong danh mục, dùng để xác định khi Edit
+    // một fee cũ xem tên đó có nằm trong danh mục hay là tên tự nhập.
+    const knownFeeNameValues = useMemo(() => {
+        const values = new Set();
+        feeNameOptions.forEach((group) => {
+            group.options.forEach((opt) => values.add(opt.value));
+        });
+        return values;
+    }, [feeNameOptions]);
 
     useEffect(() => {
         loadBoardingHouses();
         loadAllFees();
+        loadFeeNameOptions();
     }, []);
+
+    const loadFeeNameOptions = async () => {
+        try {
+            const res = await getRoomAdditionFeeNameOptions();
+            if (res?.success && Array.isArray(res.data) && res.data.length) {
+                setFeeNameOptions(res.data);
+            }
+        } catch (err) {
+            // Giữ danh mục mặc định nếu API chưa sẵn sàng, không chặn người dùng
+            console.warn("Failed to load fee name options, using defaults:", err);
+        }
+    };
 
     const loadBoardingHouses = async () => {
         try {
-            const res = await getOwnBoardingHouses({
-                page: 1,
-                limit: 100,
-            });
+            const res = await getOwnBoardingHouses({ page: 1, limit: 100 });
             setBoardingHouses(res.data || []);
         } catch (err) {
             message.error(err.message || "Failed to load boarding houses");
@@ -94,11 +156,8 @@ const ManageRoomAdditionalFees = () => {
     const loadAllFees = async () => {
         try {
             setLoading(true);
-
             const res = await getAllRoomAdditionFees();
-
             setFees(res || []);
-
             setPagination({
                 currentPage: 1,
                 totalPages: 1,
@@ -116,29 +175,19 @@ const ManageRoomAdditionalFees = () => {
     const loadFees = async (roomId, page = 1) => {
         try {
             setLoading(true);
-
-            let params = {
-                page,
-                limit: 10,
-            };
-
-            if (!showAllFees && filterMonth && filterYear) {
-                params.month = filterMonth;
-                params.year = filterYear;
-            }
-
+            const params = { page, limit: 10 };
             const res = await getRoomAdditionFeesByRoomId(roomId, params);
-
-            console.log("✅ Fees loaded:", res);
 
             if (res && res.data) {
                 setFees(res.data);
-                setPagination(res.pagination || {
-                    currentPage: 1,
-                    totalPages: 1,
-                    totalItems: res.data.length,
-                    limit: 10,
-                });
+                setPagination(
+                    res.pagination || {
+                        currentPage: 1,
+                        totalPages: 1,
+                        totalItems: res.data.length,
+                        limit: 10,
+                    }
+                );
             } else if (Array.isArray(res)) {
                 setFees(res);
                 setPagination({
@@ -163,7 +212,7 @@ const ManageRoomAdditionalFees = () => {
     const handleBoardingHouseChange = async (value) => {
         setSelectedBoardingHouse(value);
         setSelectedRoom(null);
-
+        setRooms([]);
         await loadRooms(value);
         await loadAllFees();
     };
@@ -173,25 +222,13 @@ const ManageRoomAdditionalFees = () => {
         await loadFees(roomId);
     };
 
-    const handleDateFilterChange = async () => {
-        if (selectedRoom) {
-            await loadFees(selectedRoom);
-        }
-    };
-
-    const handleShowAllToggle = async () => {
-        setShowAllFees(!showAllFees);
-        if (selectedRoom) {
-            await loadFees(selectedRoom);
-        }
-    };
-
     const openCreateModal = () => {
         if (!selectedRoom) {
             return message.warning("Please select a room first");
         }
 
         setEditingFee(null);
+        setIsCustomFeeName(false);
         form.resetFields();
         form.setFieldsValue({
             month: new Date().getMonth() + 1,
@@ -202,42 +239,72 @@ const ManageRoomAdditionalFees = () => {
 
     const openEditModal = (record) => {
         setEditingFee(record);
-        console.log("✅ Editing fee:", record);
+
+        // Nếu tên phí hiện tại nằm trong danh mục có sẵn -> chọn đúng option đó.
+        // Nếu không (tên tự nhập từ trước) -> chuyển sang chế độ "Khác".
+        const matchesKnownOption = knownFeeNameValues.has(record.feeName);
+
+        setIsCustomFeeName(!matchesKnownOption);
 
         form.setFieldsValue({
-            feeName: record.feeName,
+            feeNameOption: matchesKnownOption ? record.feeName : CUSTOM_FEE_VALUE,
+            customFeeName: matchesKnownOption ? undefined : record.feeName,
             feeAmount: record.feeAmount,
             month: record.month,
             year: record.year,
         });
+
         setIsModalOpen(true);
+    };
+
+    const handleFeeNameOptionChange = (value) => {
+        setIsCustomFeeName(value === CUSTOM_FEE_VALUE);
+        if (value !== CUSTOM_FEE_VALUE) {
+            form.setFieldsValue({ customFeeName: undefined });
+        }
     };
 
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields();
-            console.log("✅ Form values:", values);
+
+            const feeName =
+                values.feeNameOption === CUSTOM_FEE_VALUE
+                    ? (values.customFeeName || "").trim()
+                    : values.feeNameOption;
+
+            const payload = {
+                feeName,
+                feeAmount: values.feeAmount,
+                month: values.month,
+                year: values.year,
+            };
 
             if (editingFee) {
-                await updateRoomAdditionFee(editingFee._id, values);
+                await updateRoomAdditionFee(editingFee._id, payload);
                 message.success("Fee updated successfully");
             } else {
                 await createRoomAdditionFee({
                     roomId: selectedRoom,
-                    ...values,
+                    ...payload,
                 });
                 message.success("Fee created successfully");
             }
 
             setIsModalOpen(false);
             form.resetFields();
+
             if (selectedRoom) {
                 await loadFees(selectedRoom, pagination.currentPage);
             } else {
                 await loadAllFees();
             }
         } catch (err) {
-            console.error("❌ Error:", err);
+            if (err?.errorFields) {
+                // Lỗi validate của Form, không cần message riêng (AntD đã hiển thị)
+                return;
+            }
+            console.error("Error:", err);
             message.error(err.message || "An error occurred");
         }
     };
@@ -261,6 +328,7 @@ const ManageRoomAdditionalFees = () => {
             title: "Fee Name",
             dataIndex: "feeName",
             key: "feeName",
+            render: (value) => <Tag color="orange">{value}</Tag>,
         },
         {
             title: "Amount",
@@ -310,11 +378,7 @@ const ManageRoomAdditionalFees = () => {
                         okText="Yes"
                         cancelText="No"
                     >
-                        <Button
-                            danger
-                            size="small"
-                            className="manage-fees__btn-delete"
-                        >
+                        <Button danger size="small" className="manage-fees__btn-delete">
                             Delete
                         </Button>
                     </Popconfirm>
@@ -329,10 +393,7 @@ const ManageRoomAdditionalFees = () => {
                 <Card
                     title="Manage Room Additional Fees"
                     className="manage-fees__card"
-                    style={{
-                        backgroundColor: "#ffffff",
-                        borderColor: "#e5e7eb"
-                    }}
+                    style={{ backgroundColor: "#ffffff", borderColor: "#e5e7eb" }}
                 >
                     <Row gutter={16} style={{ marginBottom: 20 }}>
                         <Col xs={24} sm={24} md={8}>
@@ -358,6 +419,7 @@ const ManageRoomAdditionalFees = () => {
                                 value={selectedRoom}
                                 onChange={handleRoomChange}
                                 className="manage-fees__select"
+                                disabled={!selectedBoardingHouse}
                             >
                                 {rooms.map((room) => (
                                     <Option key={room._id} value={room._id}>
@@ -386,9 +448,7 @@ const ManageRoomAdditionalFees = () => {
                         columns={columns}
                         dataSource={fees}
                         className="manage-fees__table"
-                        locale={{
-                            emptyText: "No fees found",
-                        }}
+                        locale={{ emptyText: "No fees found" }}
                         pagination={{
                             current: pagination.currentPage,
                             total: pagination.totalItems,
@@ -410,15 +470,43 @@ const ManageRoomAdditionalFees = () => {
                     onOk={handleSubmit}
                     okText={editingFee ? "Update" : "Create"}
                     className="manage-fees__modal"
+                    destroyOnClose
                 >
                     <Form form={form} layout="vertical">
                         <Form.Item
-                            name="feeName"
+                            name="feeNameOption"
                             label="Fee Name"
-                            rules={[{ required: true, message: "Please enter fee name" }]}
+                            extra="Tên phí phải là duy nhất trong cùng một phòng theo tháng/năm (BR-32)."
+                            rules={[{ required: true, message: "Please select a fee name" }]}
                         >
-                            <Input placeholder="e.g., Internet, Parking, Water" />
+                            <Select
+                                placeholder="Chọn loại phí"
+                                onChange={handleFeeNameOptionChange}
+                            >
+                                {feeNameOptions.map((group) => (
+                                    <OptGroup key={group.group} label={group.group}>
+                                        {group.options.map((opt) => (
+                                            <Option key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                            </Option>
+                                        ))}
+                                    </OptGroup>
+                                ))}
+                            </Select>
                         </Form.Item>
+
+                        {isCustomFeeName && (
+                            <Form.Item
+                                name="customFeeName"
+                                label="Tên phí (tự nhập)"
+                                rules={[
+                                    { required: true, message: "Please enter fee name" },
+                                    { whitespace: true, message: "Fee name cannot be blank" },
+                                ]}
+                            >
+                                <Input placeholder="e.g., Phí Wifi tầng trệt" />
+                            </Form.Item>
+                        )}
 
                         <Form.Item
                             name="feeAmount"

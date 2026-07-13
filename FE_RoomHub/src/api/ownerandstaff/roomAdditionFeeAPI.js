@@ -39,6 +39,19 @@ export const createRoomAdditionFee = async (data) => {
     return parseJsonResponse(res);
 };
 
+// Danh mục tên phí bổ sung gợi ý (BE trả về, dùng cho Select trong FE)
+export const getRoomAdditionFeeNameOptions = async () => {
+    const res = await fetch(
+        `${API_BASE_URL}${getRolePrefix()}/room-addition-fee/fee-name-options`,
+        {
+            method: "GET",
+            headers: authHeaders(),
+        }
+    );
+
+    return parseJsonResponse(res);
+};
+
 export const getAllRoomAdditionFees = async () => {
     const res = await fetch(
         `${API_BASE_URL}${getRolePrefix()}/room-addition-fee`,
@@ -69,10 +82,13 @@ export const getRoomAdditionFeesByRoomId = async (
 };
 
 export const getRoomAdditionFeeForMonthlyCalculate = async (
-    roomId
+    roomId,
+    params = {}
 ) => {
     const res = await fetch(
-        `${API_BASE_URL}${getRolePrefix()}/room-addition-fee/calculate-rent/${roomId}`,
+        `${API_BASE_URL}${getRolePrefix()}/room-addition-fee/calculate-rent/${roomId}${buildQuery(
+            params
+        )}`,
         {
             method: "GET",
             headers: authHeaders(),
