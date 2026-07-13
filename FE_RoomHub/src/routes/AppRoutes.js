@@ -52,6 +52,7 @@ import ManageMonthlyRentDetail from "../pages/ownerandstaff/ManageMonthlyRentDet
 
 import ManageRoomTypes from "../pages/ownerandstaff/ManageRoomTypes";
 import StaffManagementPage from "../pages/ownerandstaff/StaffManagementPage";
+import TaskManagementPage from "../pages/ownerandstaff/TaskManagementPage";
 import MyPaymentBillsPage from "../pages/user/MyPaymentBillsPage";
 import MyRefundRequestsPage from "../pages/user/MyRefundRequestsPage";
 import ManagedRefundRequestsPage from "../pages/ownerandstaff/ManagedRefundRequestsPage";
@@ -298,6 +299,15 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["owner"]}>
             <StaffManagementPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/task-management"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <TaskManagementPage />
           </ProtectedRoute>
         }
       />
