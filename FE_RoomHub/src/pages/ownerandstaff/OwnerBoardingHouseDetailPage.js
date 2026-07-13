@@ -31,10 +31,21 @@ const emptyForm = {
   wardName: "",
   wardNameEn: "",
   detail: "",
+  latitude: "",
+  longitude: "",
   staffId: "",
   assignedStaff: null,
   images: [],
   existingImages: [],
+};
+
+const getCurrentRole = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    return user?.role || localStorage.getItem("role") || "";
+  } catch (error) {
+    return localStorage.getItem("role") || "";
+  }
 };
 
 export default function OwnerBoardingHouseDetailPage() {
@@ -43,6 +54,7 @@ export default function OwnerBoardingHouseDetailPage() {
   const [searchParams] = useSearchParams();
   const isReadOnly = !isCreate && searchParams.get("mode") === "view";
   const navigate = useNavigate();
+  const currentRole = useMemo(() => getCurrentRole(), []);
   const [form, setForm] = useState(emptyForm);
   const [types, setTypes] = useState([]);
   const [loading, setLoading] = useState(!isCreate);
@@ -76,6 +88,12 @@ export default function OwnerBoardingHouseDetailPage() {
       ...newImages,
     ];
   }, [form.images, form.existingImages]);
+
+  useEffect(() => {
+    if (isCreate && currentRole === "staff") {
+      navigate("/my-boarding-houses", { replace: true });
+    }
+  }, [currentRole, isCreate, navigate]);
 
   useEffect(() => {
     const loadTypes = async () => {
@@ -115,6 +133,8 @@ export default function OwnerBoardingHouseDetailPage() {
           wardName: house?.address?.ward?.name || "",
           wardNameEn: house?.address?.ward?.name_en || "",
           detail: house?.address?.detail || "",
+          latitude: house?.location?.lat ?? "",
+          longitude: house?.location?.lon ?? "",
           staffId: house?.staffId?._id || house?.staffId || "",
           assignedStaff: house?.staffId || null,
           images: [],
@@ -172,12 +192,14 @@ export default function OwnerBoardingHouseDetailPage() {
     data.append("electricityPrice", form.electricityPrice);
     data.append("waterPrice", form.waterPrice);
     data.append("address[province][name]", form.provinceName);
-    data.append("address[province][name_en]", form.provinceName);
+    data.append("address[province][name_en]", form.provinceNameEn || form.provinceName);
     data.append("address[district][name]", form.districtName);
-    data.append("address[district][name_en]", form.districtName);
+    data.append("address[district][name_en]", form.districtNameEn || form.districtName);
     data.append("address[ward][name]", form.wardName);
-    data.append("address[ward][name_en]", form.wardName);
+    data.append("address[ward][name_en]", form.wardNameEn || form.wardName);
     data.append("address[detail]", form.detail);
+    data.append("location[lat]", form.latitude);
+    data.append("location[lon]", form.longitude);
     data.append("staffId", form.staffId || "");
 
     if (!isCreate) {
@@ -204,6 +226,8 @@ export default function OwnerBoardingHouseDetailPage() {
       "districtName",
       "wardName",
       "detail",
+      "latitude",
+      "longitude",
     ];
 
     const missing = required.some((key) => String(form[key] || "").trim() === "");
@@ -227,6 +251,16 @@ export default function OwnerBoardingHouseDetailPage() {
 
     if (Number(form.availableRooms) > Number(form.totalRooms)) {
       return "Số phòng còn trống không được lớn hơn tổng số phòng.";
+    }
+
+    const latitude = Number(form.latitude);
+    const longitude = Number(form.longitude);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+      return "Vĩ độ phải nằm trong khoảng -90 đến 90.";
+    }
+
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      return "Kinh độ phải nằm trong khoảng -180 đến 180.";
     }
 
     return "";
@@ -343,6 +377,8 @@ export default function OwnerBoardingHouseDetailPage() {
               <TextField label="Số phòng còn trống *" type="number" value={form.availableRooms} onChange={(value) => updateField("availableRooms", value)} disabled={isReadOnly} />
               <TextField label="Giá điện (VNĐ/kWh) *" type="text" formatCurrency value={form.electricityPrice} onChange={(value) => updateField("electricityPrice", value)} disabled={isReadOnly} />
               <TextField label="Giá nước (VNĐ/m3) *" type="text" formatCurrency value={form.waterPrice} onChange={(value) => updateField("waterPrice", value)} disabled={isReadOnly} />
+              <TextField label="Vĩ độ *" value={form.latitude} onChange={(value) => updateField("latitude", value)} disabled={isReadOnly} />
+              <TextField label="Kinh độ *" value={form.longitude} onChange={(value) => updateField("longitude", value)} disabled={isReadOnly} />
               {!isCreate && (
                 <label style={fieldStyle}>
                   <span style={labelStyle}>Assigned Staff</span>
