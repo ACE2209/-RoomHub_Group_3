@@ -9,8 +9,19 @@ import {
 
 const pageSizeOptions = [5, 10, 20];
 
+const getCurrentRole = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    return user?.role || localStorage.getItem("role") || "";
+  } catch (error) {
+    return localStorage.getItem("role") || "";
+  }
+};
+
 export default function MyBoardingHousesPage() {
   const navigate = useNavigate();
+  const currentRole = useMemo(() => getCurrentRole(), []);
+  const canAddOrDelete = currentRole === "owner";
   const [houses, setHouses] = useState([]);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -89,10 +100,12 @@ export default function MyBoardingHousesPage() {
           <p style={subtitleStyle}>Manage boarding houses assigned to your account.</p>
         </div>
 
-        <button style={primaryBtnStyle} onClick={() => navigate("/my-boarding-houses/new")}>
-          <Plus size={17} />
-          Add Boarding House
-        </button>
+        {canAddOrDelete && (
+          <button style={primaryBtnStyle} onClick={() => navigate("/my-boarding-houses/new")}>
+            <Plus size={17} />
+            Add Boarding House
+          </button>
+        )}
       </div>
 
       <div style={summaryStyle}>
@@ -149,9 +162,11 @@ export default function MyBoardingHousesPage() {
                       <button title="Update" style={iconBtnStyle} onClick={() => navigate(`/my-boarding-houses/${house._id}`)}>
                         <Edit3 size={17} />
                       </button>
-                      <button title="Delete" style={deleteIconBtnStyle} onClick={() => handleDelete(house._id)}>
-                        <Trash2 size={17} />
-                      </button>
+                      {canAddOrDelete && (
+                        <button title="Delete" style={deleteIconBtnStyle} onClick={() => handleDelete(house._id)}>
+                          <Trash2 size={17} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

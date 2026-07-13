@@ -31,8 +31,12 @@ const ReportModal = ({ isOpen, onClose, targetId, reportType, onSubmitted }) => 
           boardingHouseId: reportType === 'boardingHouse' ? targetId : undefined,
         });
 
-        setIsAlreadyReported(Boolean(res?.exists));
-        if (res?.exists) {
+        const alreadyReported = reportType === 'review'
+          ? (res?.reportedReviews || []).map(String).includes(String(targetId))
+          : Boolean(res?.reportedBoardingHouse);
+
+        setIsAlreadyReported(alreadyReported);
+        if (alreadyReported) {
           setError(res?.message || 'You already reported this item.');
         } else {
           setError('');

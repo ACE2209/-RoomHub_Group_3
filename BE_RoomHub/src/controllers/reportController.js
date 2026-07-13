@@ -435,10 +435,14 @@ class reportController {
           })
         : null;
 
+      const reportedReviewIds = reportedReviews.map(String);
+      const reportedBoardingHouse = Boolean(boardingHouseReport);
+
       return res.status(200).json({
         success: true,
-        reportedReviews: reportedReviews.map(String),
-        reportedBoardingHouse: Boolean(boardingHouseReport),
+        reportedReviews: reportedReviewIds,
+        reportedBoardingHouse,
+        exists: reportedReviewIds.length > 0 || reportedBoardingHouse,
       });
     } catch (error) {
       return res.status(500).json({

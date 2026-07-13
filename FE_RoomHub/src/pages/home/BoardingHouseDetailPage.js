@@ -9,6 +9,7 @@ import {
     CheckCircle2,
     Clock,
     Droplets,
+    Flag,
     Heart,
     Home,
     Images,
@@ -32,6 +33,7 @@ import Header from "../layout/homepage/header";
 import "./BoardingHouseDetailPage.css";
 import { getImageSource, setFallbackImage } from "../../api/config";
 import ReviewSection from "../../components/ReviewSection";
+import ReportModal from "../../components/ReportModal";
 import MapSection from "../../components/MapSection";
 import { toggleFavorite, getFavorites } from "../../api/favorite";
 import { toggleWatchLater, getWatchLater } from "../../api/watchLater";
@@ -135,6 +137,7 @@ const BoardingHouseDetailPage = () => {
     const [favorites, setFavorites] = useState([]);
     const [isWatchLater, setIsWatchLater] = useState(false);
     const [favoriteLoading, setFavoriteLoading] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchDetail = async () => {
@@ -353,6 +356,17 @@ const BoardingHouseDetailPage = () => {
         }
     };
 
+    const handleReportBoardingHouse = () => {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            navigate("/login");
+            return;
+        }
+
+        setIsReportModalOpen(true);
+    };
+
     return (
         <>
             <Header />
@@ -488,6 +502,16 @@ const BoardingHouseDetailPage = () => {
                                                         color={isWatchLater ? "#ff6b00" : "black"}
                                                         style={{ transition: "all 0.3s ease" }}
                                                     />
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={handleReportBoardingHouse}
+                                                    className="detail-report-pill"
+                                                    title="Report boarding house"
+                                                >
+                                                    <Flag size={14} />
+                                                    Report
                                                 </button>
                                             </div>
                                         </div>
@@ -723,6 +747,14 @@ const BoardingHouseDetailPage = () => {
                     </div>
                 </section>
             </main>
+
+            <ReportModal
+                isOpen={isReportModalOpen}
+                onClose={() => setIsReportModalOpen(false)}
+                targetId={boardingHouseId}
+                reportType="boardingHouse"
+                onSubmitted={() => setIsReportModalOpen(false)}
+            />
 
             <Footer />
         </>

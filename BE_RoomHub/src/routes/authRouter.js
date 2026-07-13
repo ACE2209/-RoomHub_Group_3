@@ -39,7 +39,7 @@ authRouter.put(
   ReviewController.updateReview
 );
 authRouter.get("/reviews", ReviewController.getReviewsUser);
-authRouter.delete("/reviews/:reviewId", ReviewController.softDeleteReview);
+authRouter.delete("/reviews/:reviewId", ReviewController.softDeleteOwnReview.bind(ReviewController));
 authRouter.get("/review/:reviewId", ReviewController.getReviewDetail);
 
 // favorites

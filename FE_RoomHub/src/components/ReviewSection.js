@@ -38,9 +38,11 @@ const ReviewSection = ({ boardingHouseId }) => {
                 const decoded =
                     jwtDecode(token);
 
-                setCurrentUserId(
-                    decoded.userId
-                );
+                if (decoded?.userId) {
+                    setCurrentUserId(
+                        decoded.userId
+                    );
+                }
             } catch (error) {
                 console.error(error);
             }
