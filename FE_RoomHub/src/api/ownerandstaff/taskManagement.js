@@ -17,9 +17,43 @@ const getRolePrefix = () => {
   return user?.role === "owner" ? "/owner" : "/staff";
 };
 
+const jsonHeaders = () => ({
+  "Content-Type": "application/json",
+  ...authHeaders(),
+});
+
 export const getManagedTasks = async (filters = {}) => {
   const query = buildQuery(filters);
   const res = await fetch(`${API_URL}${getRolePrefix()}/tasks?${query}`, {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const createManagedTask = async (payload) => {
+  const res = await fetch(`${API_URL}${getRolePrefix()}/tasks`, {
+    method: "POST",
+    headers: jsonHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const updateManagedTask = async (taskId, payload) => {
+  const res = await fetch(`${API_URL}${getRolePrefix()}/tasks/${taskId}`, {
+    method: "PUT",
+    headers: jsonHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  return parseJsonResponse(res);
+};
+
+export const deleteManagedTask = async (taskId) => {
+  const res = await fetch(`${API_URL}${getRolePrefix()}/tasks/${taskId}`, {
+    method: "DELETE",
     headers: authHeaders(),
   });
 
