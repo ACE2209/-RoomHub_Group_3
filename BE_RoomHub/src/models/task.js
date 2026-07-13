@@ -34,6 +34,14 @@ const TaskSchema = new mongoose.Schema(
             type: Date,
             required: true,
         },
+        deleted: {
+            type: Boolean,
+            default: false,
+        },
+        deletedAt: {
+            type: Date,
+            default: null,
+        },
     },
     {
         timestamps: true,

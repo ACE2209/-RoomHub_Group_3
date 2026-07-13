@@ -23,7 +23,7 @@ import refundRequestController from "./refundRequestController.js";
 // import managerController from "./managerController.js";
 import roomAdditionFeeController from "./roomAdditionFeeController.js";
 import monthlyRentController from "./monthlyRentController.js";
-// import taskController from "./taskController.js";
+import taskController from "./taskController.js";
 import paymentController from "./paymentController.js";
 import staffManagementController from "./staffManagementController.js";
 
@@ -53,7 +53,7 @@ export {
   // managerController,
   roomAdditionFeeController,
   monthlyRentController,
-  // taskController,
+  taskController,
   paymentController,
   staffManagementController,
 };
