@@ -11,6 +11,7 @@ export default function Sidebar() {
   const dropdownRef = useRef(null);
 
   const isAdmin = role === "admin";
+  const isOwner = role === "owner";
   const canManageOwnBoardingHouses = role === "owner" || role === "staff";
 
   useEffect(() => {
@@ -89,6 +90,8 @@ export default function Sidebar() {
             <NavLink to="/manage-rooms">Manage Rooms</NavLink>
 
             <NavLink to="/manage-room-types">Manage Room Types</NavLink>
+
+            {isOwner && <NavLink to="/staff-management">Staff Management</NavLink>}
 
             <NavLink to="/manage-room-additional-fees">
               Manage Room Additional Fees
