@@ -1,13 +1,15 @@
 import { Router } from 'express';
-import { boardingHouseController,
-     appointmentController,
-     depositController,
-     roomAdditionFeeController,
-     ReviewController,
-     monthlyRentController,
-     roomTypeController,
-    refundRequestController,
- } from '../controllers/index.js';
+import {
+  boardingHouseController,
+  appointmentController,
+  depositController,
+  roomAdditionFeeController,
+  ReviewController,
+  monthlyRentController,
+  roomTypeController,
+  refundRequestController,
+  staffManagementController,
+} from '../controllers/index.js';
 import { upload } from '../config/cloudinary.config.js';
 
 const ownerRouter = Router();
@@ -51,6 +53,11 @@ ownerRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeB
 ownerRouter.post("/boardinghouse/roomtype/:id/create", upload.single("roomType"), roomTypeController.addRoomTypeToBoardingHouse);
 ownerRouter.put("/boardinghouse/roomtype/:roomTypeId/", upload.single("roomType"), roomTypeController.updateRoomTypeToBoardingHouse);
 ownerRouter.delete("/boardinghouse/roomtype/:roomTypeId/", roomTypeController.softDeleteRoomType);
+
+ownerRouter.get("/staffs", staffManagementController.getOwnerStaffs.bind(staffManagementController));
+ownerRouter.post("/staffs", staffManagementController.createOwnerStaff.bind(staffManagementController));
+ownerRouter.put("/staffs/:staffId", staffManagementController.updateOwnerStaff.bind(staffManagementController));
+ownerRouter.delete("/staffs/:staffId", staffManagementController.deleteOwnerStaff.bind(staffManagementController));
 // REFUND MANAGEMENT
 // REFUND MANAGEMENT
 ownerRouter.get(

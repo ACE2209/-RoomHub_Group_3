@@ -50,6 +50,10 @@ const AccountSchema = new Schema({
     type: Boolean,
     default: false
   },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
 }, accountOptions);
 
 // Tạo model Account gốc

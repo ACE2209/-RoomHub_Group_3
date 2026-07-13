@@ -25,6 +25,7 @@ import roomAdditionFeeController from "./roomAdditionFeeController.js";
 import monthlyRentController from "./monthlyRentController.js";
 // import taskController from "./taskController.js";
 import paymentController from "./paymentController.js";
+import staffManagementController from "./staffManagementController.js";
 
 export {
   authController,
@@ -54,4 +55,5 @@ export {
   monthlyRentController,
   // taskController,
   paymentController,
+  staffManagementController,
 };
