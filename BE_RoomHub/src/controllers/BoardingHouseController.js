@@ -4,8 +4,13 @@ import BoardingHouseType from '../models/boardingHouseType.js';
 import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs';
 import multer from 'multer';
-import { Account } from '../models/account.js';
+import { Account, Staff } from '../models/account.js';
 import Review from '../models/review.js';
+import Room from '../models/room.js';
+import RoomType from '../models/roomType.js';
+import DepositRoom from '../models/depositRoom.js';
+import Appointment from '../models/appointment.js';
+import PaymentBill from '../models/paymentBill.js';
 import paginate from '../utils/pagination.js';
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -53,12 +58,81 @@ class BoardingHouseController {
 
   buildOwnFilter(req) {
     const userId = this.getUserId(req);
+    const objectUserId = new mongoose.Types.ObjectId(userId);
+
+    if (req.user?.role === 'staff') {
+      return { staffId: objectUserId };
+    }
+
     return {
-      $or: [
-        { ownerId: new mongoose.Types.ObjectId(userId) },
-        { staffId: new mongoose.Types.ObjectId(userId) },
-      ],
+      ownerId: objectUserId,
     };
+  }
+
+  async resolveAssignableStaffId(staffId, ownerId) {
+    if (!staffId) return null;
+
+    if (!mongoose.Types.ObjectId.isValid(staffId)) {
+      const error = new Error('Nhân viên được gán không hợp lệ');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const staff = await Staff.findOne({
+      _id: staffId,
+      createdBy: ownerId,
+      deleted: { $ne: true },
+    }).select('_id');
+
+    if (!staff) {
+      const error = new Error('Nhân viên được gán không thuộc chủ trọ này');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    return staff._id;
+  }
+
+  async getDeleteBlockers(boardingHouseId) {
+    const roomIds = await Room.find({ boardingHouseId }).distinct('_id');
+
+    const [
+      roomTypeCount,
+      roomCount,
+      activeDepositCount,
+      activeAppointmentCount,
+      pendingBillCount,
+    ] = await Promise.all([
+      RoomType.countDocuments({ boardingHouseId }),
+      Room.countDocuments({ boardingHouseId }),
+      roomIds.length
+        ? DepositRoom.countDocuments({
+            roomId: { $in: roomIds },
+            status: { $in: ['pending', 'accepted', 'confirmed'] },
+          })
+        : 0,
+      roomIds.length
+        ? Appointment.countDocuments({
+            roomId: { $in: roomIds },
+            status: { $in: ['pending', 'accepted'] },
+          })
+        : 0,
+      roomIds.length
+        ? PaymentBill.countDocuments({
+            roomId: { $in: roomIds },
+            status: { $in: ['Pending'] },
+          })
+        : 0,
+    ]);
+
+    const blockers = [];
+    if (roomTypeCount) blockers.push(`${roomTypeCount} loại phòng`);
+    if (roomCount) blockers.push(`${roomCount} phòng`);
+    if (activeDepositCount) blockers.push(`${activeDepositCount} đơn cọc đang hoạt động`);
+    if (activeAppointmentCount) blockers.push(`${activeAppointmentCount} lịch hẹn đang hoạt động`);
+    if (pendingBillCount) blockers.push(`${pendingBillCount} hóa đơn đang chờ thanh toán`);
+
+    return blockers;
   }
 
   mapUploadedImages(files = [], existingImages = []) {
@@ -119,8 +193,8 @@ class BoardingHouseController {
         detail: body.address?.detail || body['address[detail]'] || '',
       },
       location: {
-        lat: parseNumber(body.location?.lat || body['location[lat]'] || 0),
-        lon: parseNumber(body.location?.lon || body['location[lon]'] || 0),
+        lat: parseNumber(body.location?.lat ?? body['location[lat]']),
+        lon: parseNumber(body.location?.lon ?? body['location[lon]']),
       },
       images: this.mapUploadedImages(files, keptImages),
     };
@@ -139,6 +213,8 @@ class BoardingHouseController {
       payload.address?.district?.name_en,
       payload.address?.ward?.name,
       payload.address?.ward?.name_en,
+      payload.location?.lat,
+      payload.location?.lon,
     ];
 
     const hasAllRequiredFields = requiredFields.every(
@@ -687,7 +763,7 @@ class BoardingHouseController {
 
       const boardingHouse = await BoardingHouse.findById(id)
         .populate('boardingHouseType')
-        .populate('ownerId')
+        .populate('ownerId', 'username fullname email phoneNumber avatarImage role businessType businessName createdAt')
         .exec();
 
       if (!boardingHouse) {
@@ -768,6 +844,13 @@ class BoardingHouseController {
 
   async createOwnBoardingHouse(req, res) {
     try {
+      if (req.user?.role !== 'owner') {
+        return res.status(403).json({
+          success: false,
+          message: 'Chỉ chủ trọ mới được thêm nhà trọ',
+        });
+      }
+
       const payload = this.normalizeBoardingHousePayload(req.body, req.files || []);
 
       const payloadError = this.getBoardingHousePayloadError(payload);
@@ -784,6 +867,11 @@ class BoardingHouseController {
         return res.status(404).json({ success: false, message: 'Không tìm thấy loại nhà trọ' });
       }
 
+      payload.staffId = await this.resolveAssignableStaffId(
+        payload.staffId,
+        this.getUserId(req)
+      );
+
       const boardingHouse = await BoardingHouse.create({
         ...payload,
         ownerId: this.getUserId(req),
@@ -795,7 +883,7 @@ class BoardingHouseController {
         data: boardingHouse,
       });
     } catch (error) {
-      return res.status(500).json({
+      return res.status(error.statusCode || 500).json({
         success: false,
         message: 'Failed to create boarding house',
         error: error.message,
@@ -831,9 +919,22 @@ class BoardingHouseController {
         return res.status(400).json({ success: false, message: payloadError });
       }
 
+      if (!payload.images.length) {
+        return res.status(400).json({ success: false, message: 'Vui lòng giữ lại hoặc tải lên ít nhất một hình ảnh' });
+      }
+
       const typeExists = await BoardingHouseType.exists({ _id: payload.boardingHouseType });
       if (!typeExists) {
         return res.status(404).json({ success: false, message: 'Không tìm thấy loại nhà trọ' });
+      }
+
+      if (req.user?.role === 'owner') {
+        payload.staffId = await this.resolveAssignableStaffId(
+          payload.staffId,
+          this.getUserId(req)
+        );
+      } else {
+        payload.staffId = boardingHouse.staffId || null;
       }
 
       Object.assign(boardingHouse, payload);
@@ -845,7 +946,7 @@ class BoardingHouseController {
         data: boardingHouse,
       });
     } catch (error) {
-      return res.status(500).json({
+      return res.status(error.statusCode || 500).json({
         success: false,
         message: 'Failed to update boarding house',
         error: error.message,
@@ -855,6 +956,13 @@ class BoardingHouseController {
 
   async deleteOwnBoardingHouse(req, res) {
     try {
+      if (req.user?.role !== 'owner') {
+        return res.status(403).json({
+          success: false,
+          message: 'Chỉ chủ trọ mới được xóa nhà trọ',
+        });
+      }
+
       const { id } = req.params;
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -872,6 +980,15 @@ class BoardingHouseController {
 
       if (boardingHouse.deleted) {
         return res.status(400).json({ success: false, message: 'Boarding house already deleted' });
+      }
+
+      const blockers = await this.getDeleteBlockers(id);
+      if (blockers.length) {
+        return res.status(409).json({
+          success: false,
+          message: `Không thể xóa nhà trọ khi còn ${blockers.join(', ')}.`,
+          blockers,
+        });
       }
 
       await boardingHouse.delete(this.getUserId(req));
