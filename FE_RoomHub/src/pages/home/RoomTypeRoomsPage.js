@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, BedDouble } from "lucide-react";
 
-import { getRoomsByRoomType } from "../api/room";
-import { getImageSource, setFallbackImage } from "../api/config";
-import CreateAppointmentModal from "../components/CreateAppointmentModal";
+import { getRoomsByRoomType } from "../../api/room";
+import { getImageSource, setFallbackImage } from "../../api/config";
+import CreateAppointmentModal from "../../components/CreateAppointmentModal";
 
-import Footer from "./layout/homepage/footer";
-import Header from "./layout/homepage/header";
+import Footer from "../layout/homepage/footer";
+import Header from "../layout/homepage/header";
 import "./BoardingHouseDetailPage.css";
 
 const getListData = (res) => {
@@ -19,6 +19,25 @@ const getListData = (res) => {
 
 const getRoomImage = (room) => {
   return getImageSource(room?.images || room?.image);
+};
+
+const hasAcceptedDeposit = (room) =>
+  room?.hasAcceptedDeposit || room?.depositStatus === "accepted";
+
+const getRoomStatus = (room) => {
+  if (hasAcceptedDeposit(room)) {
+    return {
+      className: "deposited",
+      label: "Đã đặt cọc",
+      isActionDisabled: true,
+    };
+  }
+
+  return {
+    className: room?.isAvailable ? "available" : "unavailable",
+    label: room?.isAvailable ? "Available" : "Unavailable",
+    isActionDisabled: !room?.isAvailable,
+  };
 };
 
 const RoomTypeRoomsPage = () => {
@@ -85,7 +104,7 @@ const RoomTypeRoomsPage = () => {
       return;
     }
 
-    if (!room.isAvailable) {
+    if (!room.isAvailable || hasAcceptedDeposit(room)) {
       alert("This room is not available.");
       return;
     }
@@ -160,20 +179,23 @@ const RoomTypeRoomsPage = () => {
                 </div>
               ) : rooms.length > 0 ? (
                 <div className="rooms-grid">
-                  {rooms.map((room) => (
-                    <article
-                      role="button"
-                      tabIndex={0}
-                      className="room-card room-flow-card"
-                      key={room._id}
-                      onClick={() => handleRoomClick(room)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          handleRoomClick(room);
-                        }
-                      }}
-                    >
+                  {rooms.map((room) => {
+                    const roomStatus = getRoomStatus(room);
+
+                    return (
+                      <article
+                        role="button"
+                        tabIndex={0}
+                        className="room-card room-flow-card"
+                        key={room._id}
+                        onClick={() => handleRoomClick(room)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleRoomClick(room);
+                          }
+                        }}
+                      >
                       <div className="room-card-image">
                         <img
                           src={getRoomImage(room)}
@@ -182,15 +204,9 @@ const RoomTypeRoomsPage = () => {
                         />
 
                         <span
-                          className={
-                            room.isAvailable
-                              ? "available"
-                              : "unavailable"
-                          }
+                          className={roomStatus.className}
                         >
-                          {room.isAvailable
-                            ? "Available"
-                            : "Unavailable"}
+                          {roomStatus.label}
                         </span>
                       </div>
 
@@ -209,7 +225,7 @@ const RoomTypeRoomsPage = () => {
                             onClick={(e) =>
                               handleDepositClick(e, room._id)
                             }
-                            disabled={!room.isAvailable}
+                            disabled={roomStatus.isActionDisabled}
                           >
                             Deposit
                           </button>
@@ -220,14 +236,15 @@ const RoomTypeRoomsPage = () => {
                             onClick={(e) =>
                               handleAppointmentClick(e, room)
                             }
-                            disabled={!room.isAvailable}
+                            disabled={roomStatus.isActionDisabled}
                           >
                             Appointment
                           </button>
                         </div>
                       </div>
-                    </article>
-                  ))}
+                      </article>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="room-types-empty">

@@ -7,6 +7,10 @@ import {
   appointmentController,
   depositController,
   ReviewController,
+  monthlyRentController,
+  roomTypeController,
+  refundRequestController,
+  revenueController,
 } from "../controllers/index.js";
 import { upload } from '../config/cloudinary.config.js';
 
@@ -30,6 +34,12 @@ staffRouter.get("/appointments", appointmentController.getManagedAppointments);
 staffRouter.get("/appointments/:appointmentId", appointmentController.getManagedAppointmentDetail);
 staffRouter.patch("/appointments/:appointmentId/status", appointmentController.updateManagedAppointmentStatus);
 
+// DEPOSIT MANAGEMENT
+staffRouter.get("/deposits", depositController.getDepositsByOwnerOrStaff);
+staffRouter.patch("/deposits/:depositId/decision", depositController.handleDepositDecision);
+staffRouter.delete("/deposits/:depositId", depositController.deleteDepositRoom);
+staffRouter.delete("/deposit-room/:depositRoomId", depositController.deleteDepositRoom);
+
 // room Addition Fee
 staffRouter.post("/room-addition-fee", roomAdditionFeeController.createRoomAdditionFee);
 staffRouter.get("/room-addition-fee", roomAdditionFeeController.getAllRoomAdditionFees);
@@ -38,6 +48,12 @@ staffRouter.put("/room-addition-fee/:id", roomAdditionFeeController.updateRoomAd
 staffRouter.delete("/room-addition-fee/:id", roomAdditionFeeController.deleteRoomAdditionFee);
 staffRouter.get("/room-addition-fee/:roomId", roomAdditionFeeController.getRoomAdditionFeesByRoomId);
 
+staffRouter.get("/monthly-rent-payments", monthlyRentController.getManagedRentPayments);
+staffRouter.get("/monthly-rents", monthlyRentController.getManagedMonthlyRents);
+staffRouter.post("/monthly-rents/calculate/:roomId", monthlyRentController.calculateMonthlyRent);
+staffRouter.patch("/monthly-rents/:billId/status", monthlyRentController.updateManagedMonthlyRentStatus);
+staffRouter.get("/monthly-rents/:billId", monthlyRentController.getManagedMonthlyRentDetail);
+
 // room
 staffRouter.get("/room", roomController.getAllRooms);
 staffRouter.get("/room/boarding-house/:boardingHouseId", roomController.getRoomsByBoardingHouse);
@@ -45,13 +61,26 @@ staffRouter.post("/room/boarding-house", upload.single("Room"), roomController.a
 staffRouter.put("/room/boarding-house/:roomId", upload.single("Room"), roomController.updateRoom);
 staffRouter.delete("/room/boarding-house/:roomId", roomController.deleteRoom);
 
-// DEPOSIT MANAGEMENT
-staffRouter.get("/deposits", depositController.getDepositsByOwnerOrStaff);
-staffRouter.patch("/deposits/:depositId/decision", depositController.handleDepositDecision);
-staffRouter.delete("/deposits/:depositId", depositController.deleteDepositRoom);
-staffRouter.delete(
-  "/deposit-room/:depositRoomId",
-  depositController.deleteDepositRoom
+
+//roomtype
+staffRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId);
+staffRouter.post("/boardinghouse/roomtype/:id/create", upload.single("roomType"), roomTypeController.addRoomTypeToBoardingHouse);
+staffRouter.put("/boardinghouse/roomtype/:roomTypeId/", upload.single("roomType"), roomTypeController.updateRoomTypeToBoardingHouse);
+staffRouter.delete("/boardinghouse/roomtype/:roomTypeId/", roomTypeController.softDeleteRoomType);
+
+// REFUND MANAGEMENT
+staffRouter.get(
+  "/refund-requests",
+  refundRequestController.getManagedRefundRequests
 );
 
+staffRouter.patch(
+  "/refund-requests/:refundRequestId/reject",
+  refundRequestController.rejectRefundRequest
+);
+
+staffRouter.post(
+  "/refund-requests/:refundRequestId/pay",
+  refundRequestController.createRefundPayment
+);
 export { staffRouter };

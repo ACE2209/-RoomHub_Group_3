@@ -17,6 +17,12 @@ const DepositRoomSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    depositMonths: {
+      type: Number,
+      required: true,
+      enum: [1, 2],
+      default: 1,
+    },
     status: {
       type: String,
       enum: ["pending", "accepted", "confirmed", "rejected", "refunded"],
@@ -25,6 +31,7 @@ const DepositRoomSchema = new mongoose.Schema(
     rentalTime: {
       type: Number,
       required: true,
+      enum: [1, 3, 6, 12],
     },
     startDate: {
       type: Date,
@@ -33,6 +40,11 @@ const DepositRoomSchema = new mongoose.Schema(
     endDate: {
       type: Date,
       required: true,
+    },
+    note: {
+      type: String,
+      default: "",
+      maxlength: 500,
     },
     reasonForCancel: {
       type: String,

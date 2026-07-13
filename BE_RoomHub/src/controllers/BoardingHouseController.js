@@ -1,12 +1,11 @@
 import mongoose from 'mongoose';
 import BoardingHouse from '../models/boardingHouse.js';
 import BoardingHouseType from '../models/boardingHouseType.js';
-import { Account } from '../models/account.js';
-import multer from 'multer';
-import fs from 'fs';
 import { v2 as cloudinary } from 'cloudinary';
-import '../models/boardingHouseType.js';
-import '../models/account.js';
+import fs from 'fs';
+import multer from 'multer';
+import { Account } from '../models/account.js';
+import Review from '../models/review.js';
 import paginate from '../utils/pagination.js';
 
 const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -891,6 +890,30 @@ class BoardingHouseController {
     }
   }
 
+  async getBoardingHouseTypes(req, res) {
+    try {
+      const types = await BoardingHouseType.find({})
+        .sort({ name: 1 })
+        .select('name codeName description')
+        .lean();
+
+      return res.status(200).json({
+        success: true,
+        data: types.map((type) => ({
+          ...type,
+          value: type._id,
+          label: type.name,
+        })),
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch boarding house types',
+        error: error.message,
+      });
+    }
+  }
+
   async getAllBHOnDashBoard(req, res, next) {
     try {
       const boardingHData = await BoardingHouse.find()
@@ -1017,7 +1040,6 @@ class BoardingHouseController {
       });
     }
   }
-
   async addBoardingHouseImage(req, res) {
     try {
       const { id } = req.params;
@@ -1147,7 +1169,6 @@ class BoardingHouseController {
       });
     }
   }
-
   async getBoardingHouseImages(req, res) {
     try {
       const { id } = req.params;
@@ -1174,7 +1195,6 @@ class BoardingHouseController {
       });
     }
   }
-
   async createBoardingHouse(req, res) {
     try {
       const {
@@ -1626,30 +1646,5 @@ class BoardingHouseController {
       });
     }
   }
-
-  async getBoardingHouseTypes(req, res) {
-    try {
-      const types = await BoardingHouseType.find({})
-        .sort({ name: 1 })
-        .select('name codeName description')
-        .lean();
-
-      return res.status(200).json({
-        success: true,
-        data: types.map((type) => ({
-          ...type,
-          value: type._id,
-          label: type.name,
-        })),
-      });
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to fetch boarding house types',
-        error: error.message,
-      });
-    }
-  }
 }
-
 export default new BoardingHouseController();

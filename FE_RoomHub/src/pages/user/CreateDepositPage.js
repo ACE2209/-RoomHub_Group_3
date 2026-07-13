@@ -1,22 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getRoomDetails } from "../../api/room";
+import { createDepositRequest } from "../../api/deposit";
 
-export default function CreateDepositPage() {
-  const { roomId } = useParams();
+export default function CreateDepositPage({ roomId: propRoomId, onClose }) {
+  const { roomId: paramRoomId } = useParams();
+  const roomId = propRoomId || paramRoomId;
   const navigate = useNavigate();
 
   const [room, setRoom] = useState(null);
   const [roomLoading, setRoomLoading] = useState(false);
-  const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [startDate, setStartDate] = useState("");
+  const [rentalTime, setRentalTime] = useState(6);
+  const [depositMonths, setDepositMonths] = useState(1);
+
+  const handleClose = () => {
+    if (onClose) onClose();
+    else navigate(-1);
+  };
 
   useEffect(() => {
     const loadRoom = async () => {
       try {
         setRoomLoading(true);
-
         const res = await getRoomDetails(roomId);
         setRoom(res?.data || res || null);
       } catch (error) {
@@ -26,40 +35,71 @@ export default function CreateDepositPage() {
       }
     };
 
-    if (roomId) {
-      loadRoom();
-    }
+    if (roomId) loadRoom();
   }, [roomId]);
 
-  const handleSubmit = (e) => {
+  const roomPrice = Number(room?.roomTypeId?.price || 0);
+
+  const depositAmount = useMemo(() => {
+    return roomPrice * Number(depositMonths || 1);
+  }, [roomPrice, depositMonths]);
+
+  const endDate = useMemo(() => {
+    if (!startDate) return "";
+    const date = new Date(startDate);
+    date.setMonth(date.getMonth() + Number(rentalTime));
+    return date.toISOString().slice(0, 10);
+  }, [startDate, rentalTime]);
+
+  const formatVnd = (value) =>
+    Number(value || 0).toLocaleString("vi-VN") + " VND";
+
+  const getToday = () => new Date().toISOString().slice(0, 10);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!roomId) return alert("Room is required");
-    if (!amount || Number(amount) <= 0) return alert("Deposit amount is required");
-    if (note.trim().length > 500) return alert("Note cannot exceed 500 characters");
+    if (!startDate) return alert("Start date is required");
+    if (!depositAmount || depositAmount <= 0) {
+      return alert("Room price is invalid. Cannot create deposit request.");
+    }
 
-    setLoading(true);
-    alert("Deposit request page is ready. Backend deposit API is not connected yet.");
-    setLoading(false);
+    try {
+      setLoading(true);
+
+      await createDepositRequest({
+        roomId,
+        rentalTime: Number(rentalTime),
+        depositMonths: Number(depositMonths),
+        startDate,
+        note,
+      });
+
+      alert("Deposit request created. Please wait for owner approval.");
+
+      if (onClose) onClose();
+      navigate("/my-deposits");
+    } catch (error) {
+      alert(error.message || "Create deposit failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <button type="button" onClick={() => navigate(-1)} style={styles.backBtn}>
-          Back
+    <div style={styles.overlay}>
+      <div style={styles.modal}>
+        <button type="button" onClick={handleClose} style={styles.closeBtn}>
+          ×
         </button>
 
         <div style={styles.header}>
-          <div>
-            <p style={styles.eyebrow}>RoomHub deposit</p>
-            <h1 style={styles.title}>Create a room deposit request</h1>
-            <p style={styles.subtitle}>
-              Confirm the room and enter the amount you want to deposit.
-            </p>
-          </div>
-
-          <div style={styles.badge}>Deposit</div>
+          <p style={styles.eyebrow}>RoomHub deposit</p>
+          <h2 style={styles.title}>Create deposit request</h2>
+          <p style={styles.subtitle}>
+            Choose rental time, contract start date, and deposit amount.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -71,34 +111,84 @@ export default function CreateDepositPage() {
                   ? "Loading room..."
                   : room?.roomNumber
                   ? `Room ${room.roomNumber}`
-                  : roomId
+                  : roomId || ""
               }
               disabled
               style={styles.disabledInput}
             />
           </div>
 
-          {room?.roomTypeId && (
-            <div style={styles.roomSummary}>
-              <span>{room.roomTypeId.typeName || "Room type"}</span>
-              <strong>
-                {Number(room.roomTypeId.price).toLocaleString("vi-VN")} VND
-              </strong>
-            </div>
-          )}
-
           <div style={styles.formGroup}>
-            <label style={styles.label}>
-              Deposit amount <span style={styles.required}>*</span>
-            </label>
+            <label style={styles.label}>Start date *</label>
             <input
-              type="number"
-              min="1"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Enter deposit amount"
+              type="date"
+              min={getToday()}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
               style={styles.input}
             />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Rental time *</label>
+            <select
+              value={rentalTime}
+              onChange={(e) => setRentalTime(e.target.value)}
+              style={styles.input}
+            >
+              <option value={1}>1 month</option>
+              <option value={3}>3 months</option>
+              <option value={6}>6 months</option>
+              <option value={12}>12 months</option>
+            </select>
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>End date</label>
+            <input
+              value={endDate || "Auto calculated"}
+              disabled
+              style={styles.disabledInput}
+            />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Deposit months *</label>
+            <select
+              value={depositMonths}
+              onChange={(e) => setDepositMonths(e.target.value)}
+              style={styles.input}
+            >
+              <option value={1}>1 month deposit</option>
+              <option value={2}>2 months deposit</option>
+            </select>
+          </div>
+
+          <div style={styles.summaryBox}>
+            <div style={styles.row}>
+              <span>Room type</span>
+              <strong>{room?.roomTypeId?.typeName || "N/A"}</strong>
+            </div>
+
+            <div style={styles.row}>
+              <span>Monthly price</span>
+              <strong>{formatVnd(roomPrice)}</strong>
+            </div>
+
+            <div style={styles.row}>
+              <span>Deposit rule</span>
+              <strong>{depositMonths} month(s)</strong>
+            </div>
+
+            <div style={styles.totalRow}>
+              <span>Required deposit</span>
+              <strong>{formatVnd(depositAmount)}</strong>
+            </div>
+          </div>
+
+          <div style={styles.notice}>
+            You only submit a deposit request now. Payment is made after the
+            owner approves this request.
           </div>
 
           <div style={styles.formGroup}>
@@ -112,17 +202,28 @@ export default function CreateDepositPage() {
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              ...styles.submitBtn,
-              opacity: loading ? 0.6 : 1,
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading ? "Submitting..." : "Submit deposit"}
-          </button>
+          <div style={styles.actions}>
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={loading}
+              style={styles.cancelBtn}
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={loading || roomLoading}
+              style={{
+                ...styles.submitBtn,
+                opacity: loading || roomLoading ? 0.6 : 1,
+                cursor: loading || roomLoading ? "not-allowed" : "pointer",
+              }}
+            >
+              {loading ? "Submitting..." : "Submit deposit request"}
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -130,136 +231,171 @@ export default function CreateDepositPage() {
 }
 
 const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "#f6f7f9",
-    padding: "48px 20px",
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(15, 23, 42, 0.58)",
+    backdropFilter: "blur(6px)",
     display: "flex",
+    alignItems: "center",
     justifyContent: "center",
+    padding: "24px",
+    zIndex: 9999,
   },
-  card: {
+  modal: {
+    position: "relative",
     width: "100%",
     maxWidth: "640px",
     background: "#fff",
-    borderRadius: "8px",
-    padding: "32px",
-    boxShadow: "0 20px 50px rgba(15, 23, 42, 0.1)",
-    border: "1px solid #e5e7eb",
+    borderRadius: "22px",
+    padding: "36px",
+    boxShadow: "0 30px 90px rgba(15, 23, 42, 0.28)",
+    maxHeight: "92vh",
+    overflowY: "auto",
   },
-  backBtn: {
-    background: "transparent",
+  closeBtn: {
+    position: "absolute",
+    top: "24px",
+    right: "24px",
+    width: "42px",
+    height: "42px",
+    borderRadius: "50%",
     border: "none",
-    color: "#475467",
-    fontSize: "15px",
-    fontWeight: 700,
+    background: "#f1f5f9",
+    fontSize: "28px",
     cursor: "pointer",
-    marginBottom: "24px",
-    padding: 0,
+    color: "#475569",
   },
   header: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "24px",
-    marginBottom: "28px",
+    marginBottom: "24px",
+    paddingRight: "58px",
   },
   eyebrow: {
     margin: "0 0 8px",
     color: "#ff6b00",
     fontSize: "13px",
-    fontWeight: 800,
+    fontWeight: 900,
     textTransform: "uppercase",
-    letterSpacing: 0,
   },
   title: {
     margin: 0,
-    color: "#101828",
-    fontSize: "30px",
-    lineHeight: 1.2,
+    color: "#0f172a",
+    fontSize: "28px",
+    fontWeight: 900,
   },
   subtitle: {
-    margin: "10px 0 0",
-    color: "#667085",
-    fontSize: "15px",
-    lineHeight: 1.5,
-  },
-  badge: {
-    alignSelf: "start",
-    background: "#fff4ed",
-    borderRadius: "999px",
-    color: "#c4320a",
-    fontWeight: 800,
-    padding: "9px 12px",
+    margin: "8px 0 0",
+    color: "#64748b",
+    fontSize: "16px",
   },
   formGroup: {
-    marginBottom: "18px",
+    marginBottom: "16px",
   },
   label: {
     display: "block",
     marginBottom: "8px",
-    color: "#344054",
-    fontSize: "14px",
-    fontWeight: 700,
-  },
-  required: {
-    color: "#ef4444",
+    color: "#334155",
+    fontSize: "15px",
+    fontWeight: 800,
   },
   input: {
     width: "100%",
-    height: "48px",
-    border: "1px solid #d0d5dd",
-    borderRadius: "8px",
-    padding: "0 14px",
-    color: "#101828",
-    fontSize: "15px",
-    outline: "none",
+    height: "50px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "14px",
+    padding: "0 16px",
+    background: "#fff",
+    color: "#0f172a",
+    fontSize: "16px",
     boxSizing: "border-box",
   },
   disabledInput: {
     width: "100%",
-    height: "48px",
-    border: "1px solid #d0d5dd",
-    borderRadius: "8px",
-    padding: "0 14px",
-    color: "#667085",
-    background: "#f9fafb",
-    fontSize: "15px",
-    outline: "none",
-    boxSizing: "border-box",
-    cursor: "not-allowed",
-  },
-  roomSummary: {
-    alignItems: "center",
+    height: "50px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "14px",
+    padding: "0 16px",
     background: "#f8fafc",
-    border: "1px solid #eef0f3",
-    borderRadius: "8px",
-    color: "#475467",
+    color: "#475569",
+    fontSize: "16px",
+    boxSizing: "border-box",
+  },
+  summaryBox: {
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    overflow: "hidden",
+    marginBottom: "18px",
+  },
+  row: {
     display: "flex",
     justifyContent: "space-between",
-    gap: "12px",
+    gap: "16px",
+    padding: "15px 18px",
+    borderBottom: "1px solid #e2e8f0",
+    color: "#475569",
+    fontSize: "16px",
+  },
+  totalRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "16px",
+    padding: "17px 18px",
+    background: "#fff7ed",
+    color: "#9a3412",
+    fontSize: "16px",
+    fontWeight: 900,
+  },
+  notice: {
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    color: "#475569",
+    borderRadius: "12px",
+    padding: "14px 16px",
+    fontSize: "15px",
+    lineHeight: 1.5,
     marginBottom: "18px",
-    padding: "12px 14px",
   },
   textarea: {
     width: "100%",
-    minHeight: "130px",
-    border: "1px solid #d0d5dd",
-    borderRadius: "8px",
-    padding: "14px",
+    minHeight: "120px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "14px",
+    padding: "16px",
     color: "#101828",
-    fontSize: "15px",
+    fontSize: "16px",
     outline: "none",
     resize: "vertical",
     boxSizing: "border-box",
     fontFamily: "inherit",
   },
+  actions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "16px",
+    paddingTop: "20px",
+    marginTop: "20px",
+    borderTop: "1px solid #e5e7eb",
+  },
+  cancelBtn: {
+    minWidth: "130px",
+    height: "52px",
+    border: "1px solid #cbd5e1",
+    background: "#fff",
+    color: "#334155",
+    borderRadius: "14px",
+    fontWeight: 900,
+    cursor: "pointer",
+    fontSize: "16px",
+  },
   submitBtn: {
-    width: "100%",
-    height: "50px",
+    minWidth: "220px",
+    height: "52px",
+    border: "none",
     background: "#ff6b00",
     color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    fontWeight: 800,
+    borderRadius: "14px",
+    fontWeight: 900,
+    cursor: "pointer",
     fontSize: "16px",
   },
 };

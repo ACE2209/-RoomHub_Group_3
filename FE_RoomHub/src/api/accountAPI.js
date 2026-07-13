@@ -1,19 +1,39 @@
-import rawAxios from "axios";
-import axios from "./axios.config";
+import axiosClient from "./axios.config";
+import axios from "axios";
 
 import API_URL from "./config";
+
+export const updateAccountFromProfile = (data) => {
+  return axiosClient.put("auth/profile", data);
+};
+
+export const sendOTPChangeEmail = (data) => {
+  return axiosClient.post("auth/send-otp-change-email", data);
+};
+
+export const verifyChangeEmail = (data) => {
+  return axiosClient.post("auth/verify-change-email", data);
+};
+
+export const updateAvatar = (data) => {
+  return axiosClient.put("auth/avatar", data, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
 
 const authHeader = () => ({
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
 });
 
 export const getAllAccountsAPI = async () => {
-    const res = await rawAxios.get(`${API_URL}/dashboard/accounts`, authHeader());
+    const res = await axios.get(`${API_URL}/dashboard/accounts`, authHeader());
     return res.data;
 };
 
 export const filterAccountsAPI = async (params) => {
-    const res = await rawAxios.get(`${API_URL}/dashboard/accounts/filter`, {
+    const res = await axios.get(`${API_URL}/dashboard/accounts/filter`, {
         ...authHeader(),
         params,
     });
@@ -21,70 +41,70 @@ export const filterAccountsAPI = async (params) => {
 };
 
 export const createAccountAPI = async (data) => {
-    const res = await rawAxios.post(`${API_URL}/dashboard/accounts/create`, data, {
+    const res = await axios.post(`${API_URL}/dashboard/accounts/create`, data, {
         ...authHeader(),
     });
     return res.data;
 };
 
 export const updateAccountAPI = async (accountId, data) => {
-    const res = await rawAxios.put(`${API_URL}/dashboard/accounts/${accountId}`, data, {
+    const res = await axios.put(`${API_URL}/dashboard/accounts/${accountId}`, data, {
         ...authHeader(),
     });
     return res.data;
 };
 
 export const softDeleteAccountAPI = async (accountId) => {
-    const res = await rawAxios.delete(`${API_URL}/dashboard/accounts/${accountId}`, {
+    const res = await axios.delete(`${API_URL}/dashboard/accounts/${accountId}`, {
         ...authHeader(),
     });
     return res.data;
 };
 
 export const getProfileAPI = async () => {
-    const res = await rawAxios.get(`${API_URL}/auth/profile`, authHeader());
+    const res = await axios.get(`${API_URL}/auth/profile`, {
+        headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+    });
     return res.data;
 };
 
 export const updateProfileAPI = async (data) => {
-    const res = await rawAxios.put(`${API_URL}/auth/profile`, data, authHeader());
+    const res = await axios.put(
+        `${API_URL}/auth/profile`,
+        data,
+        {
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+        }
+    );
     return res.data;
 };
 
 export const sendOTPChangeEmailAPI = async (email) => {
-    const res = await rawAxios.post(
+    const res = await axios.post(
         `${API_URL}/auth/send-otp-change-email`,
         { email },
-        authHeader()
+        {
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+        }
     );
     return res.data;
 };
 
 export const verifyChangeEmailAPI = async (data) => {
-    const res = await rawAxios.post(
+    const res = await axios.post(
         `${API_URL}/auth/verify-change-email`,
         data,
-        authHeader()
+        {
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+        }
     );
     return res.data;
-};
-
-export const updateAccountFromProfile = (data) => {
-    return axios.put("auth/profile", data);
-};
-
-export const sendOTPChangeEmail = (data) => {
-    return axios.post("auth/send-otp-change-email", data);
-};
-
-export const verifyChangeEmail = (data) => {
-    return axios.post("auth/verify-change-email", data);
-};
-
-export const updateAvatar = (data) => {
-    return axios.put("auth/avatar", data, {
-        headers: {
-            "Content-Type": "multipart/form-data",
-        },
-    });
 };

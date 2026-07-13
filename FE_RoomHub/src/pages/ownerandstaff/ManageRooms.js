@@ -29,7 +29,6 @@ import {
 import {
   getRoomTypesByBoardingHouse,
   getRoomsByBoardingHouse,
-  getAllRooms,
   createRoom,
   updateRoom,
   deleteRoom,
@@ -41,6 +40,32 @@ import "./ManageRoom.css";
 
 const { Option } = Select;
 const { TextArea } = Input;
+
+const getTenantNames = (rentBy = []) => {
+  if (!rentBy.length) {
+    return "No tenants";
+  }
+
+  return rentBy
+    .map((tenant) => tenant?.fullname || tenant?.username || tenant?.email)
+    .filter(Boolean)
+    .join(", ");
+};
+
+const hasAcceptedDeposit = (room) =>
+  room?.hasAcceptedDeposit || room?.depositStatus === "accepted";
+
+const renderRoomStatus = (room) => {
+  if (hasAcceptedDeposit(room)) {
+    return <span style={{ color: "#b7791f", fontWeight: 700 }}>Đã đặt cọc</span>;
+  }
+
+  if (room.isAvailable) {
+    return <span style={{ color: "#087443", fontWeight: 700 }}>Available</span>;
+  }
+
+  return <span style={{ color: "#b32f1f", fontWeight: 700 }}>Occupied</span>;
+};
 
 const ManageRooms = () => {
   const [loading, setLoading] = useState(false);
@@ -61,7 +86,7 @@ const ManageRooms = () => {
 
   useEffect(() => {
     loadBoardingHouses();
-    loadAllRooms();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadBoardingHouses = async () => {
@@ -71,6 +96,13 @@ const ManageRooms = () => {
         limit: 100,
       });
       setBoardingHouses(res.data || []);
+      // Auto-select first boarding house if available
+      if (res.data && res.data.length > 0) {
+        const firstBhId = res.data[0]._id;
+        setSelectedBoardingHouse(firstBhId);
+        loadRoomTypes(firstBhId);
+        loadRooms(firstBhId);
+      }
     } catch (err) {
       message.error(err.message || "Failed to load boarding houses");
     }
@@ -82,26 +114,6 @@ const ManageRooms = () => {
       setRoomTypes(res.data || []);
     } catch (err) {
       message.error(err.message || "Failed to load room types");
-    }
-  };
-
-  const loadAllRooms = async (page = 1) => {
-    try {
-      setLoading(true);
-
-      const res = await getAllRooms({
-        page,
-        limit: 10,
-      });
-
-      setRooms(res.data || []);
-      setPagination(res.pagination || {});
-    } catch (err) {
-      message.error(
-        err.message || "Failed to load rooms"
-      );
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -118,14 +130,6 @@ const ManageRooms = () => {
       message.error(err.message || "Failed to load rooms");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const reloadRooms = () => {
-    if (selectedBoardingHouse) {
-      loadRooms(selectedBoardingHouse);
-    } else {
-      loadAllRooms();
     }
   };
 
@@ -159,7 +163,6 @@ const ManageRooms = () => {
 
     setEditingRoom(room);
 
-    // ✅ FIX: Include isAvailable when loading form
     form.setFieldsValue({
       roomNumber: room.roomNumber,
       description: room.description,
@@ -173,7 +176,7 @@ const ManageRooms = () => {
         room.currentElectricityReading,
       currentWaterReading:
         room.currentWaterReading,
-      isAvailable: room.isAvailable,  // ✅ THÊM DÒNG NÀY
+      isAvailable: room.isAvailable,
     });
 
     setFileList([]);
@@ -184,33 +187,26 @@ const ManageRooms = () => {
     try {
       const values = await form.validateFields();
 
-      // ✅ DEBUG: Log form values
-      console.log("✅ Form values:", values);
-      console.log("✅ isAvailable value:", values.isAvailable);
-      console.log("✅ isAvailable type:", typeof values.isAvailable);
-
       const formData = new FormData();
 
-      // ✅ FIX: Explicitly append all fields including isAvailable
       Object.keys(values).forEach((key) => {
         if (values[key] !== undefined && values[key] !== null) {
-          console.log(`📦 Appending ${key}:`, values[key]);
           formData.append(key, values[key]);
         }
       });
 
-      // ✅ DEBUG: Log FormData
-      console.log("📤 FormData entries:");
-      for (let [key, value] of formData.entries()) {
-        console.log(`   ${key}: ${value}`);
-      }
-
+      // ✅ Append ALL files (not just the first one)
       if (fileList.length > 0) {
-        formData.append("Room", fileList[0].originFileObj);
+        fileList.forEach((file) => {
+          formData.append("Room", file.originFileObj);
+        });
       }
 
       if (editingRoom) {
-        console.log("🔄 Updating room:", editingRoom._id);
+        if (fileList.length === 0) {
+          message.warning("Please upload at least one image to update");
+          return;
+        }
         await updateRoom(editingRoom._id, formData);
         message.success("Room updated successfully");
       } else {
@@ -220,10 +216,9 @@ const ManageRooms = () => {
       }
 
       setIsModalOpen(false);
-
-      // ✅ FIX: Reload rooms after successful update
-      console.log("🔃 Reloading rooms...");
-      reloadRooms();
+      if (selectedBoardingHouse) {
+        loadRooms(selectedBoardingHouse);
+      }
     } catch (err) {
       console.error("❌ Error:", err);
       message.error(err.message || "An error occurred");
@@ -233,10 +228,10 @@ const ManageRooms = () => {
   const handleDelete = async (roomId) => {
     try {
       await deleteRoom(roomId);
-
       message.success("Room deleted successfully");
-
-      reloadRooms();
+      if (selectedBoardingHouse) {
+        loadRooms(selectedBoardingHouse);
+      }
     } catch (err) {
       console.error(err);
       message.error(err.message || "Failed to delete room");
@@ -260,14 +255,14 @@ const ManageRooms = () => {
       render: (_, record) => record.roomTypeId?.peopleNumber || "N/A",
     },
     {
+      title: "Tenants",
+      key: "tenants",
+      render: (_, record) => getTenantNames(record.rentBy || []),
+    },
+    {
       title: "Status",
       key: "status",
-      render: (_, record) =>
-        record.isAvailable ? (
-          <span style={{ color: "#087443", fontWeight: 700 }}>Available</span>
-        ) : (
-          <span style={{ color: "#b32f1f", fontWeight: 700 }}>Occupied</span>
-        ),
+      render: (_, record) => renderRoomStatus(record),
     },
     {
       title: "Description",
@@ -357,8 +352,6 @@ const ManageRooms = () => {
               onChange: (page) => {
                 if (selectedBoardingHouse) {
                   loadRooms(selectedBoardingHouse, page);
-                } else {
-                  loadAllRooms(page);
                 }
               },
             }}
@@ -409,15 +402,19 @@ const ManageRooms = () => {
               <TextArea rows={4} placeholder="Room description..." />
             </Form.Item>
 
-            <Form.Item label="Room Image">
+            <Form.Item label="Room Images (Multiple)">
               <Upload
                 beforeUpload={() => false}
                 fileList={fileList}
                 onChange={(info) => setFileList(info.fileList)}
-                maxCount={1}
+                multiple={true}
+                accept="image/*"
               >
-                <Button icon={<UploadOutlined />}>Upload Image</Button>
+                <Button icon={<UploadOutlined />}>Upload Images</Button>
               </Upload>
+              <p style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+                You can upload multiple images ({fileList.length} selected)
+              </p>
             </Form.Item>
 
             {editingRoom && (
@@ -460,7 +457,6 @@ const ManageRooms = () => {
                   <Input type="number" placeholder="0" />
                 </Form.Item>
 
-                {/* ✅ FIX: Ensure isAvailable field is properly included */}
                 <Form.Item
                   name="isAvailable"
                   label="Available"

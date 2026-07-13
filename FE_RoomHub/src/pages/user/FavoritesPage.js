@@ -1,54 +1,44 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getFavorites, toggleFavorite } from "../../api/favorite";
-import { Heart, Star, MapPin, BedDouble, X } from "lucide-react";
-import Footer from "../layout/homepage/footer";
+import { Heart, Star, MapPin, Clock } from "lucide-react";
 import Header from "../layout/homepage/header";
+import Footer from "../layout/homepage/footer";
 
 const FavoritesPage = () => {
     const [favorites, setFavorites] = useState([]);
     const navigate = useNavigate();
 
     useEffect(() => {
-        const load = async () => {
-            const res = await getFavorites();
-            if (res?.favorites) setFavorites(res.favorites);
-        };
-
-        load();
+        (async () => {
+            try {
+                const res = await getFavorites();
+                if (res?.favorites) setFavorites(res.favorites);
+            } catch (e) {
+                console.error(e);
+            }
+        })();
     }, []);
 
     const formatCurrency = (value) => {
-        const numberValue = Number(value);
-        if (Number.isNaN(numberValue)) return "Contact";
+        const n = Number(value);
+        if (Number.isNaN(n)) return "Contact";
         return new Intl.NumberFormat("vi-VN", {
             style: "currency",
             currency: "VND",
             maximumFractionDigits: 0,
-        }).format(numberValue);
+        }).format(n);
     };
 
-    const formatAddress = (address) => {
-        if (!address) return "";
+    const formatAddress = (a) =>
+        !a ? "" : [a.detail, a.ward?.name, a.district?.name, a.province?.name].filter(Boolean).join(", ");
 
-        return [
-            address.detail,
-            address.ward?.name,
-            address.district?.name,
-            address.province?.name,
-        ].filter(Boolean).join(", ");
-    };
-
-    // 🔥 REMOVE FAVORITE
-    const handleRemoveFavorite = async (e, id) => {
+    const removeFavorite = async (e, id) => {
         e.stopPropagation();
-
         try {
             await toggleFavorite(id);
-
-            setFavorites(prev =>
-                prev.filter(item => (item.id || item._id) !== id)
-            );
+            setFavorites((prev) => prev.filter((i) => (i.id || i._id) !== id));
         } catch (err) {
             console.error(err);
         }
@@ -57,124 +47,102 @@ const FavoritesPage = () => {
     return (
         <>
             <Header />
+            <div className="container py-4">
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h2 className="fw-bold"> My Favorites</h2>
+                    </div>
+                </div>
 
-            <div className="container mt-4">
-                <h2 className="mb-4 d-flex align-items-center gap-2">
-                    <Heart color="#ff6b00" /> My Favorites
-                </h2>
-
-                <div className="row g-3">
+                <div className="row g-4">
                     {favorites.map((item) => {
                         const id = item.id || item._id;
-
                         return (
-                            <div className="col-md-4" key={id}>
+                            <div className="col-lg-4 col-md-6" key={id}>
                                 <div
-                                    className="card shadow-sm border-0 h-100"
+                                    className="card border-0 h-100"
                                     style={{
-                                        borderRadius: "12px",
+                                        borderRadius: 18,
                                         overflow: "hidden",
                                         cursor: "pointer",
-                                        position: "relative",
+                                        transition: ".25s",
+                                        boxShadow: "0 4px 15px rgba(0,0,0,.08)"
                                     }}
-                                    onClick={() =>
-                                        navigate(`/boarding-houses/${id}`)
-                                    }
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = "translateY(-6px)";
+                                        e.currentTarget.style.boxShadow = "0 12px 30px rgba(0,0,0,.18)";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = "translateY(0)";
+                                        e.currentTarget.style.boxShadow = "0 4px 15px rgba(0,0,0,.08)";
+                                    }}
+                                    onClick={() => navigate(`/boarding-houses/${id}`)}
                                 >
-                                    {/* ❌ REMOVE BUTTON */}
-                                    <button
-                                        onClick={(e) => handleRemoveFavorite(e, id)}
-                                        style={{
-                                            position: "absolute",
-                                            top: 10,
-                                            right: 10,
-                                            zIndex: 10,
-                                            border: "none",
-                                            background: "rgba(255,255,255,0.9)",
-                                            borderRadius: "50%",
-                                            width: 32,
-                                            height: 32,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            cursor: "pointer",
-                                        }}
-                                    >
-                                        <X size={16} color="#ff3b30" />
-                                    </button>
-
-                                    {/* IMAGE */}
-                                    <div style={{ height: "180px" }}>
+                                    <div style={{ position: "relative" }}>
                                         <img
-                                            src={
-                                                item.img?.[0]?.imageUrl ||
-                                                "/image/logoconen.png"
-                                            }
+                                            src={item.img?.[0]?.imageUrl || "/image/logoconen.png"}
                                             alt={item.name}
-                                            style={{
-                                                width: "100%",
-                                                height: "100%",
-                                                objectFit: "cover",
-                                            }}
+                                            style={{ width: "100%", height: 220, objectFit: "cover" }}
                                         />
+                                        <button
+                                            className="btn btn-light rounded-circle shadow"
+                                            style={{ position: "absolute", top: 15, right: 15, width: 42, height: 42 }}
+                                            onClick={(e) => removeFavorite(e, id)}
+                                        >
+                                            <Heart size={18} fill="#ff6b00" color="#ff6b00" />
+                                        </button>
                                     </div>
 
-                                    <div className="p-3 d-flex flex-column gap-2">
-                                        {/* NAME + RATING */}
+                                    <div className="card-body d-flex flex-column">
                                         <div className="d-flex justify-content-between">
-                                            <h5>{item.name}</h5>
-
-                                            <span className="text-warning d-flex align-items-center gap-1">
-                                                <Star size={16} fill="currentColor" />
-                                                {item.rating ?? 0}
+                                            <h5 className="fw-bold text-truncate">{item.name}</h5>
+                                            <span className="d-flex align-items-center text-warning fw-semibold">
+                                                <Star size={16} fill="currentColor" />&nbsp;{item.rating ?? 0}
                                             </span>
                                         </div>
 
-                                        {/* ADDRESS */}
-                                        <div className="text-muted small d-flex align-items-center gap-1">
-                                            <MapPin size={14} />
-                                            {formatAddress(item.address)}
+                                        <div className="small fw-semibold mb-2" style={{ color: "#ff6b00" }}>
+                                            {item.boardingHouseType || "Boarding House"}
                                         </div>
 
-                                        {/* PRICE */}
-                                        <div
-                                            className="fw-bold"
-                                            style={{ color: "#ff6b00" }}
+                                        <div className="small text-muted d-flex mb-2">
+                                            <MapPin size={15} className="me-1 mt-1" />
+                                            <span>{formatAddress(item.address)}</span>
+                                        </div>
+
+                                        {item.timeAgo && (
+                                            <div className="small text-secondary mb-2">
+                                                <Clock size={14} /> {item.timeAgo}
+                                            </div>
+                                        )}
+
+                                        <p
+                                            className="text-muted"
+                                            style={{
+                                                display: "-webkit-box",
+                                                WebkitLineClamp: 2,
+                                                WebkitBoxOrient: "vertical",
+                                                overflow: "hidden",
+                                                minHeight: 48
+                                            }}
                                         >
-                                            {formatCurrency(item.price)}
-                                        </div>
-
-                                        {/* ROOMS */}
-                                        <div className="text-secondary small d-flex align-items-center gap-2">
-                                            <BedDouble size={16} />
-                                            {item.availableRooms}/{item.totalRooms}
-                                        </div>
-
-                                        {/* DESCRIPTION */}
-                                        <p className="text-muted small mb-0">
                                             {item.detail}
                                         </p>
 
-                                        {/* FOOTER */}
-                                        <div className="d-flex justify-content-between align-items-center mt-2">
-                                            <span style={{ color: "#ff6b00" }}>
-                                                ❤️ {item.likes ?? 0}
-                                            </span>
+                                        <div className="mt-auto d-flex justify-content-between align-items-center">
+                                            <div className="fw-bold fs-5" style={{ color: "#ff6b00" }}>
+                                                {formatCurrency(item.price)}
+                                            </div>
 
                                             <button
-                                                className="btn btn-sm rounded-pill"
-                                                style={{
-                                                    border: "1px solid #ff6b00",
-                                                    color: "#ff6b00",
-                                                }}
+                                                className="btn"
+                                                style={{ background: "#ff6b00", color: "#fff", borderRadius: 30 }}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    navigate(
-                                                        `/boarding-houses/${id}`
-                                                    );
+                                                    navigate(`/boarding-houses/${id}`);
                                                 }}
                                             >
-                                                View detail
+                                                View Detail
                                             </button>
                                         </div>
                                     </div>
@@ -185,12 +153,16 @@ const FavoritesPage = () => {
                 </div>
 
                 {favorites.length === 0 && (
-                    <div className="text-center mt-5 text-muted">
-                        You don't have any favorites yet 💔
+                    <div className="text-center py-5 mt-5">
+                        <Heart size={70} color="#ff6b00" />
+                        <h3 className="mt-3">No favorites yet</h3>
+                        <p className="text-muted">Save your favorite boarding houses to see them here.</p>
+                        <button className="btn" style={{ background: "#ff6b00", color: "#fff" }} onClick={() => navigate("/boarding-houses")}>
+                            Explore Boarding Houses
+                        </button>
                     </div>
                 )}
             </div>
-
             <Footer />
         </>
     );

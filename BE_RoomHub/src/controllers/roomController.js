@@ -5,7 +5,48 @@ import PaymentBill from "../models/paymentBill.js";
 import paginate from "../utils/pagination.js";
 import DepositRoom from "../models/depositRoom.js";
 import { updateBoardingHouseRoomCounts } from '../utils/updateBoardingHouseRoomCounts.js';
+import BoardingHouse from "../models/boardingHouse.js";
 
+const attachAcceptedDepositStatus = async (rooms) => {
+  const roomIds = rooms.map((room) => room._id).filter(Boolean);
+
+  if (!roomIds.length) {
+    return rooms;
+  }
+
+  const acceptedDeposits = await DepositRoom.find({
+    roomId: { $in: roomIds },
+    status: "accepted",
+  })
+    .select("roomId accountId")
+    .populate("accountId", "fullname username email")
+    .lean();
+
+  const acceptedTenantsByRoom = new Map();
+
+  acceptedDeposits.forEach((deposit) => {
+    const roomId = deposit.roomId.toString();
+    const currentTenants = acceptedTenantsByRoom.get(roomId) || [];
+
+    if (deposit.accountId) {
+      currentTenants.push(deposit.accountId);
+    }
+
+    acceptedTenantsByRoom.set(roomId, currentTenants);
+  });
+
+  return rooms.map((room) => {
+    const acceptedTenants = acceptedTenantsByRoom.get(room._id.toString()) || [];
+    const hasAcceptedDeposit = acceptedTenants.length > 0;
+
+    return {
+      ...room,
+      hasAcceptedDeposit,
+      depositStatus: hasAcceptedDeposit ? "accepted" : null,
+      acceptedTenants,
+    };
+  });
+};
 
 class RoomController {
   async getRoomsByRoomType(req, res) {
@@ -18,7 +59,7 @@ class RoomController {
       }
 
       const depositRoomIds = await DepositRoom.find({
-        status: "confirmed",
+        status: { $in: ["accepted", "confirmed"] },
       }).distinct("roomId");
 
       const filter = {
@@ -57,7 +98,7 @@ class RoomController {
       }).distinct("roomId");
 
       const validDeposits = await DepositRoom.find({
-        status: { $regex: /^confirmed$/i },
+        status: { $regex: /^accepted$/i },
         startDate: { $lte: now },
         endDate: { $gte: now },
       }).select("roomId");
@@ -101,6 +142,7 @@ class RoomController {
       };
 
       const result = await paginate(Room, paginationOptions, req);
+      result.data = await attachAcceptedDepositStatus(result.data);
 
       return res.status(200).json(result);
     } catch (error) {
@@ -114,12 +156,31 @@ class RoomController {
 
   async getAllRooms(req, res) {
     try {
+      const userId = req.user?.userId || req.user?._id;
+
+      const managedBoardingHouses = await BoardingHouse.find({
+        $or: [
+          { ownerId: userId },
+          { staffId: userId }
+        ]
+      }).select("_id");
+
+      const boardingHouseIds = managedBoardingHouses.map(
+        (item) => item._id
+      );
+
       const paginationOptions = {
         defaultPage: 1,
         defaultLimit: 10,
         maxLimit: 100,
         sortField: "createdAt",
         sortOrder: "desc",
+
+        filter: {
+          boardingHouseId: {
+            $in: boardingHouseIds,
+          },
+        },
 
         populate: [
           {
@@ -142,6 +203,7 @@ class RoomController {
         paginationOptions,
         req
       );
+      result.data = await attachAcceptedDepositStatus(result.data);
 
       return res.status(200).json(result);
     } catch (error) {
@@ -263,7 +325,7 @@ class RoomController {
       if (isAvailable !== undefined && isAvailable !== null && isAvailable !== '') {
         const boolValue = isAvailable === true || isAvailable === 'true';
         room.isAvailable = boolValue;
-        room.manuallySet = true;  
+        room.manuallySet = true;
       }
       if (
         previousElectricityReading !== undefined &&
@@ -342,7 +404,16 @@ class RoomController {
         });
       }
 
-      return res.status(200).json(room);
+      const acceptedDeposit = await DepositRoom.exists({
+        roomId,
+        status: "accepted",
+      });
+
+      return res.status(200).json({
+        ...room.toObject(),
+        hasAcceptedDeposit: Boolean(acceptedDeposit),
+        depositStatus: acceptedDeposit ? "accepted" : null,
+      });
     } catch (error) {
       return res.status(500).json({
         message: "Server error",

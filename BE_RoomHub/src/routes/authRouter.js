@@ -7,6 +7,9 @@ import {
   reportController,
   ReviewController,
   watchLaterController,
+  depositController,
+paymentController,
+refundRequestController,
 } from "../controllers/index.js";
 import { upload } from "../config/cloudinary.config.js";
 
@@ -26,7 +29,7 @@ authRouter.put("/avatar", upload.single("avatar"), accountController.updateAvata
 authRouter.get("/reports", reportController.getOwnReports.bind(reportController));
 authRouter.get("/reports/exist", reportController.checkReportExist.bind(reportController));
 authRouter.get("/reports/:reportId", reportController.getOwnReportDetail.bind(reportController));
-authRouter.post("/reports", upload.array("report", 5), reportController.createReport.bind(reportController));
+authRouter.post("/reports", upload.array("report", 5), reportController.createReport);
 
 // reviews
 authRouter.post("/reviews", ReviewController.addReview);
@@ -53,5 +56,16 @@ authRouter.delete("/watchlater/:boardingHouseId", watchLaterController.deleteWat
 // profile
 authRouter.get("/profile", accountController.getProfile);
 authRouter.put("/profile", accountController.updateAccountFromProfile);
-
+// USER DEPOSIT
+authRouter.post("/deposits", depositController.createDeposit);
+authRouter.get("/deposits", depositController.getMyDeposits);
+authRouter.post("/deposits/:depositId/pay", paymentController.payDeposit);
+// USER REFUND REQUEST
+authRouter.post("/refund-requests", refundRequestController.createRefundRequest);
+authRouter.get("/refund-requests", refundRequestController.getMyRefundRequests);
+authRouter.get("/refund-requests/check-exists/:depositRoomId", refundRequestController.checkRefundRequestExists
+);
+// USER RENT PAYMENT
+authRouter.get("/payment-bills", paymentController.getMyPaymentBills);
+authRouter.post("/payment-bills/:billId/pay", paymentController.payRent);
 export { authRouter };

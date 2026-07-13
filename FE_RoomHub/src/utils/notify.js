@@ -3,7 +3,6 @@ import Swal from "sweetalert2";
 const BRAND_COLOR = "#ff6b00";
 const DANGER_COLOR = "#ff3b30";
 
-// Toast nhỏ góc trên phải (cùng style với Profile.js, ReviewSection.js)
 const toast = (icon, title) =>
   Swal.fire({
     toast: true,
@@ -12,13 +11,33 @@ const toast = (icon, title) =>
     title,
     showConfirmButton: false,
     timer: 1500,
+    timerProgressBar: true,
+
+    // Màu nền
+    background: "#ffffff",
+
+    // Màu chữ
+    color: "#1f2937",
+
+    // Màu icon
+    iconColor:
+      icon === "success"
+        ? "#f59e0b"
+        : icon === "info"
+          ? BRAND_COLOR
+          : icon === "error"
+            ? DANGER_COLOR
+            : "#f59e0b",
+
+    customClass: {
+      popup: "roomhub-toast",
+      title: "roomhub-toast-title",
+    },
   });
 
 export const toastSuccess = (title) => toast("success", title);
-
 export const toastInfo = (title) => toast("info", title);
 
-// Hộp thoại xác nhận, trả về true nếu người dùng đồng ý
 export const confirmAction = async ({
   title,
   text,

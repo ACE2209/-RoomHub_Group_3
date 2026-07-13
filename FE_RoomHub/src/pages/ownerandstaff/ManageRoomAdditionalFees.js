@@ -13,6 +13,8 @@ import {
     Popconfirm,
     Row,
     Col,
+    Empty,
+    DatePicker,
 } from "antd";
 
 import {
@@ -39,6 +41,7 @@ import AdminLayout from "../layout/admin/AdminLayout";
 import "./ManageRoomAdditionalFees.css";
 
 const { Option } = Select;
+const { MonthPicker } = DatePicker;
 const ManageRoomAdditionalFees = () => {
     const [loading, setLoading] = useState(false);
     const [boardingHouses, setBoardingHouses] = useState([]);
@@ -47,9 +50,9 @@ const ManageRoomAdditionalFees = () => {
     const [selectedRoom, setSelectedRoom] = useState(null);
     const [fees, setFees] = useState([]);
 
-    const [filterMonth] = useState(null);
-    const [filterYear] = useState(null);
-    const [showAllFees] = useState(true);
+    const [filterMonth, setFilterMonth] = useState(null);
+    const [filterYear, setFilterYear] = useState(null);
+    const [showAllFees, setShowAllFees] = useState(true);  // ✅ Toggle to show all
 
     const [pagination, setPagination] = useState({
         currentPage: 1,
@@ -167,6 +170,19 @@ const ManageRoomAdditionalFees = () => {
     const handleRoomChange = async (roomId) => {
         setSelectedRoom(roomId);
         await loadFees(roomId);
+    };
+
+    const handleDateFilterChange = async () => {
+        if (selectedRoom) {
+            await loadFees(selectedRoom);
+        }
+    };
+
+    const handleShowAllToggle = async () => {
+        setShowAllFees(!showAllFees);
+        if (selectedRoom) {
+            await loadFees(selectedRoom);
+        }
     };
 
     const openCreateModal = () => {
