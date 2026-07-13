@@ -1,4 +1,4 @@
-import API_BASE_URL, { authHeaders, parseJsonResponse } from "./config";
+import API_BASE_URL, { authHeaders, parseJsonResponse } from "../config";
 
 const getRolePrefix = () => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
