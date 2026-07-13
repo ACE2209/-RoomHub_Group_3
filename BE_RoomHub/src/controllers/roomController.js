@@ -251,13 +251,19 @@ class RoomController {
         });
       }
 
+      // Route now uses upload.array("Room", 10) so multiple images can be sent
+      const uploadedImages = (req.files || []).map((file) => ({
+        imageUrl: file.path,
+        publicId: file.filename,
+      }));
+
       const roomDocs = rooms.map((room) => ({
         roomNumber: room.roomNumber,
         boardingHouseId: room.boardingHouseId,
         description: room.description,
         roomTypeId: room.roomTypeId,
         isAvailable: true,
-        images: room.images || null,
+        images: room.images || uploadedImages,
       }));
 
       // Save all rooms
@@ -347,15 +353,19 @@ class RoomController {
         room.currentWaterReading = Number(currentWaterReading);
       }
 
-      if (req.file) {
-        if (room?.images?.publicId) {
-          await cloudinary.uploader.destroy(room.images.publicId);
+      if (req.files && req.files.length > 0) {
+        if (Array.isArray(room.images)) {
+          for (const oldImage of room.images) {
+            if (oldImage?.publicId) {
+              await cloudinary.uploader.destroy(oldImage.publicId);
+            }
+          }
         }
 
-        room.images = {
-          imageUrl: req.file.path,
-          publicId: req.file.filename,
-        };
+        room.images = req.files.map((file) => ({
+          imageUrl: file.path,
+          publicId: file.filename,
+        }));
       }
 
       await room.save();

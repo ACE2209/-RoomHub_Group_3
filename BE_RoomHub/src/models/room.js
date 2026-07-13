@@ -32,15 +32,17 @@ const RoomSchema = new mongoose.Schema(
       default: false,
     },
 
-    images: {
-      imageUrl: {
-        type: String,
+    images: [
+      {
+        imageUrl: {
+          type: String,
+        },
+        publicId: {
+          type: String,
+          default: "",
+        },
       },
-      publicId: {
-        type: String,
-        default: "",
-      },
-    },
+    ],
 
     roomTypeId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -73,10 +75,6 @@ const RoomSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // Denormalized cache of RoomAdditionalFees documents belonging to this room.
-    // Kept in sync (push/update/pull) by RoomAdditionFeeController on every
-    // create / update / delete so the Room document always reflects its
-    // current additional fees without an extra query (BR-32 related feature).
     additionalFees: [
       {
         feeId: {
