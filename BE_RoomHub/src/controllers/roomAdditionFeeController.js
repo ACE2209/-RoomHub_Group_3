@@ -1,4 +1,6 @@
 import RoomAdditionalFees from "../models/roomAdditionalFees.js";
+import Room from "../models/room.js";
+import BoardingHouse from "../models/boardingHouse.js";
 import paginate from "../utils/pagination.js";
 
 class RoomAdditionFeeController {
@@ -21,10 +23,38 @@ class RoomAdditionFeeController {
 
   async getAllRoomAdditionFees(req, res) {
     try {
-      const additionFee = await RoomAdditionalFees.find();
+
+      const accountId = req.user._id;
+
+      const houses = await BoardingHouse.find({
+        $or: [
+          { ownerId: accountId },
+          { staffId: accountId }
+        ]
+      }).select("_id");
+
+      const rooms = await Room.find({
+        boardingHouseId: {
+          $in: houses.map(h => h._id)
+        }
+      }).select("_id");
+
+      const additionFee = await RoomAdditionalFees.find({
+        roomId: {
+          $in: rooms.map(r => r._id)
+        }
+      })
+        .populate({
+          path: "roomId",
+          select: "roomNumber"
+        });
+
       res.status(200).json(additionFee);
+
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      res.status(500).json({
+        message: error.message
+      });
     }
   }
 
@@ -94,22 +124,6 @@ class RoomAdditionFeeController {
 
       return res.status(500).json({
         success: false,
-        message: error.message,
-      });
-    }
-  }
-
-  async getAllRoomAdditionFees(req, res) {
-    try {
-      const additionFee = await RoomAdditionalFees.find()
-        .populate({
-          path: "roomId",
-          select: "roomNumber",
-        });
-
-      res.status(200).json(additionFee);
-    } catch (error) {
-      res.status(500).json({
         message: error.message,
       });
     }
