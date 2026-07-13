@@ -1,10 +1,17 @@
 import axios from "axios";
+import API_URL from "../config";
 
 const API = axios.create({
-    baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000",
+    baseURL: API_URL,
 });
 
 const getAuthToken = () => localStorage.getItem("token");
+const getRolePrefix = () => {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const role = user?.role || localStorage.getItem("role");
+
+    return role === "owner" ? "/owner" : "/staff";
+};
 
 API.interceptors.request.use((config) => {
     const token = getAuthToken();
@@ -26,7 +33,7 @@ export const getRoomTypesByBoardingHouse = async (boardingHouseId, options = {})
         if (options.limit) params.append("limit", options.limit);
 
         const response = await API.get(
-            `/staff/boardinghouse/room-types/${boardingHouseId}?${params.toString()}`
+            `${getRolePrefix()}/boardinghouse/room-types/${boardingHouseId}?${params.toString()}`
         );
         return response.data;
     } catch (error) {
@@ -37,7 +44,7 @@ export const getRoomTypesByBoardingHouse = async (boardingHouseId, options = {})
 export const createRoomType = async (boardingHouseId, formData) => {
     try {
         const response = await API.post(
-            `/staff/boardinghouse/roomtype/${boardingHouseId}/create`,
+            `${getRolePrefix()}/boardinghouse/roomtype/${boardingHouseId}/create`,
             formData,
             { headers: { "Content-Type": "multipart/form-data" } }
         );
@@ -50,7 +57,7 @@ export const createRoomType = async (boardingHouseId, formData) => {
 export const updateRoomType = async (roomTypeId, formData) => {
     try {
         const response = await API.put(
-            `/staff/boardinghouse/roomtype/${roomTypeId}/`,
+            `${getRolePrefix()}/boardinghouse/roomtype/${roomTypeId}/`,
             formData,
             { headers: { "Content-Type": "multipart/form-data" } }
         );
@@ -63,7 +70,7 @@ export const updateRoomType = async (roomTypeId, formData) => {
 export const deleteRoomType = async (roomTypeId) => {
     try {
         const response = await API.delete(
-            `/staff/boardinghouse/roomtype/${roomTypeId}/`
+            `${getRolePrefix()}/boardinghouse/roomtype/${roomTypeId}/`
         );
         return response.data;
     } catch (error) {
