@@ -1,17 +1,36 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Input, Select, Space, Table, Tag, message } from "antd";
+import {
+  Button,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  message,
+} from "antd";
 import {
   CalendarClock,
   CheckCircle2,
   CircleAlert,
   ClipboardList,
+  Pencil,
+  Plus,
   RotateCcw,
   Search,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import AdminLayout from "../layout/admin/AdminLayout";
 import { getOwnerStaffs } from "../../api/ownerandstaff/staffManagement";
-import { getManagedTasks } from "../../api/ownerandstaff/taskManagement";
+import {
+  createManagedTask,
+  deleteManagedTask,
+  getManagedTasks,
+  updateManagedTask,
+} from "../../api/ownerandstaff/taskManagement";
 
 const pageSizeOptions = [5, 10, 20];
 
@@ -44,6 +63,7 @@ const priorityColors = {
 };
 
 export default function TaskManagementPage() {
+  const [form] = Form.useForm();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const isOwner = user?.role === "owner";
   const currentUserId = user?._id || user?.userId || "";
@@ -55,6 +75,9 @@ export default function TaskManagementPage() {
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
   const [loading, setLoading] = useState(false);
   const [staffLoading, setStaffLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchTasks = useCallback(
     async ({ page = 1, limit = pagination.limit, nextFilters = appliedFilters } = {}) => {
@@ -126,6 +149,19 @@ export default function TaskManagementPage() {
     [currentUserId, staffs]
   );
 
+  const taskResponsibleOptions = useMemo(
+    () => [
+      ...(currentUserId ? [{ value: currentUserId, label: "Me" }] : []),
+      ...(isOwner
+        ? staffs.map((staff) => ({
+            value: staff._id,
+            label: staff.fullname || staff.username || staff.email,
+          }))
+        : []),
+    ],
+    [currentUserId, isOwner, staffs]
+  );
+
   const applyFilters = () => {
     setAppliedFilters(filters);
     fetchTasks({ page: 1, nextFilters: filters });
@@ -143,6 +179,83 @@ export default function TaskManagementPage() {
       [key]: value,
     }));
   };
+
+  const openCreateModal = () => {
+    setEditingTask(null);
+    form.resetFields();
+    form.setFieldsValue({
+      priority: "Medium",
+      status: "In Progress",
+      responsibleBy: currentUserId || undefined,
+      dueDate: formatDateInput(new Date()),
+    });
+    setModalOpen(true);
+  };
+
+  const openEditModal = (task) => {
+    setEditingTask(task);
+    form.setFieldsValue({
+      title: task.title,
+      details: task.details,
+      priority: task.priority || "Medium",
+      status: task.status || "In Progress",
+      responsibleBy: task.responsibleBy?._id || task.responsibleBy || currentUserId,
+      dueDate: formatDateInput(task.dueDate),
+    });
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingTask(null);
+    form.resetFields();
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      const payload = {
+        ...values,
+      };
+
+      if (!isOwner) {
+        delete payload.responsibleBy;
+      }
+
+      setSubmitting(true);
+
+      if (editingTask) {
+        await updateManagedTask(editingTask._id, payload);
+        message.success("Task updated successfully");
+      } else {
+        await createManagedTask(payload);
+        message.success("Task created successfully");
+      }
+
+      closeModal();
+      fetchTasks({ page: editingTask ? pagination.currentPage : 1 });
+    } catch (error) {
+      if (error?.errorFields) return;
+      message.error(error.message || "Save task failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (taskId) => {
+    try {
+      await deleteManagedTask(taskId);
+      message.success("Task deleted successfully");
+      fetchTasks({ page: pagination.currentPage });
+    } catch (error) {
+      message.error(error.message || "Delete task failed");
+    }
+  };
+
+  const canDeleteTask = (task) =>
+    isOwner ||
+    task.createdBy?._id === currentUserId ||
+    task.createdBy === currentUserId;
 
   const columns = [
     {
@@ -205,6 +318,37 @@ export default function TaskManagementPage() {
       key: "createdBy",
       render: (creator) => creator?.fullname || creator?.username || "N/A",
     },
+    {
+      title: "Action",
+      key: "action",
+      width: 128,
+      render: (_, task) => (
+        <Space>
+          <Button
+            title="Update"
+            aria-label="Update task"
+            icon={<Pencil size={16} />}
+            onClick={() => openEditModal(task)}
+          />
+          <Popconfirm
+            title="Delete this task?"
+            okText="Delete"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true }}
+            disabled={!canDeleteTask(task)}
+            onConfirm={() => handleDelete(task._id)}
+          >
+            <Button
+              danger
+              disabled={!canDeleteTask(task)}
+              title="Delete"
+              aria-label="Delete task"
+              icon={<Trash2 size={16} />}
+            />
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ];
 
   return (
@@ -227,6 +371,10 @@ export default function TaskManagementPage() {
             </span>
           </div>
         </div>
+
+        <Button type="primary" icon={<Plus size={16} />} onClick={openCreateModal}>
+          Add Task
+        </Button>
       </div>
 
       <div style={filterPanelStyle}>
@@ -320,6 +468,81 @@ export default function TaskManagementPage() {
             fetchTasks({ page, limit: pageSize, nextFilters: appliedFilters }),
         }}
       />
+
+      <Modal
+        title={editingTask ? "Update Task" : "Add Task"}
+        open={modalOpen}
+        onCancel={closeModal}
+        onOk={handleSubmit}
+        okText={editingTask ? "Save" : "Create"}
+        confirmLoading={submitting}
+        destroyOnHidden
+        width={720}
+      >
+        <Form form={form} layout="vertical" style={formStyle}>
+          <Form.Item
+            name="title"
+            label="Title"
+            rules={[{ required: true, message: "Title is required" }]}
+          >
+            <Input placeholder="Task title" />
+          </Form.Item>
+
+          <Form.Item name="details" label="Details">
+            <Input.TextArea rows={4} placeholder="Task details" />
+          </Form.Item>
+
+          <div style={formGridStyle}>
+            <Form.Item name="priority" label="Priority">
+              <Select
+                options={[
+                  { value: "Low", label: "Low" },
+                  { value: "Medium", label: "Medium" },
+                  { value: "High", label: "High" },
+                ]}
+              />
+            </Form.Item>
+
+            <Form.Item name="status" label="Status">
+              <Select
+                options={[
+                  { value: "In Progress", label: "In Progress" },
+                  { value: "Completed", label: "Completed" },
+                  { value: "Cancelled", label: "Cancelled" },
+                ]}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="dueDate"
+              label="Due date"
+              rules={[{ required: true, message: "Due date is required" }]}
+            >
+              <Input type="date" />
+            </Form.Item>
+
+            <Form.Item
+              name="responsibleBy"
+              label="Responsible"
+              rules={[
+                {
+                  required: isOwner,
+                  message: "Responsible user is required",
+                },
+              ]}
+            >
+              <Select
+                showSearch
+                disabled={!isOwner}
+                loading={staffLoading}
+                options={taskResponsibleOptions}
+                optionFilterProp="label"
+                placeholder="Select responsible"
+              />
+            </Form.Item>
+          </div>
+        </Form>
+      </Modal>
     </AdminLayout>
   );
 }
@@ -337,6 +560,11 @@ const isOverdue = (value) => {
 const formatDate = (value) => {
   if (!value) return "N/A";
   return new Date(value).toLocaleDateString("vi-VN");
+};
+
+const formatDateInput = (value) => {
+  if (!value) return "";
+  return new Date(value).toISOString().slice(0, 10);
 };
 
 const headerStyle = {
@@ -428,4 +656,14 @@ const overdueTextStyle = {
   color: "#d92d20",
   fontSize: 12,
   fontWeight: 700,
+};
+
+const formStyle = {
+  marginTop: 18,
+};
+
+const formGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: "0 14px",
 };
