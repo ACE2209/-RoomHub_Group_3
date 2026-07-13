@@ -7,6 +7,20 @@ import mongoose from 'mongoose';
 import paginate from '../utils/pagination.js';
 
 class RoomTypeController {
+  getUserId(req) {
+    return req.user?.userId || req.user?._id;
+  }
+
+  canManageBoardingHouse(boardingHouse, req) {
+    const userId = this.getUserId(req);
+
+    if (!boardingHouse || !userId) return false;
+
+    return [boardingHouse.ownerId, boardingHouse.staffId]
+      .filter(Boolean)
+      .some((id) => id.toString() === userId.toString());
+  }
+
   async getRoomTypeByBhId(req, res, next) {
     try {
       const { id } = req.params;
@@ -78,6 +92,12 @@ class RoomTypeController {
       const boardingHouse = await BoardingHouse.findById(id);
       if (!boardingHouse) {
         return res.status(404).json({ message: 'Boarding House not found' });
+      }
+
+      if (req.user && !this.canManageBoardingHouse(boardingHouse, req)) {
+        return res.status(403).json({
+          message: 'You do not have permission to manage this boarding house.',
+        });
       }
 
       // ✅ Kiểm tra typeName: Không chứa ký tự đặc biệt, không trùng
@@ -174,6 +194,13 @@ class RoomTypeController {
       }
 
       // ✅ Kiểm tra typeName không chứa ký tự đặc biệt
+      const boardingHouse = await BoardingHouse.findById(roomType.boardingHouseId);
+      if (!this.canManageBoardingHouse(boardingHouse, req)) {
+        return res.status(403).json({
+          message: 'You do not have permission to update this room type.',
+        });
+      }
+
       const typeNameRegex = /^[a-zA-Z0-9 ]+$/;
       if (typeName && !typeNameRegex.test(typeName)) {
         return res
@@ -182,15 +209,17 @@ class RoomTypeController {
       }
 
       // ✅ Kiểm tra typeName có trùng không (trừ chính nó)
-      const existingRoomType = await RoomType.findOne({
-        boardingHouseId: roomType.boardingHouseId,
-        typeName,
-        _id: { $ne: roomTypeId },
-      });
-      if (existingRoomType) {
-        return res.status(400).json({
-          message: 'Type Name already exists for this Boarding House.',
+      if (typeName !== undefined) {
+        const existingRoomType = await RoomType.findOne({
+          boardingHouseId: roomType.boardingHouseId,
+          typeName,
+          _id: { $ne: roomTypeId },
         });
+        if (existingRoomType) {
+          return res.status(400).json({
+            message: 'Type Name already exists for this Boarding House.',
+          });
+        }
       }
       // const validRoomSizes = ['20x30', '30x40'];
       // if (!validRoomSizes.includes(roomSize)) {
@@ -199,29 +228,31 @@ class RoomTypeController {
       //   });
       // }
 
-      // ✅ Convert `facilities` từ string JSON thành array ObjectId
-      if (!facilities || facilities === 'null' || facilities === '[]') {
-        facilities = [];
-      } else if (typeof facilities === 'string') {
-        try {
-          facilities = JSON.parse(facilities);
-        } catch (error) {
-          return res.status(400).json({ message: 'Invalid facilities format' });
+      if (facilities !== undefined) {
+        // ✅ Convert `facilities` từ string JSON thành array ObjectId
+        if (!facilities || facilities === 'null' || facilities === '[]') {
+          facilities = [];
+        } else if (typeof facilities === 'string') {
+          try {
+            facilities = JSON.parse(facilities);
+          } catch (error) {
+            return res.status(400).json({ message: 'Invalid facilities format' });
+          }
         }
-      }
 
-      if (!Array.isArray(facilities)) {
-        return res.status(400).json({ message: 'Facilities must be an array' });
-      }
+        if (!Array.isArray(facilities)) {
+          return res.status(400).json({ message: 'Facilities must be an array' });
+        }
 
-      // ✅ Nếu `facilities.length === 0`, cập nhật RoomType thành không có facilities
-      if (facilities.length === 0) {
-        roomType.facilities = []; // Xóa hết facilities
-      } else {
-        // Nếu vẫn còn facilities, chuyển đổi chúng thành ObjectId
-        roomType.facilities = facilities.map(
-          (id) => new mongoose.Types.ObjectId(id)
-        );
+        // ✅ Nếu `facilities.length === 0`, cập nhật RoomType thành không có facilities
+        if (facilities.length === 0) {
+          roomType.facilities = []; // Xóa hết facilities
+        } else {
+          // Nếu vẫn còn facilities, chuyển đổi chúng thành ObjectId
+          roomType.facilities = facilities.map(
+            (id) => new mongoose.Types.ObjectId(id)
+          );
+        }
       }
 
       // ✅ Xử lý ảnh: Nếu có ảnh mới -> Xóa ảnh cũ trên Cloudinary, upload ảnh mới
@@ -240,10 +271,10 @@ class RoomTypeController {
       }
 
       // ✅ Cập nhật RoomType
-      roomType.typeName = typeName || roomType.typeName;
-      roomType.price = price || roomType.price;
-      roomType.roomSize = roomSize || roomType.roomSize;
-      roomType.peopleNumber = peopleNumber || roomType.peopleNumber;
+      if (typeName !== undefined) roomType.typeName = typeName;
+      if (price !== undefined) roomType.price = price;
+      if (roomSize !== undefined) roomType.roomSize = roomSize;
+      if (peopleNumber !== undefined) roomType.peopleNumber = peopleNumber;
       roomType.image = image;
 
       // 🔥 Lưu vào database
@@ -272,6 +303,13 @@ class RoomTypeController {
       }
 
       // ✅ Nếu đã bị xóa trước đó, thông báo lỗi
+      const boardingHouse = await BoardingHouse.findById(roomType.boardingHouseId);
+      if (!this.canManageBoardingHouse(boardingHouse, req)) {
+        return res.status(403).json({
+          message: 'You do not have permission to delete this room type.',
+        });
+      }
+
       if (roomType.deleted) {
         return res
           .status(400)

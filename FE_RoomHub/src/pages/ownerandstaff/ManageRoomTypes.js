@@ -115,20 +115,16 @@ const ManageRoomTypes = () => {
             formData.append("price", values.price);
             formData.append("roomSize", values.roomSize || "");
             formData.append("peopleNumber", values.peopleNumber || 0);
-            formData.append("facilities", JSON.stringify([]));
 
             if (fileList.length > 0) {
                 formData.append("roomType", fileList[0].originFileObj);
             }
 
             if (editingRoomType) {
-                if (fileList.length === 0) {
-                    message.warning("Please upload a new image to update");
-                    return;
-                }
                 await updateRoomType(editingRoomType._id, formData);
                 message.success("Room type updated successfully");
             } else {
+                formData.append("facilities", JSON.stringify([]));
                 if (fileList.length === 0) {
                     message.error("Please upload an image for the room type");
                     return;
