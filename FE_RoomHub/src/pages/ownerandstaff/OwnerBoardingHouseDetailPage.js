@@ -333,11 +333,11 @@ export default function OwnerBoardingHouseDetailPage() {
               </label>
 
               <TextField label="Tên nhà trọ *" value={form.name} onChange={(value) => updateField("name", value)} disabled={isReadOnly} />
-              <TextField label="Giá thuê dự kiến (VNĐ) *" type="number" value={form.priceRange} onChange={(value) => updateField("priceRange", value)} disabled={isReadOnly} />
+              <TextField label="Giá thuê dự kiến (VNĐ) *" type="text" formatCurrency value={form.priceRange} onChange={(value) => updateField("priceRange", value)} disabled={isReadOnly} />
               <TextField label="Tổng số phòng *" type="number" value={form.totalRooms} onChange={(value) => updateField("totalRooms", value)} disabled={isReadOnly} />
               <TextField label="Số phòng còn trống *" type="number" value={form.availableRooms} onChange={(value) => updateField("availableRooms", value)} disabled={isReadOnly} />
-              <TextField label="Giá điện (VNĐ/kWh) *" type="number" value={form.electricityPrice} onChange={(value) => updateField("electricityPrice", value)} disabled={isReadOnly} />
-              <TextField label="Giá nước (VNĐ/m3) *" type="number" value={form.waterPrice} onChange={(value) => updateField("waterPrice", value)} disabled={isReadOnly} />
+              <TextField label="Giá điện (VNĐ/kWh) *" type="text" formatCurrency value={form.electricityPrice} onChange={(value) => updateField("electricityPrice", value)} disabled={isReadOnly} />
+              <TextField label="Giá nước (VNĐ/m3) *" type="text" formatCurrency value={form.waterPrice} onChange={(value) => updateField("waterPrice", value)} disabled={isReadOnly} />
             </div>
 
             <label style={{ ...fieldStyle, marginTop: 16 }}>
@@ -538,11 +538,39 @@ export default function OwnerBoardingHouseDetailPage() {
   );
 }
 
-function TextField({ label, value, onChange, type = "text", disabled = false }) {
+function TextField({ label, value, onChange, type = "text", disabled = false, formatCurrency = false }) {
+  const [display, setDisplay] = useState(value ?? "");
+
+  useEffect(() => {
+    if (formatCurrency) {
+      const cleaned = String(value ?? "").replace(/[^0-9]/g, "");
+      setDisplay(cleaned ? Number(cleaned).toLocaleString("vi-VN") : "");
+    } else {
+      setDisplay(value ?? "");
+    }
+  }, [value, formatCurrency]);
+
+  const handleChange = (e) => {
+    if (formatCurrency) {
+      const raw = String(e.target.value || "").replace(/[^0-9]/g, "");
+      setDisplay(raw ? Number(raw).toLocaleString("vi-VN") : "");
+      onChange(raw);
+    } else {
+      onChange(e.target.value);
+    }
+  };
+
   return (
     <label style={fieldStyle}>
       <span style={labelStyle}>{label}</span>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} disabled={disabled} />
+      <input
+        type={formatCurrency ? "text" : type}
+        value={display}
+        onChange={handleChange}
+        style={inputStyle}
+        disabled={disabled}
+        inputMode={formatCurrency ? "numeric" : undefined}
+      />
     </label>
   );
 }

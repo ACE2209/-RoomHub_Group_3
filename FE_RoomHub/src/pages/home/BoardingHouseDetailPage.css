@@ -187,6 +187,24 @@
   overflow-wrap: anywhere;
 }
 
+.detail-report-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #fdba74;
+  background: #fff7ed;
+  color: #c2410c;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: 0.2s ease;
+}
+
+.detail-report-pill:hover {
+  background: #ffedd5;
+}
+
 .detail-rating {
   align-items: center;
   background: #fffaeb;
