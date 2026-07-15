@@ -1,243 +1,524 @@
+import mongoose from "mongoose";
+
 import UserPayment from "../models/userPayment.js";
 import RefundRequest from "../models/refundRequest.js";
+import BoardingHouse from "../models/boardingHouse.js";
 
-const isPaid = (status) => ["Paid", "Done"].includes(status);
+const PAID_STATUSES = ["Paid", "Done"];
+const MONTH_COUNT = 12;
 
-const getPaymentBoardingHouseId = (payment) => {
-  if (payment.depositRoomId?.roomId?.boardingHouseId?._id) {
-    return payment.depositRoomId.roomId.boardingHouseId._id.toString();
+const getYearRange = (year) => {
+  const parsedYear = Number(year);
+
+  return {
+    fromDate: new Date(parsedYear, 0, 1, 0, 0, 0, 0),
+    toDate: new Date(parsedYear + 1, 0, 1, 0, 0, 0, 0),
+  };
+};
+
+const validateYear = (year) => {
+  const parsedYear = Number(year);
+  const currentYear = new Date().getFullYear();
+
+  if (!Number.isInteger(parsedYear)) {
+    return null;
   }
 
-  if (payment.paymentBillId?.roomId?.boardingHouseId?._id) {
-    return payment.paymentBillId.roomId.boardingHouseId._id.toString();
+  if (parsedYear < 2000 || parsedYear > currentYear + 1) {
+    return null;
+  }
+
+  return parsedYear;
+};
+
+const createEmptyMonthlyRevenue = () => {
+  return Array.from(
+    {
+      length: MONTH_COUNT,
+    },
+    (_, index) => ({
+      month: index + 1,
+      depositRevenue: 0,
+      rentRevenue: 0,
+      grossRevenue: 0,
+      refundAmount: 0,
+      netRevenue: 0,
+      transactionCount: 0,
+    })
+  );
+};
+
+const getBoardingHouseFromPayment = (payment) => {
+  return (
+    payment.depositRoomId?.roomId?.boardingHouseId ||
+    payment.paymentBillId?.roomId?.boardingHouseId ||
+    null
+  );
+};
+
+const getPaymentType = (payment) => {
+  if (payment.depositRoomId) {
+    return "deposit";
+  }
+
+  if (payment.paymentBillId) {
+    return "rent";
   }
 
   return null;
 };
 
-const getPaymentBoardingHouseInfo = (payment) => {
-  const bh =
-    payment.depositRoomId?.roomId?.boardingHouseId ||
-    payment.paymentBillId?.roomId?.boardingHouseId;
-
-  if (!bh) return null;
-
-  return {
-    _id: bh._id,
-    name: bh.name,
-    address: bh.address || null,
-  };
+const getActualRefundAmount = (refundRequest) => {
+  return Math.max(
+    0,
+    Number(refundRequest.originalDepositAmount || 0) -
+      Number(refundRequest.totalDamageAmount || 0)
+  );
 };
 
-const filterByDate = (query) => {
-  const filter = {};
+const getRefundDate = (refundRequest) => {
+  return (
+    refundRequest.processedAt ||
+    refundRequest.updatedAt ||
+    refundRequest.createdAt
+  );
+};
 
-  if (query.fromDate || query.toDate) {
-    filter.createdAt = {};
+const paymentPopulate = [
+  {
+    path: "depositRoomId",
+    populate: {
+      path: "roomId",
+      populate: {
+        path: "boardingHouseId",
+        select: "name address images",
+      },
+    },
+  },
+  {
+    path: "paymentBillId",
+    populate: {
+      path: "roomId",
+      populate: {
+        path: "boardingHouseId",
+        select: "name address images",
+      },
+    },
+  },
+];
 
-    if (query.fromDate) {
-      filter.createdAt.$gte = new Date(query.fromDate);
-    }
-
-    if (query.toDate) {
-      const to = new Date(query.toDate);
-      to.setHours(23, 59, 59, 999);
-      filter.createdAt.$lte = to;
-    }
-  }
-
-  return filter;
+const refundPopulate = {
+  path: "depositRoomId",
+  populate: {
+    path: "roomId",
+    populate: {
+      path: "boardingHouseId",
+      select: "name address images",
+    },
+  },
 };
 
 class RevenueController {
-  async getTotalRevenue(req, res) {
+  async getBoardingHouseOptions(req, res) {
     try {
-      const dateFilter = filterByDate(req.query);
-
-      const payments = await UserPayment.find({
-        status: { $in: ["Paid", "Done"] },
-        ...dateFilter,
-      })
-        .populate({
-          path: "depositRoomId",
-          populate: {
-            path: "roomId",
-            populate: {
-              path: "boardingHouseId",
-              select: "name address",
-            },
-          },
-        })
-        .populate({
-          path: "paymentBillId",
-          populate: {
-            path: "roomId",
-            populate: {
-              path: "boardingHouseId",
-              select: "name address",
-            },
-          },
+      const boardingHouses = await BoardingHouse.find({})
+        .select("name address images")
+        .sort({
+          name: 1,
         });
-
-      const acceptedRefunds = await RefundRequest.find({
-        status: "accepted",
-      });
-
-      const grossRevenue = payments.reduce((sum, item) => {
-        if (!isPaid(item.status)) return sum;
-        return sum + Number(item.paymentAmount || 0);
-      }, 0);
-
-      const totalRefundAmount = acceptedRefunds.reduce((sum, item) => {
-        const actualRefundAmount = Math.max(
-          0,
-          Number(item.originalDepositAmount || 0) -
-            Number(item.totalDamageAmount || 0)
-        );
-
-        return sum + actualRefundAmount;
-      }, 0);
 
       return res.status(200).json({
         success: true,
-        message: "Fetched total revenue successfully",
-        data: {
-          grossRevenue,
-          totalRefundAmount,
-          netRevenue: grossRevenue - totalRefundAmount,
-          transactionCount: payments.length,
-          refundCount: acceptedRefunds.length,
-        },
+        data: boardingHouses,
       });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: error.message,
+        message:
+          error.message ||
+          "Failed to load boarding houses",
       });
     }
   }
 
-  async getRevenuePerBoardingHouse(req, res) {
+  async getTotalRevenue(req, res) {
     try {
-      const dateFilter = filterByDate(req.query);
+      const selectedYear =
+        validateYear(req.query.year) ||
+        new Date().getFullYear();
+
+      const { fromDate, toDate } =
+        getYearRange(selectedYear);
 
       const payments = await UserPayment.find({
-        status: { $in: ["Paid", "Done"] },
-        ...dateFilter,
-      })
-        .populate({
-          path: "depositRoomId",
-          populate: {
-            path: "roomId",
-            populate: {
-              path: "boardingHouseId",
-              select: "name address",
-            },
-          },
-        })
-        .populate({
-          path: "paymentBillId",
-          populate: {
-            path: "roomId",
-            populate: {
-              path: "boardingHouseId",
-              select: "name address",
-            },
-          },
-        });
+        status: {
+          $in: PAID_STATUSES,
+        },
+        createdAt: {
+          $gte: fromDate,
+          $lt: toDate,
+        },
+      }).populate(paymentPopulate);
 
-      const revenueMap = {};
+      const refunds = await RefundRequest.find({
+        status: "accepted",
+        $or: [
+          {
+            processedAt: {
+              $gte: fromDate,
+              $lt: toDate,
+            },
+          },
+          {
+            processedAt: null,
+            updatedAt: {
+              $gte: fromDate,
+              $lt: toDate,
+            },
+          },
+        ],
+      }).populate(refundPopulate);
+
+      const monthlyRevenue =
+        createEmptyMonthlyRevenue();
+
+      let depositRevenue = 0;
+      let rentRevenue = 0;
+      let grossRevenue = 0;
+      let refundAmount = 0;
+      let transactionCount = 0;
+
+      const boardingHouseIds = new Set();
 
       for (const payment of payments) {
-        const boardingHouseId = getPaymentBoardingHouseId(payment);
-        const boardingHouse = getPaymentBoardingHouseInfo(payment);
-
-        if (!boardingHouseId || !boardingHouse) continue;
-
-        if (!revenueMap[boardingHouseId]) {
-          revenueMap[boardingHouseId] = {
-            boardingHouse,
-            depositRevenue: 0,
-            rentRevenue: 0,
-            grossRevenue: 0,
-            totalRefundAmount: 0,
-            netRevenue: 0,
-            transactionCount: 0,
-          };
-        }
-
-        const amount = Number(payment.paymentAmount || 0);
-
-        if (payment.depositRoomId) {
-          revenueMap[boardingHouseId].depositRevenue += amount;
-        }
-
-        if (payment.paymentBillId) {
-          revenueMap[boardingHouseId].rentRevenue += amount;
-        }
-
-        revenueMap[boardingHouseId].grossRevenue += amount;
-        revenueMap[boardingHouseId].transactionCount += 1;
-      }
-
-      const acceptedRefunds = await RefundRequest.find({
-        status: "accepted",
-      }).populate({
-        path: "depositRoomId",
-        populate: {
-          path: "roomId",
-          populate: {
-            path: "boardingHouseId",
-            select: "name address",
-          },
-        },
-      });
-
-      for (const refund of acceptedRefunds) {
-        const boardingHouse = refund.depositRoomId?.roomId?.boardingHouseId;
-        if (!boardingHouse?._id) continue;
-
-        const boardingHouseId = boardingHouse._id.toString();
-
-        if (!revenueMap[boardingHouseId]) {
-          revenueMap[boardingHouseId] = {
-            boardingHouse: {
-              _id: boardingHouse._id,
-              name: boardingHouse.name,
-              address: boardingHouse.address || null,
-            },
-            depositRevenue: 0,
-            rentRevenue: 0,
-            grossRevenue: 0,
-            totalRefundAmount: 0,
-            netRevenue: 0,
-            transactionCount: 0,
-          };
-        }
-
-        const actualRefundAmount = Math.max(
-          0,
-          Number(refund.originalDepositAmount || 0) -
-            Number(refund.totalDamageAmount || 0)
+        const paymentDate = new Date(
+          payment.createdAt
         );
 
-        revenueMap[boardingHouseId].totalRefundAmount += actualRefundAmount;
+        const monthIndex =
+          paymentDate.getMonth();
+
+        const amount = Number(
+          payment.paymentAmount || 0
+        );
+
+        const paymentType =
+          getPaymentType(payment);
+
+        const boardingHouse =
+          getBoardingHouseFromPayment(payment);
+
+        if (boardingHouse?._id) {
+          boardingHouseIds.add(
+            boardingHouse._id.toString()
+          );
+        }
+
+        if (paymentType === "deposit") {
+          depositRevenue += amount;
+          monthlyRevenue[
+            monthIndex
+          ].depositRevenue += amount;
+        }
+
+        if (paymentType === "rent") {
+          rentRevenue += amount;
+          monthlyRevenue[
+            monthIndex
+          ].rentRevenue += amount;
+        }
+
+        grossRevenue += amount;
+        transactionCount += 1;
+
+        monthlyRevenue[
+          monthIndex
+        ].grossRevenue += amount;
+
+        monthlyRevenue[
+          monthIndex
+        ].transactionCount += 1;
       }
 
-      const data = Object.values(revenueMap).map((item) => ({
-        ...item,
-        netRevenue: item.grossRevenue - item.totalRefundAmount,
-      }));
+      for (const refund of refunds) {
+        const refundDate = new Date(
+          getRefundDate(refund)
+        );
+
+        if (
+          Number.isNaN(
+            refundDate.getTime()
+          )
+        ) {
+          continue;
+        }
+
+        const monthIndex =
+          refundDate.getMonth();
+
+        const amount =
+          getActualRefundAmount(refund);
+
+        refundAmount += amount;
+
+        monthlyRevenue[
+          monthIndex
+        ].refundAmount += amount;
+      }
+
+      for (const monthItem of monthlyRevenue) {
+        monthItem.netRevenue =
+          monthItem.grossRevenue -
+          monthItem.refundAmount;
+      }
 
       return res.status(200).json({
         success: true,
-        message: "Fetched revenue per boarding house successfully",
-        data,
+        message:
+          "Fetched total revenue successfully",
+        data: {
+          year: selectedYear,
+
+          summary: {
+            boardingHouseCount:
+              boardingHouseIds.size,
+
+            depositRevenue,
+            rentRevenue,
+            grossRevenue,
+            refundAmount,
+
+            netRevenue:
+              grossRevenue - refundAmount,
+
+            transactionCount,
+            refundCount: refunds.length,
+          },
+
+          monthlyRevenue,
+        },
       });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: error.message,
+        message:
+          error.message ||
+          "Failed to load total revenue",
+      });
+    }
+  }
+
+  async getBoardingHouseMonthlyRevenue(
+    req,
+    res
+  ) {
+    try {
+      const { boardingHouseId } =
+        req.params;
+
+      const selectedYear =
+        validateYear(req.query.year) ||
+        new Date().getFullYear();
+
+      if (
+        !mongoose.Types.ObjectId.isValid(
+          boardingHouseId
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid boarding house ID",
+        });
+      }
+
+      const boardingHouse =
+        await BoardingHouse.findById(
+          boardingHouseId
+        ).select("name address images");
+
+      if (!boardingHouse) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Boarding house not found",
+        });
+      }
+
+      const { fromDate, toDate } =
+        getYearRange(selectedYear);
+
+      const allPayments =
+        await UserPayment.find({
+          status: {
+            $in: PAID_STATUSES,
+          },
+          createdAt: {
+            $gte: fromDate,
+            $lt: toDate,
+          },
+        }).populate(paymentPopulate);
+
+      const payments =
+        allPayments.filter((payment) => {
+          const paymentBoardingHouse =
+            getBoardingHouseFromPayment(
+              payment
+            );
+
+          return (
+            paymentBoardingHouse?._id?.toString() ===
+            boardingHouseId
+          );
+        });
+
+      const allRefunds =
+        await RefundRequest.find({
+          status: "accepted",
+          $or: [
+            {
+              processedAt: {
+                $gte: fromDate,
+                $lt: toDate,
+              },
+            },
+            {
+              processedAt: null,
+              updatedAt: {
+                $gte: fromDate,
+                $lt: toDate,
+              },
+            },
+          ],
+        }).populate(refundPopulate);
+
+      const refunds =
+        allRefunds.filter((refund) => {
+          const refundBoardingHouse =
+            refund.depositRoomId?.roomId
+              ?.boardingHouseId;
+
+          return (
+            refundBoardingHouse?._id?.toString() ===
+            boardingHouseId
+          );
+        });
+
+      const monthlyRevenue =
+        createEmptyMonthlyRevenue();
+
+      let depositRevenue = 0;
+      let rentRevenue = 0;
+      let grossRevenue = 0;
+      let refundAmount = 0;
+      let transactionCount = 0;
+
+      for (const payment of payments) {
+        const paymentDate = new Date(
+          payment.createdAt
+        );
+
+        const monthIndex =
+          paymentDate.getMonth();
+
+        const amount = Number(
+          payment.paymentAmount || 0
+        );
+
+        const paymentType =
+          getPaymentType(payment);
+
+        if (paymentType === "deposit") {
+          depositRevenue += amount;
+
+          monthlyRevenue[
+            monthIndex
+          ].depositRevenue += amount;
+        }
+
+        if (paymentType === "rent") {
+          rentRevenue += amount;
+
+          monthlyRevenue[
+            monthIndex
+          ].rentRevenue += amount;
+        }
+
+        grossRevenue += amount;
+        transactionCount += 1;
+
+        monthlyRevenue[
+          monthIndex
+        ].grossRevenue += amount;
+
+        monthlyRevenue[
+          monthIndex
+        ].transactionCount += 1;
+      }
+
+      for (const refund of refunds) {
+        const refundDate = new Date(
+          getRefundDate(refund)
+        );
+
+        if (
+          Number.isNaN(
+            refundDate.getTime()
+          )
+        ) {
+          continue;
+        }
+
+        const monthIndex =
+          refundDate.getMonth();
+
+        const amount =
+          getActualRefundAmount(refund);
+
+        refundAmount += amount;
+
+        monthlyRevenue[
+          monthIndex
+        ].refundAmount += amount;
+      }
+
+      for (const monthItem of monthlyRevenue) {
+        monthItem.netRevenue =
+          monthItem.grossRevenue -
+          monthItem.refundAmount;
+      }
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Fetched boarding house revenue successfully",
+
+        data: {
+          boardingHouse,
+          year: selectedYear,
+
+          summary: {
+            depositRevenue,
+            rentRevenue,
+            grossRevenue,
+            refundAmount,
+
+            netRevenue:
+              grossRevenue - refundAmount,
+
+            transactionCount,
+            refundCount: refunds.length,
+          },
+
+          monthlyRevenue,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to load boarding house revenue",
       });
     }
   }
