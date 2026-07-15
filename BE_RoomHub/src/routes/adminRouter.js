@@ -51,7 +51,18 @@ adminRouter.put('/boardinghouse/:id/images/:imageId', BoardingHouseController.up
 adminRouter.delete('/boardinghouse/:id/images/:imageId', BoardingHouseController.deleteBoardingHouseImage);
 adminRouter.get('/boardinghouse/:id/images', BoardingHouseController.getBoardingHouseImages);
 adminRouter.get('/types', BoardingHouseController.getAllBoardingHouseTypes);
+adminRouter.get(
+  "/revenue/boarding-houses/options",
+  revenueController.getBoardingHouseOptions
+);
 
-adminRouter.get("/revenue/total", revenueController.getTotalRevenue);
-adminRouter.get("/revenue/boarding-houses", revenueController.getRevenuePerBoardingHouse);
+adminRouter.get(
+  "/revenue/total",
+  revenueController.getTotalRevenue
+);
+
+adminRouter.get(
+  "/revenue/boarding-houses/:boardingHouseId/monthly",
+  revenueController.getBoardingHouseMonthlyRevenue
+);
 export { adminRouter };

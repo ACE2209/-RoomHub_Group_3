@@ -56,6 +56,8 @@ import TaskManagementPage from "../pages/ownerandstaff/TaskManagementPage";
 import MyPaymentBillsPage from "../pages/user/MyPaymentBillsPage";
 import MyRefundRequestsPage from "../pages/user/MyRefundRequestsPage";
 import ManagedRefundRequestsPage from "../pages/ownerandstaff/ManagedRefundRequestsPage";
+import TotalRevenuePage from "../pages/admin/Revenue/TotalRevenuePage";
+import BoardingHouseRevenuePage from "../pages/admin/Revenue/BoardingHouseRevenuePage";
 const AppRoutes = () => {
   return (
     <Routes>
@@ -430,6 +432,23 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+  path="/admin/revenue/total"
+  element={
+    <ProtectedRoute allowedRoles={["admin"]}>
+      <TotalRevenuePage />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/admin/revenue/boarding-houses"
+  element={
+    <ProtectedRoute allowedRoles={["admin"]}>
+      <BoardingHouseRevenuePage />
+    </ProtectedRoute>
+  }
+/>
     </Routes>
   );
 };
