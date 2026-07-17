@@ -2,6 +2,19 @@ import mongoose from "mongoose";
 import BoardingHouseExpense from "../models/boardingHouseExpense.js";
 import BoardingHouse from "../models/boardingHouse.js";
 
+const isValidPeriod = (month, year) => {
+  const monthNumber = Number(month);
+  const yearNumber = Number(year);
+
+  return (
+    Number.isInteger(monthNumber) &&
+    monthNumber >= 1 &&
+    monthNumber <= 12 &&
+    Number.isInteger(yearNumber) &&
+    yearNumber >= 2000
+  );
+};
+
 const findManagedBoardingHouse = (boardingHouseId, userId) =>
   BoardingHouse.findOne({
     _id: boardingHouseId,
@@ -45,10 +58,10 @@ class BhExpenseController {
       const userId = req.user.userId;
       const { boardingHouseId, month, year } = req.query;
 
-      if (!boardingHouseId || !month || !year) {
+      if (!boardingHouseId || !isValidPeriod(month, year)) {
         return res.status(400).json({
           success: false,
-          message: "Missing required parameters: boardingHouseId, month, year",
+          message: "Invalid parameters: boardingHouseId, month (1-12) and year are required",
         });
       }
 
@@ -86,10 +99,10 @@ class BhExpenseController {
       const userId = req.user.userId;
       const { boardingHouseId, month, year } = req.body;
 
-      if (!boardingHouseId || !month || !year) {
+      if (!boardingHouseId || !isValidPeriod(month, year)) {
         return res.status(400).json({
           success: false,
-          message: "Missing required fields: boardingHouseId, month, year",
+          message: "Invalid fields: boardingHouseId, month (1-12) and year are required",
         });
       }
 
@@ -127,6 +140,14 @@ class BhExpenseController {
         data: newExpense,
       });
     } catch (error) {
+      if (error.name === "ValidationError") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid expense data",
+          error: error.message,
+        });
+      }
+
       return res.status(500).json({
         success: false,
         message: "Server error",
@@ -162,6 +183,14 @@ class BhExpenseController {
         data: expense,
       });
     } catch (error) {
+      if (error.name === "ValidationError") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid expense data",
+          error: error.message,
+        });
+      }
+
       return res.status(500).json({
         success: false,
         message: "Server error",

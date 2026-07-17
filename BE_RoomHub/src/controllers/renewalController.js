@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import ExtensionRequest from "../models/extensionRequest.js";
 import Room from "../models/room.js";
 import BoardingHouse from "../models/boardingHouse.js";
@@ -73,10 +74,19 @@ class RenewalController {
       const accountId = req.user.userId;
       const { depositRoomId, requestedEndDate, tenantNote } = req.body;
 
-      if (!depositRoomId || !requestedEndDate) {
+      if (!mongoose.isValidObjectId(depositRoomId) || !requestedEndDate) {
         return res.status(400).json({
           success: false,
           message: "Missing required fields",
+        });
+      }
+
+      const newEndDate = new Date(requestedEndDate);
+
+      if (Number.isNaN(newEndDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid requested end date",
         });
       }
 
@@ -93,7 +103,7 @@ class RenewalController {
         });
       }
 
-      if (new Date(requestedEndDate) <= new Date(deposit.endDate)) {
+      if (newEndDate <= new Date(deposit.endDate)) {
         return res.status(400).json({
           success: false,
           message: "Requested end date must be after the current end date",
@@ -211,6 +221,13 @@ class RenewalController {
       const userId = req.user.userId;
       const { requestId } = req.params;
       const { action, reasonForCancel } = req.body;
+
+      if (!mongoose.isValidObjectId(requestId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid request ID",
+        });
+      }
 
       if (![REQUEST_STATUS.ACCEPTED, REQUEST_STATUS.REJECTED].includes(action)) {
         return res.status(400).json({

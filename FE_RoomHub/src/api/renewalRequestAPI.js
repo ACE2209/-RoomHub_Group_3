@@ -1,25 +1,9 @@
-import API_URL, { authHeaders, parseJsonResponse } from "./config";
-
-const getRolePrefix = () => {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const role = String(user?.role || "").toLowerCase();
-
-  if (role === "staff") return "staff";
-  return "owner";
-};
-
-const buildQuery = (params = {}) => {
-  const query = new URLSearchParams();
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      query.append(key, value);
-    }
-  });
-
-  const queryString = query.toString();
-  return queryString ? `?${queryString}` : "";
-};
+import API_URL, {
+  authHeaders,
+  parseJsonResponse,
+  getRolePrefix,
+  buildQuery,
+} from "./config";
 
 export const getMyRenewalRequests = async (params = {}) => {
   const res = await fetch(

@@ -1,18 +1,13 @@
-import API_URL, { authHeaders, parseJsonResponse } from "../config";
-
-const getRolePrefix = () => {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const role = String(user?.role || "").toLowerCase();
-
-  if (role === "staff") return "staff";
-  return "owner";
-};
+import API_URL, {
+  authHeaders,
+  parseJsonResponse,
+  getRolePrefix,
+  buildQuery,
+} from "../config";
 
 export const getExpensesByTime = async (boardingHouseId, month, year) => {
-  const query = new URLSearchParams({ boardingHouseId, month, year });
-
   const res = await fetch(
-    `${API_URL}/${getRolePrefix()}/expenses?${query.toString()}`,
+    `${API_URL}/${getRolePrefix()}/expenses${buildQuery({ boardingHouseId, month, year })}`,
     {
       headers: authHeaders(),
     }
