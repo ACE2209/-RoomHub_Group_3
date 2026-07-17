@@ -34,7 +34,6 @@ import { useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHotel } from "@fortawesome/free-solid-svg-icons";
 import { useTranslation } from "react-i18next";
-import { useTheme } from "../../../context/themeContext";
 import coverBhType from "../../../utils/coverBhType";
 import i18n from "i18next";
 
@@ -51,7 +50,6 @@ const BHDetailAdmin = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const boardingHouseName = location.state?.name || "Default Name";
-    const { darkMode } = useTheme();
     const { t } = useTranslation("boardingHouseDetailsAdmin");
     const currentLanguage = i18n.language;
 
@@ -411,60 +409,53 @@ const BHDetailAdmin = () => {
     }
 
 
+    // Trang admin luôn dùng giao diện sáng để đồng bộ với các trang quản lý khác,
+    // không phụ thuộc vào tuỳ chọn dark mode chung của toàn site.
     const themeConfig = {
-        algorithm: darkMode
-            ? ConfigProvider.darkAlgorithm
-            : ConfigProvider.defaultAlgorithm,
-        token: darkMode
-            ? {
-                colorText: "#ffffff",
-                colorTextSecondary: "#e5e7eb",
-                colorBgContainer: "#1f2937",
-                colorBorder: "#4b5563",
-                colorPrimary: "#3b82f6",
-                colorBgElevated: "#374151",
-                colorFillSecondary: "#374151",
-                colorTextPlaceholder: "#9CA3AF",
-                colorBorderSecondary: "#4B5563",
-                controlItemBgActive: "#3b82f6",
-                controlItemBgHover: "#4B5563",
-            }
-            : {
-                colorText: "#000",
-                colorTextSecondary: "#4b5563",
-                colorBgContainer: "#ffffff",
-                colorBorder: "#d9d9d9",
-                colorPrimary: "#3b82f6",
-                colorBgElevated: "#f5f5f5",
-                colorFillSecondary: "#f5f5f5",
-                colorTextPlaceholder: "#9CA3AF",
-                colorBorderSecondary: "#d9d9d9",
-                controlItemBgActive: "#e5e7eb",
-                controlItemBgHover: "#f0f0f0",
-            },
+        algorithm: ConfigProvider.defaultAlgorithm,
+        token: {
+            colorText: "#27364a",
+            colorTextSecondary: "#4b5563",
+            colorBgContainer: "#ffffff",
+            colorBorder: "#d9d9d9",
+            colorPrimary: "#3b82f6",
+            colorBgElevated: "#f5f5f5",
+            colorFillSecondary: "#f5f5f5",
+            colorTextPlaceholder: "#9CA3AF",
+            colorBorderSecondary: "#d9d9d9",
+            controlItemBgActive: "#e5e7eb",
+            controlItemBgHover: "#f0f0f0",
+        },
         components: {
             Select: {
-                selectorBg: darkMode ? "#374151" : "#FFFFFF",
-                colorText: darkMode ? "#F9FAFB" : "#000",
-                colorBorder: darkMode ? "#4B5563" : "#d9d9d9",
-                optionSelectedBg: darkMode ? "#2563eb" : "#e5e7eb",
-                optionHoverBg: darkMode ? "#4B5563" : "#FFFFFF",
+                selectorBg: "#FFFFFF",
+                colorText: "#27364a",
+                colorBorder: "#d9d9d9",
+                optionSelectedBg: "#e5e7eb",
+                optionHoverBg: "#FFFFFF",
             },
             Input: {
-                colorBgContainer: darkMode ? "#374151" : "#FFFFFF",
-                colorText: darkMode ? "#F9FAFB" : "#000",
-                colorBorder: darkMode ? "#4B5563" : "#d9d9d9",
-                colorTextPlaceholder: darkMode ? "#9CA3AF" : "#4B5563",
+                colorBgContainer: "#FFFFFF",
+                colorText: "#27364a",
+                colorBorder: "#d9d9d9",
+                colorTextPlaceholder: "#4b5563",
             },
             Form: {
-                labelColor: darkMode ? "#F9FAFB" : "#000",
+                labelColor: "#27364a",
             },
         },
     };
     return (
         <ConfigProvider theme={themeConfig}>
-            <div className={`mx-auto w-full back rounded-xl p-4 ${darkMode ? 'bg-gray-900 text-white' : 'bg-white text-black'
-                }`}>
+            <div
+                className="mx-auto w-full back rounded-xl p-4"
+                style={{
+                    backgroundColor: "#ffffff",
+                    color: "#27364a",
+                    border: "1px solid #e5e7eb",
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
+                }}
+            >
                 <h1 className="text-5xl flex items-center gap-2">
                     <FontAwesomeIcon icon={faHotel} className="text-gray-500 text-6xl" />
                     {updatedData.name}
@@ -531,7 +522,6 @@ const BHDetailAdmin = () => {
                                                         target: { name: 'boardingHouseType', value },
                                                     })
                                                 }
-                                                className={darkMode ? "dark-mode-select" : ""}
                                             >
                                                 {boardingHouseTypes.map((type) => (
                                                     <Select.Option key={type.value} value={type.value}>

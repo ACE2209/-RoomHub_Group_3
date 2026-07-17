@@ -15,7 +15,6 @@ import { Form, Input, Select, Upload, InputNumber, Image, ConfigProvider } from 
 import { PlusOutlined } from "@ant-design/icons";
 import axios from "axios";
 import { useTranslation } from "react-i18next";
-import { useTheme } from "../../../context/themeContext";
 import coverBhType from "../../../utils/coverBhType";
 import i18n from "i18next";
 import classNames from 'classnames';
@@ -45,7 +44,8 @@ function AddBoardingHouseForm({ onClose, onSuccess }) {
   const [wards, setWards] = useState([]);
   const [boardingHouseTypes, setBoardingHouseTypes] = useState([]);
   const [geoLocation, setGeoLocation] = useState(null);
-  const { darkMode } = useTheme();
+  // Form luôn dùng giao diện sáng để đồng bộ với các trang quản lý khác trong admin.
+  const darkMode = false;
   const { t } = useTranslation("addBoardingHouseAdmin");
   const currentLanguage = i18n.language;
   const cx = classNames;
@@ -371,6 +371,9 @@ function AddBoardingHouseForm({ onClose, onSuccess }) {
       <div
         className={`fixed inset-0 ${darkMode ? "bg-gray-900 bg-opacity-90" : "bg-black bg-opacity-50"
           } flex items-center justify-center z-50`}
+        style={{
+          backgroundColor: darkMode ? "rgba(17,24,39,0.9)" : "rgba(0,0,0,0.5)",
+        }}
         onClick={(e) => {
           if (e.target === e.currentTarget) {
             onClose();
@@ -382,6 +385,10 @@ function AddBoardingHouseForm({ onClose, onSuccess }) {
           onSubmitCapture={handleSubmit}
           className={`p-6 rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-lg ${darkMode ? "bg-gray-800 text-white" : "bg-white text-black"
             }`}
+          style={{
+            backgroundColor: darkMode ? "#1f2937" : "#ffffff",
+            color: darkMode ? "#F9FAFB" : "#111827",
+          }}
         >
           <h2
             className={`text-4xl font-bold mb-8 ${darkMode ? "text-gray-200" : "text-gray-900"
