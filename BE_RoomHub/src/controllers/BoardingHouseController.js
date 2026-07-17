@@ -486,7 +486,7 @@ class BoardingHouseController {
         });
       }
 
-      await boardingHouse.delete(req.user?._id);
+      await boardingHouse.delete(req.user?.userId);
 
       return res.status(200).json({
         success: true,

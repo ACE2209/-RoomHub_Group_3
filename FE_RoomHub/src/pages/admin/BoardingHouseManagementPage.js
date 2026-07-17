@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Building2,
+  Eye,
   Filter,
   Home,
   MapPin,
+  Plus,
   RefreshCcw,
   Search,
   Star,
   Trash2,
 } from "lucide-react";
 import AdminLayout from "../layout/admin/AdminLayout";
+import AddBoardingHouseForm from "./BoardingHouseManagement/CreateBoardingHouse";
 import {
   deleteBoardingHouse,
   filterBoardingHouses,
@@ -28,7 +32,9 @@ const initialFilters = {
 const pageSizeOptions = [3, 5, 10, 20];
 
 export default function BoardingHouseManagementPage() {
+  const navigate = useNavigate();
   const [boardingHouses, setBoardingHouses] = useState([]);
+  const [createOpen, setCreateOpen] = useState(false);
   const [filters, setFilters] = useState(initialFilters);
   const [limit, setLimit] = useState(3);
   const [pagination, setPagination] = useState({
@@ -237,6 +243,14 @@ export default function BoardingHouseManagementPage() {
             <Home size={18} />
             <span>{stats.availableRooms} rooms available</span>
           </div>
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            style={primaryBtnStyle}
+          >
+            <Plus size={16} />
+            Add Boarding House
+          </button>
         </div>
       </div>
 
@@ -392,6 +406,14 @@ export default function BoardingHouseManagementPage() {
                     <div style={actionStyle}>
                       <button
                         type="button"
+                        title="View detail"
+                        onClick={() => navigate(`/admin/boarding-houses/${house._id}`)}
+                        style={viewIconBtnStyle}
+                      >
+                        <Eye size={17} />
+                      </button>
+                      <button
+                        type="button"
                         title="Delete"
                         onClick={() => handleDelete(house._id)}
                         style={deleteIconBtnStyle}
@@ -486,6 +508,16 @@ export default function BoardingHouseManagementPage() {
           </div>
         </div>
       </div>
+
+      {createOpen && (
+        <AddBoardingHouseForm
+          onClose={() => setCreateOpen(false)}
+          onSuccess={() => {
+            setCreateOpen(false);
+            fetchBoardingHouses(1);
+          }}
+        />
+      )}
     </AdminLayout>
   );
 }
@@ -751,6 +783,19 @@ const ratingStyle = {
 const actionStyle = {
   display: "flex",
   gap: "8px",
+};
+
+const viewIconBtnStyle = {
+  width: "36px",
+  height: "36px",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "#eff8ff",
+  color: "#175cd3",
+  border: "1px solid #b2ddff",
+  borderRadius: "6px",
+  cursor: "pointer",
 };
 
 const deleteIconBtnStyle = {

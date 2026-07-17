@@ -31,11 +31,6 @@ export const updateBoardingHouseDetails = (boardingHouseId, updateData) => {
     },
   });
 };
-export const filterBoardingHouseTypes = (filterParams) => {
-  return axios.get('/dashboard/boardinghousetype/filter', {
-    params: filterParams,
-  });
-};
 export const getAllBoardingHouseTypes = () => {
   return axios.get('/dashboard/types');
 };
@@ -70,14 +65,6 @@ export const createBoardingHouse = (data) => {
     },
   });
 };
-export const uploadFile = (data) => {
-  return axios.post('/dashboard/boardinghouse/uploadFile', data, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-};
-
 export const getMaxPriceBH = async () => {
   return axios.get('/dashboard/boardinghouse/chore/get-max');
 };
