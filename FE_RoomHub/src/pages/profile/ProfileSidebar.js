@@ -5,6 +5,7 @@ import {
   WalletCards,
   Receipt,
   RotateCcw,
+  CalendarPlus,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -95,6 +96,14 @@ const ProfileSidebar = ({ user }) => {
             icon={<RotateCcw size={18} />}
             label="My Refund Requests"
             active={isActive("/my-refund-requests")}
+          />
+        </Link>
+
+        <Link to="/my-renewal-requests" style={{ textDecoration: "none" }}>
+          <MenuItem
+            icon={<CalendarPlus size={18} />}
+            label="My Renewal Requests"
+            active={isActive("/my-renewal-requests")}
           />
         </Link>
 
