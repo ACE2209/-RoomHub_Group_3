@@ -14,8 +14,8 @@ import depositController from "./depositController.js";
 // import FacilitiesController from "./facilitiesController.js";
 import roomTypeController from "./roomTypeController.js";
 // import tenantController from "./tenantController.js";
-// import renewalController from "./renewalController.js";
-// import bhExpenseController from "./bhExpenseController.js";
+import renewalController from "./renewalController.js";
+import bhExpenseController from "./bhExpenseController.js";
 import revenueController from "./revenueController.js";
 // import userPaymentController from "./userPaymentController.js";
 import refundRequestController from "./refundRequestController.js";
@@ -45,8 +45,8 @@ export {
   roomTypeController,
   // userPaymentController,
   // tenantController,
-  // renewalController,
-  // bhExpenseController,
+  renewalController,
+  bhExpenseController,
   revenueController,
   refundRequestController,
   // paymentBillController,
