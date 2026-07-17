@@ -52,6 +52,22 @@ const Profile = () => {
                 phoneNumber: data.phoneNumber || "",
                 gender: data.gender || "",
             });
+        } catch (error) {
+            if (error?.response?.status === 401) {
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                window.location.href = "/login";
+                return;
+            }
+
+            Swal.fire({
+                toast: true,
+                position: "top-end",
+                icon: "error",
+                title: "Load profile failed",
+                showConfirmButton: false,
+                timer: 2000,
+            });
         } finally {
             setLoading(false);
         }

@@ -23,6 +23,15 @@ instance.interceptors.response.use(
     return response;
   },
   function (error) {
+    const hadToken = Boolean(localStorage.getItem("token"));
+    const isAuthRequest = String(error?.config?.url || "").includes("login");
+
+    if (error?.response?.status === 401 && hadToken && !isAuthRequest) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    }
+
     return Promise.reject(error);
   }
 );
