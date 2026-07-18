@@ -6,6 +6,7 @@ import {
   Receipt,
   RotateCcw,
   CalendarPlus,
+  FileText,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -13,12 +14,57 @@ const ProfileSidebar = ({ user }) => {
   const location = useLocation();
 
   const isActive = (path) =>
-    location.pathname === path || location.pathname.startsWith(`${path}/`);
+    location.pathname === path ||
+    location.pathname.startsWith(`${path}/`);
+
+  const menuItems = [
+    {
+      path: "/profile",
+      label: "Profile Info",
+      icon: <User size={18} />,
+    },
+    {
+      path: "/change-password",
+      label: "Change Password",
+      icon: <Lock size={18} />,
+    },
+    {
+      path: "/appointments",
+      label: "Appointments",
+      icon: <Calendar size={18} />,
+    },
+    {
+      path: "/my-deposits",
+      label: "My Deposits",
+      icon: <WalletCards size={18} />,
+    },
+    {
+      path: "/my-refund-requests",
+      label: "My Refund Requests",
+      icon: <RotateCcw size={18} />,
+    },
+    {
+      path: "/my-renewal-requests",
+      label: "My Renewal Requests",
+      icon: <CalendarPlus size={18} />,
+    },
+    {
+      path: "/monthly-rents",
+      label: "Monthly Rent",
+      icon: <Receipt size={18} />,
+    },
+    {
+      path: "/my-reports",
+      label: "My Reports",
+      icon: <FileText size={18} />,
+    },
+  ];
 
   return (
     <aside
       style={{
         width: "300px",
+        flexShrink: 0,
         background: "#fff",
         borderRadius: "16px",
         padding: "20px",
@@ -29,13 +75,20 @@ const ProfileSidebar = ({ user }) => {
         height: "fit-content",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
         <img
           src={
             user?.avatarImage?.url ||
-            `https://ui-avatars.com/api/?name=${user?.fullname || "User"}`
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(
+              user?.fullname || "User"
+            )}`
           }
-          alt="avatar"
+          alt={user?.fullname || "User"}
           style={{
             width: "140px",
             height: "140px",
@@ -46,12 +99,32 @@ const ProfileSidebar = ({ user }) => {
         />
       </div>
 
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ fontWeight: 700 }}>{user?.fullname || "User"}</h2>
-        <p style={{ color: "#777" }}>@{user?.username || "user"}</p>
+      <div
+        style={{
+          textAlign: "center",
+        }}
+      >
+        <h2
+          style={{
+            margin: "12px 0 4px",
+            fontWeight: 700,
+            color: "#222",
+          }}
+        >
+          {user?.fullname || "User"}
+        </h2>
+
+        <p
+          style={{
+            margin: 0,
+            color: "#777",
+          }}
+        >
+          @{user?.username || "user"}
+        </p>
       </div>
 
-      <div
+      <nav
         style={{
           marginTop: 20,
           display: "flex",
@@ -59,62 +132,22 @@ const ProfileSidebar = ({ user }) => {
           gap: 8,
         }}
       >
-        <Link to="/profile" style={{ textDecoration: "none" }}>
-          <MenuItem
-            icon={<User size={18} />}
-            label="Profile Info"
-            active={isActive("/profile")}
-          />
-        </Link>
-
-        <Link to="/change-password" style={{ textDecoration: "none" }}>
-          <MenuItem
-            icon={<Lock size={18} />}
-            label="Change Password"
-            active={isActive("/change-password")}
-          />
-        </Link>
-
-        <Link to="/appointments" style={{ textDecoration: "none" }}>
-          <MenuItem
-            icon={<Calendar size={18} />}
-            label="Appointments"
-            active={isActive("/appointments")}
-          />
-        </Link>
-
-        <Link to="/my-deposits" style={{ textDecoration: "none" }}>
-          <MenuItem
-            icon={<WalletCards size={18} />}
-            label="My Deposits"
-            active={isActive("/my-deposits")}
-          />
-        </Link>
-
-        <Link to="/my-refund-requests" style={{ textDecoration: "none" }}>
-          <MenuItem
-            icon={<RotateCcw size={18} />}
-            label="My Refund Requests"
-            active={isActive("/my-refund-requests")}
-          />
-        </Link>
-
-        <Link to="/my-renewal-requests" style={{ textDecoration: "none" }}>
-          <MenuItem
-            icon={<CalendarPlus size={18} />}
-            label="My Renewal Requests"
-            active={isActive("/my-renewal-requests")}
-          />
-        </Link>
-
-        <Link to="/monthly-rents" style={{ textDecoration: "none" }}>
-          <MenuItem
-            icon={<Receipt size={18} />}
-            label="Monthly Rent"
-            active={isActive("/monthly-rents")}
-          />
-        </Link>
-      </div>
+        {menuItems.map((item) => (
+          <Link
+            key={item.path}
+            to={item.path}
+            style={{
+              textDecoration: "none",
+            }}
+          >
+            <MenuItem
+              icon={item.icon}
+              label={item.label}
+              active={isActive(item.path)}
+            />
+          </Link>
+        ))}
+      </nav>
     </aside>
   );
 };
@@ -126,17 +159,30 @@ const MenuItem = ({ icon, label, active }) => {
         display: "flex",
         alignItems: "center",
         gap: 10,
+        minHeight: "48px",
         padding: "12px 14px",
         borderRadius: 12,
         fontWeight: 600,
         cursor: "pointer",
         background: active ? "#ff6b00" : "transparent",
         color: active ? "#fff" : "#444",
-        transition: "0.2s",
+        transition: "background 0.2s ease, color 0.2s ease",
+      }}
+      onMouseEnter={(event) => {
+        if (!active) {
+          event.currentTarget.style.background = "#fff3eb";
+          event.currentTarget.style.color = "#ff6b00";
+        }
+      }}
+      onMouseLeave={(event) => {
+        if (!active) {
+          event.currentTarget.style.background = "transparent";
+          event.currentTarget.style.color = "#444";
+        }
       }}
     >
       {icon}
-      {label}
+      <span>{label}</span>
     </div>
   );
 };

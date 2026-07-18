@@ -4,6 +4,11 @@ import Room from "../models/room.js";
 import RoomAdditionalFees from "../models/roomAdditionalFees.js";
 import DepositRoom from "../models/depositRoom.js";
 import { buildRentDeadlines } from "../utils/paymentPolicy.js";
+import {
+  formatDateTimeVi,
+  formatVnd,
+  sendPaymentEmail,
+} from "../utils/paymentEmail.js";
 
 const BILL_STATUS = {
   PENDING: "Pending",
@@ -14,7 +19,7 @@ const BILL_STATUS = {
 
 const LEGACY_PAID_STATUS = "Paid";
 const MANAGED_BILL_STATUSES = Object.values(BILL_STATUS);
-const RENT_DEPOSIT_STATUSES = ["accepted", "confirmed"];
+const RENT_DEPOSIT_STATUSES = ["confirmed"];
 
 const roundMoney = (value) => Math.round(Number(value || 0));
 
@@ -541,7 +546,7 @@ class MonthlyRentController {
         return res.status(400).json({
           success: false,
           message:
-            "Cannot calculate monthly rent because this room has no accepted or confirmed deposit for this billing period.",
+            "Cannot calculate monthly rent because this room has no confirmed tenant for this billing period.",
           billingPeriod: {
             month: period.month,
             year: period.year,
@@ -551,10 +556,18 @@ class MonthlyRentController {
         });
       }
 
+      const renterIds = new Set(
+        (room.rentBy || []).map((id) => id.toString())
+      );
+
       const acceptedTenants = [
         ...new Map(
           activeDeposits
-            .filter((deposit) => deposit.accountId)
+            .filter(
+              (deposit) =>
+                deposit.accountId &&
+                renterIds.has(deposit.accountId._id.toString())
+            )
             .map((deposit) => [
               deposit.accountId._id.toString(),
               {
@@ -569,7 +582,7 @@ class MonthlyRentController {
         return res.status(400).json({
           success: false,
           message:
-            "Cannot calculate monthly rent because accepted deposit tenant information is missing.",
+            "Cannot calculate monthly rent because confirmed tenant information is missing.",
         });
       }
 
@@ -669,6 +682,27 @@ class MonthlyRentController {
       const userPayments = await UserPayment.find({
         paymentBillId: createdBill._id,
       }).populate("accountId", "fullname email phoneNumber");
+
+      const paymentUrl = `${process.env.CLIENT_URL || "http://localhost:3001"}/monthly-rents`;
+      await Promise.all(
+        userPayments.map((userPayment) =>
+          sendPaymentEmail({
+            to: userPayment.accountId?.email,
+            subject: `Hóa đơn tiền thuê tháng ${period.month}/${period.year}`,
+            html: `
+              <p>Xin chào <strong>${userPayment.accountId?.fullname || "bạn"}</strong>,</p>
+              <p>Hóa đơn tiền thuê phòng <strong>${room.roomNumber}</strong> tháng
+              <strong>${period.month}/${period.year}</strong> đã được tạo.</p>
+              <p>Tổng hóa đơn phòng: <strong>${formatVnd(paymentAmount)}</strong></p>
+              <p>Số người đang được chia: <strong>${renterCount}</strong></p>
+              <p>Số tiền bạn cần thanh toán: <strong>${formatVnd(userPayment.paymentAmount)}</strong></p>
+              <p>Hạn thanh toán: <strong>${formatDateTimeVi(dueDate)}</strong></p>
+              <p>Thời gian gia hạn đến: <strong>${formatDateTimeVi(gracePeriodEnd)}</strong></p>
+              <p><a href="${paymentUrl}">Mở trang thanh toán tiền thuê</a></p>
+            `,
+          })
+        )
+      );
 
       return res.status(201).json({
         success: true,
