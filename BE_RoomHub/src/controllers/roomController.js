@@ -16,7 +16,7 @@ const attachAcceptedDepositStatus = async (rooms) => {
 
   const acceptedDeposits = await DepositRoom.find({
     roomId: { $in: roomIds },
-    status: "accepted",
+    status: { $in: ["accepted", "confirmed"] },
   })
     .select("roomId accountId")
     .populate("accountId", "fullname username email")
@@ -98,7 +98,7 @@ class RoomController {
       }).distinct("roomId");
 
       const validDeposits = await DepositRoom.find({
-        status: { $regex: /^accepted$/i },
+        status: { $in: ["accepted", "confirmed"] },
         startDate: { $lte: now },
         endDate: { $gte: now },
       }).select("roomId");
@@ -416,7 +416,7 @@ class RoomController {
 
       const acceptedDeposit = await DepositRoom.exists({
         roomId,
-        status: "accepted",
+        status: { $in: ["accepted", "confirmed"] },
       });
 
       return res.status(200).json({

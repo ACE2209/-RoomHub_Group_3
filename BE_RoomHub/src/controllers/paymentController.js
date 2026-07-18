@@ -276,9 +276,11 @@ const queryZaloPayStatus = async (apptransid) => {
 const completePayment = async (payment, rawData) => {
   if (!payment) throw new Error("Payment not found");
 
-  if (payment.status === "Paid") return payment;
+  const completedStatus = payment.paymentBillId ? "Done" : "Paid";
 
-  if (payment.status !== "Pending") {
+  if (["Paid", "Done"].includes(payment.status)) return payment;
+
+  if (!["Pending", "Failed"].includes(payment.status)) {
     throw new Error("Payment is not pending");
   }
 
@@ -330,7 +332,7 @@ const completePayment = async (payment, rawData) => {
     }
   }
 
-  payment.status = "Paid";
+  payment.status = completedStatus;
   payment.transactionNo =
     rawData.vnp_TransactionNo ||
     rawData.transId ||
@@ -976,7 +978,7 @@ class PaymentController {
 
       const type = payment.depositRoomId ? "deposit" : "rent";
 
-      if (payment.status === "Paid") {
+      if (["Paid", "Done"].includes(payment.status)) {
         return redirectToClient("success", type, "Payment already completed");
       }
 
