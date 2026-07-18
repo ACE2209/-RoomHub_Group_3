@@ -53,6 +53,42 @@ const normalizeMethod = (method) => {
   return null;
 };
 
+
+const escapeRegExp = (value) =>
+  String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const findUserPaymentForZaloPay = async (appTransId, rawInfo = "") => {
+  if (appTransId) {
+    const paymentByOrderId = await UserPayment.findOne({
+      orderId: {
+        $regex: `^${escapeRegExp(appTransId)}$`,
+        $options: "i",
+      },
+    });
+
+    if (paymentByOrderId) return paymentByOrderId;
+  }
+
+  const rentMatch = String(rawInfo || "").match(
+    /RENT_([0-9a-fA-F]{24})/i
+  );
+
+  if (!rentMatch?.[1]) return null;
+
+  const referencedId = rentMatch[1];
+
+  // Luồng monthly-rent mới gửi RENT_<userPaymentId>.
+  const paymentById = await UserPayment.findById(referencedId);
+  if (paymentById) return paymentById;
+
+  // Luồng payment-bill cũ gửi RENT_<paymentBillId>.
+  return UserPayment.findOne({
+    paymentBillId: referencedId,
+    paymentMethod: "ZaloPay",
+    status: { $in: ["Pending", "Failed"] },
+  }).sort({ updatedAt: -1, createdAt: -1 });
+};
+
 const validateAmount = (amount) => {
   const numberAmount = Number(amount);
   return Number.isFinite(numberAmount) && numberAmount > 0;
@@ -1025,12 +1061,14 @@ class PaymentController {
         );
       }
 
-      const payment = await UserPayment.findOne({
-        orderId: appTransId,
-      });
+      const payment = await findUserPaymentForZaloPay(appTransId, rawInfo);
 
       if (!payment) {
-        return redirectToClient("failed", "unknown", "Payment not found");
+        return redirectToClient(
+          "failed",
+          "rent",
+          "Rent payment transaction not found"
+        );
       }
 
       const type = payment.depositRoomId ? "deposit" : "rent";
@@ -1135,14 +1173,12 @@ class PaymentController {
         });
       }
 
-      const payment = await UserPayment.findOne({
-        orderId: appTransId,
-      });
+      const payment = await findUserPaymentForZaloPay(appTransId, rawInfo);
 
       if (!payment) {
         return res.json({
           returncode: -1,
-          returnmessage: "Payment not found",
+          returnmessage: "Rent payment transaction not found",
         });
       }
 
