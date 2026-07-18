@@ -17,7 +17,7 @@ const AddressSelector = ({
   formData,
   location,
   initialPosition,
-  setGeoLocation,
+  setGeoLocation = () => {},
   darkMode = false,
 }) => {
   const [currentLocation, setCurrentLocation] = useState(

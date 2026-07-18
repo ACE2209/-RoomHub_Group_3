@@ -5,6 +5,7 @@ import {
   Marker,
   useMapEvents,
   GeoJSON,
+  useMap,
 } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -19,37 +20,75 @@ const customIcon = L.icon({
   iconAnchor: [12, 41],
 });
 
+const DEFAULT_POSITION = [10.0452, 105.7469];
+
+const normalizePosition = (position) => {
+  if (!Array.isArray(position) || position.length < 2) return null;
+  if (
+    position[0] === null ||
+    position[0] === undefined ||
+    position[0] === '' ||
+    position[1] === null ||
+    position[1] === undefined ||
+    position[1] === ''
+  ) {
+    return null;
+  }
+
+  const lat = Number(position[0]);
+  const lng = Number(position[1]);
+
+  return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null;
+};
+
+function MapRecenter({ position, zoom }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const nextPosition = normalizePosition(position);
+    if (!nextPosition) return;
+
+    map.flyTo(nextPosition, zoom, {
+      animate: true,
+      duration: 0.7,
+    });
+  }, [map, position, zoom]);
+
+  return null;
+}
+
 function LocationPicker({
   onChange,
   initialPosition,
   geoJson,
   readOnly = false,
+  className = '',
+  height = '380px',
+  zoom = 13,
 }) {
   const [position, setPosition] = useState(null);
   const [geoJsonLayer, setGeoJsonLayer] = useState(null);
 
-  const getCurrentPosition = (cb) => {
-    const position = initialPosition || [10.0452, 105.7469];
+  useEffect(() => {
+    const nextPosition = normalizePosition(initialPosition);
+
+    if (nextPosition) {
+      setPosition(nextPosition);
+      return;
+    }
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
-          cb([latitude, longitude]);
+          setPosition([latitude, longitude]);
         },
-        (err) => {
-          cb(position);
+        () => {
+          setPosition(DEFAULT_POSITION);
         }
       );
     } else {
-      cb(position);
-    }
-  };
-
-  useEffect(() => {
-    if (initialPosition) {
-      setPosition(initialPosition);
-    } else {
-      getCurrentPosition(setPosition);
+      setPosition(DEFAULT_POSITION);
     }
   }, [initialPosition]);
 
@@ -66,8 +105,9 @@ function LocationPicker({
       click(e) {
         if (readOnly) return;
         const { lat, lng } = e.latlng;
-        setPosition([lat, lng]);
-        onChange(lat, lng);
+        const nextPosition = [lat, lng];
+        setPosition(nextPosition);
+        onChange?.(lat, lng);
       },
     });
 
@@ -79,9 +119,11 @@ function LocationPicker({
       {position && (
         <MapContainer
           center={position}
-          zoom={13}
-          style={{ height: '380px', width: '100%' }}
+          zoom={zoom}
+          className={className}
+          style={{ height, width: '100%' }}
         >
+          <MapRecenter position={position} zoom={zoom} />
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           {geoJsonLayer && <GeoJson />}
           <LocationMarker />

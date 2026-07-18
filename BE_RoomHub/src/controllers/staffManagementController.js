@@ -1,11 +1,109 @@
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import mongoose from "mongoose";
+import nodemailer from "nodemailer";
 import BoardingHouse from "../models/boardingHouse.js";
 import { Account, Staff } from "../models/account.js";
+import { generateToken } from "../utils/functions.js";
 
 class StaffManagementController {
   getOwnerId(req) {
     return req.user?.userId || req.user?._id;
+  }
+
+  shouldSendInvitationEmail(value) {
+    if (value === undefined) return true;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      return !["false", "0", "no", "off"].includes(value.trim().toLowerCase());
+    }
+
+    return Boolean(value);
+  }
+
+  createTemporaryPassword() {
+    return crypto.randomBytes(24).toString("hex");
+  }
+
+  getMailAuth() {
+    const user = process.env.MAIL_USER || process.env.GMAIL_USER || process.env.EMAIL_USER;
+    const pass = process.env.MAIL_PASS || process.env.GMAIL_PASSWORD || process.env.EMAIL_PASS;
+
+    if (!user || !pass) {
+      throw new Error("MAIL_USER and MAIL_PASS are not configured");
+    }
+
+    return {
+      user,
+      pass,
+    };
+  }
+
+  getInvitationLink(staff) {
+    const resetToken = generateToken({ userId: staff._id }, "1h");
+    const clientUrl = (process.env.CLIENT_URL || "http://localhost:3001").replace(/\/$/, "");
+
+    return `${clientUrl}/reset-password/${resetToken}`;
+  }
+
+  escapeHtml(value = "") {
+    return String(value).replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;",
+    }[char]));
+  }
+
+  async sendStaffInvitationEmail(staff, ownerId) {
+    const { user, pass } = this.getMailAuth();
+    const invitationLink = this.getInvitationLink(staff);
+    const assignedBoardingHouses = await BoardingHouse.find({
+      ownerId,
+      staffId: staff._id,
+      deleted: { $ne: true },
+    })
+      .select("name")
+      .lean();
+
+    const boardingHouseItems = assignedBoardingHouses.length
+      ? assignedBoardingHouses
+          .map((house) => `<li>${this.escapeHtml(house.name || "Unnamed boarding house")}</li>`)
+          .join("")
+      : "<li>No boarding house assigned yet</li>";
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user, pass },
+    });
+
+    await transporter.sendMail({
+      from: `RoomHub <${user}>`,
+      to: staff.email,
+      subject: "RoomHub staff account invitation",
+      html: `
+        <p>Hello ${this.escapeHtml(staff.fullname)},</p>
+        <p>You have been added as a staff member on RoomHub.</p>
+        <p><strong>Username:</strong> ${this.escapeHtml(staff.username)}</p>
+        <p><strong>Assigned boarding houses:</strong></p>
+        <ul>${boardingHouseItems}</ul>
+        <p>Please set your password using the link below:</p>
+        <p><a href="${invitationLink}" style="color: #2a7ae4; text-decoration: none;">Set your password</a></p>
+        <p>This link is valid for 1 hour. If you were not expecting this invitation, please ignore this email.</p>
+        <p>Best regards,<br/>RoomHub Team</p>
+      `,
+    });
+  }
+
+  async trySendStaffInvitationEmail(staff, ownerId) {
+    try {
+      await this.sendStaffInvitationEmail(staff, ownerId);
+      return { sent: true, error: null };
+    } catch (error) {
+      console.error("Staff invitation email failed:", error.message);
+      return { sent: false, error: error.message };
+    }
   }
 
   parsePagination(req) {
@@ -185,13 +283,15 @@ class StaffManagementController {
         fullname,
         gender,
         hireDate,
+        sendInvitationEmail,
       } = req.body;
       const boardingHouseIds = this.parseBoardingHouseIds(req.body.boardingHouseIds);
+      const shouldSendInvite = this.shouldSendInvitationEmail(sendInvitationEmail);
 
-      if (!username || !password || !email || !fullname) {
+      if (!username || !email || !fullname || (!password && !shouldSendInvite)) {
         return res.status(400).json({
           success: false,
-          message: "Username, password, email and fullname are required",
+          message: "Username, email, fullname and password are required",
         });
       }
 
@@ -217,7 +317,8 @@ class StaffManagementController {
         });
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const accountPassword = password || this.createTemporaryPassword();
+      const hashedPassword = await bcrypt.hash(accountPassword, 10);
       const staff = await Staff.create({
         username,
         password: hashedPassword,
@@ -236,6 +337,15 @@ class StaffManagementController {
         boardingHouseIds
       );
 
+      let invitationResult = { sent: false, error: null };
+      if (shouldSendInvite) {
+        invitationResult = await this.trySendStaffInvitationEmail(staff, ownerId);
+        staff.invitationEmailSent = invitationResult.sent;
+        staff.invitationEmailSentAt = invitationResult.sent ? new Date() : null;
+        staff.invitationEmailError = invitationResult.error;
+        await staff.save();
+      }
+
       const [data] = await this.enrichStaffs(
         [staff.toObject()],
         ownerId
@@ -244,7 +354,12 @@ class StaffManagementController {
 
       return res.status(201).json({
         success: true,
-        message: "Staff created successfully",
+        message:
+          shouldSendInvite && !invitationResult.sent
+            ? "Staff created, but invitation email was not sent"
+            : "Staff created successfully",
+        invitationEmailSent: invitationResult.sent,
+        invitationEmailError: invitationResult.error,
         data,
       });
     } catch (error) {
@@ -259,6 +374,55 @@ class StaffManagementController {
       return res.status(500).json({
         success: false,
         message: "Failed to create staff",
+        error: error.message,
+      });
+    }
+  }
+
+  async resendOwnerStaffInvitation(req, res) {
+    try {
+      const ownerId = this.getOwnerId(req);
+      const { staffId } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(staffId)) {
+        return res.status(400).json({ success: false, message: "Invalid staff id" });
+      }
+
+      const staff = await Staff.findOne({
+        _id: staffId,
+        createdBy: ownerId,
+        deleted: { $ne: true },
+      });
+
+      if (!staff) {
+        return res.status(404).json({ success: false, message: "Staff not found" });
+      }
+
+      const invitationResult = await this.trySendStaffInvitationEmail(staff, ownerId);
+      staff.invitationEmailSent = invitationResult.sent;
+      staff.invitationEmailSentAt = invitationResult.sent ? new Date() : null;
+      staff.invitationEmailError = invitationResult.error;
+      await staff.save();
+
+      const [data] = await this.enrichStaffs(
+        [staff.toObject()],
+        ownerId
+      );
+      delete data.password;
+
+      return res.status(200).json({
+        success: invitationResult.sent,
+        message: invitationResult.sent
+          ? "Invitation email sent successfully"
+          : "Invitation email was not sent",
+        invitationEmailSent: invitationResult.sent,
+        invitationEmailError: invitationResult.error,
+        data,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send invitation email",
         error: error.message,
       });
     }
