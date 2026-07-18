@@ -33,7 +33,7 @@ const paymentBillSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Pending", "Done", "Cancel", "Paid", "Failed"],
+      enum: ["Pending", "Overdue", "Done", "Cancel", "Paid", "Failed"],
       default: "Pending",
     },
     additionalFee: [
@@ -55,6 +55,10 @@ const paymentBillSchema = new mongoose.Schema(
     year: {
       type: Number,
     },
+    dueDate: Date,
+    gracePeriodEnd: Date,
+    overdueAt: Date,
+    closedAt: Date,
   },
   {
     timestamps: {

@@ -204,6 +204,7 @@ Deposit information:
                 const isPending = status === "pending";
                 const isRejected = status === "rejected";
                 const isRefunded = status === "refunded";
+                const isExpired = ["expired", "cancelled", "terminated"].includes(status);
 
                 return (
                   <div key={deposit._id} style={styles.card}>
@@ -263,6 +264,8 @@ Deposit information:
                             ? "red"
                             : isRefunded
                             ? "#2563eb"
+                            : isExpired
+                            ? "#b91c1c"
                             : "#666",
                         }}
                       >
@@ -289,6 +292,18 @@ Deposit information:
                     {isRefunded && (
                       <p style={styles.refunded}>
                         Deposit has been refunded.
+                      </p>
+                    )}
+
+                    {canPay && deposit.paymentDeadline && (
+                      <p style={styles.note}>
+                        Payment deadline: <b>{new Date(deposit.paymentDeadline).toLocaleString("vi-VN")}</b>
+                      </p>
+                    )}
+
+                    {isExpired && (
+                      <p style={styles.reject}>
+                        Payment deadline expired. The room/slot has been released.
                       </p>
                     )}
 
