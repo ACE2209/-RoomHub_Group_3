@@ -15,9 +15,6 @@ export const getBoardingHouseTypesForGuest = () => {
 export const getMaxPriceBHForGuest = () => {
   return axios.get('/boardinghouse/home/max-price');
 };
-export const getAllBoardingHDB = () => {
-  return axios.get('/dashboard/boardinghouse');
-};
 export const getAllBHHome = () => {
   return axios.get('/boardinghouse');
 };
@@ -70,10 +67,10 @@ export const getMaxPriceBH = async () => {
 };
 
 export const filterBH = async (filterValue) => {
-  return axios.get(`/dashboard/boardinghouse/chore/filter`, {
+  return axios.get(`/dashboard/boardinghouses/filter`, {
     params: filterValue,
   });
 };
 export const softDeleteBoardingHouse = async (boardingHouseId) => {
-  return axios.delete(`/dashboard/boardinghouse/${boardingHouseId}/softDelete`);
+  return axios.delete(`/dashboard/boardinghouses/${boardingHouseId}`);
 };

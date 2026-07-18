@@ -13,7 +13,6 @@ import {
   Trash2,
 } from "lucide-react";
 import AdminLayout from "../layout/admin/AdminLayout";
-import AddBoardingHouseForm from "./BoardingHouseManagement/CreateBoardingHouse";
 import {
   deleteBoardingHouse,
   filterBoardingHouses,
@@ -34,7 +33,6 @@ const pageSizeOptions = [3, 5, 10, 20];
 export default function BoardingHouseManagementPage() {
   const navigate = useNavigate();
   const [boardingHouses, setBoardingHouses] = useState([]);
-  const [createOpen, setCreateOpen] = useState(false);
   const [filters, setFilters] = useState(initialFilters);
   const [limit, setLimit] = useState(3);
   const [pagination, setPagination] = useState({
@@ -245,7 +243,7 @@ export default function BoardingHouseManagementPage() {
           </div>
           <button
             type="button"
-            onClick={() => setCreateOpen(true)}
+            onClick={() => navigate("/admin/boarding-houses/new")}
             style={primaryBtnStyle}
           >
             <Plus size={16} />
@@ -508,16 +506,6 @@ export default function BoardingHouseManagementPage() {
           </div>
         </div>
       </div>
-
-      {createOpen && (
-        <AddBoardingHouseForm
-          onClose={() => setCreateOpen(false)}
-          onSuccess={() => {
-            setCreateOpen(false);
-            fetchBoardingHouses(1);
-          }}
-        />
-      )}
     </AdminLayout>
   );
 }
