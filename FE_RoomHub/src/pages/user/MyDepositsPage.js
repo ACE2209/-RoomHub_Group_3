@@ -8,6 +8,7 @@ import { getProfileAPI } from "../../api/accountAPI";
 import Header from "../layout/homepage/header";
 import Footer from "../layout/homepage/footer";
 import ProfileSidebar from "../profile/ProfileSidebar";
+import RenewalRequestModal from "../../components/RenewalRequestModal";
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("vi-VN", {
@@ -64,6 +65,7 @@ export default function MyDepositsPage() {
   const [paying, setPaying] = useState("");
 
   const [refundOpen, setRefundOpen] = useState(false);
+  const [renewalDeposit, setRenewalDeposit] = useState(null);
   const [selectedDeposit, setSelectedDeposit] = useState(null);
   const [refundReasonType, setRefundReasonType] = useState("");
   const [refundDetail, setRefundDetail] = useState("");
@@ -325,6 +327,14 @@ Deposit information:
                         >
                           Request Refund
                         </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setRenewalDeposit(deposit)}
+                          style={styles.renewalBtn}
+                        >
+                          Request Renewal
+                        </button>
                       </div>
                     )}
                   </div>
@@ -436,6 +446,14 @@ Deposit information:
         </div>
       )}
 
+      {renewalDeposit && (
+        <RenewalRequestModal
+          deposit={renewalDeposit}
+          onClose={() => setRenewalDeposit(null)}
+          onSuccess={loadDeposits}
+        />
+      )}
+
       <Footer />
     </>
   );
@@ -493,6 +511,15 @@ const styles = {
   refundBtn: {
     border: "none",
     background: "#ff6b00",
+    color: "#fff",
+    borderRadius: 8,
+    padding: "10px 16px",
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+  renewalBtn: {
+    border: "none",
+    background: "#16a34a",
     color: "#fff",
     borderRadius: 8,
     padding: "10px 16px",

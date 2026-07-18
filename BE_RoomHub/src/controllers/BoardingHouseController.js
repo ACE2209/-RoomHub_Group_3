@@ -486,7 +486,7 @@ class BoardingHouseController {
         });
       }
 
-      await boardingHouse.delete(req.user?._id);
+      await boardingHouse.delete(req.user?.userId);
 
       return res.status(200).json({
         success: true,
@@ -1031,86 +1031,57 @@ class BoardingHouseController {
     }
   }
 
-  async getAllBHOnDashBoard(req, res, next) {
-    try {
-      const boardingHData = await BoardingHouse.find()
-        .populate('boardingHouseType')
-        .populate({
-          path: 'ownerId',
-        })
-        .sort({ createdAt: -1 });
-
-      return res.status(200).json(boardingHData);
-    } catch (error) {
-      console.error('Error fetching boarding house data:', error);
-      return res.status(500).json({
-        message: 'Failed to fetch boarding house data. Please try again later.',
-        error: error.message,
-      });
-    }
-  }
-
   async updateBoardingHouseDetails(req, res, next) {
     try {
       const { id } = req.params;
-      const updateData = req.body;
       const boardingHouse = await BoardingHouse.findById(id);
       if (!boardingHouse) {
         return res
           .status(404)
           .json({ success: false, message: 'Boarding house not found.' });
       }
-      const images = [];
-      let hasPrimary = false;
-      if (req.body.boardingHouse) {
-        const data = JSON.parse(req.body.boardingHouse);
 
-        for (const img of data) {
-          if (img.isPrimary) hasPrimary = true;
-        }
+      const payload = this.normalizeBoardingHousePayload(
+        req.body,
+        req.files || [],
+        boardingHouse.images || []
+      );
 
-        if (Array.isArray(data)) {
-          images.push(...data);
-        }
+      const payloadError = this.getBoardingHousePayloadError(payload);
+      if (payloadError) {
+        return res.status(400).json({ success: false, message: payloadError });
       }
-      if (req.files) {
-        req.files.forEach((file, index) => {
-          images.push({
-            imageUrl: file.path,
-            publicId: file.filename,
-            isPrimary: !hasPrimary && index === 0,
-          });
-        });
-        // Delete old images from Cloudinary
-        for (const oldImage of boardingHouse.images) {
-          await cloudinary.uploader.destroy(oldImage.publicId);
-        }
 
-        updateData.images = images;
-      }
-      if (!updateData.address?.province?.name || !updateData.address?.province?.name_en ||
-        !updateData.address?.district?.name || !updateData.address?.district?.name_en ||
-        !updateData.address?.ward?.name || !updateData.address?.ward?.name_en) {
+      if (!payload.images.length) {
         return res.status(400).json({
           success: false,
-          message: 'Missing required address fields.',
+          message: 'Vui lòng giữ lại hoặc tải lên ít nhất một hình ảnh',
         });
       }
+
+      const typeExists = await BoardingHouseType.exists({ _id: payload.boardingHouseType });
+      if (!typeExists) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy loại nhà trọ' });
+      }
+
+      if (req.files && req.files.length) {
+        // Delete old images from Cloudinary once the new set has been validated
+        for (const oldImage of boardingHouse.images) {
+          if (oldImage.publicId) {
+            await cloudinary.uploader.destroy(oldImage.publicId);
+          }
+        }
+      }
+
+      payload.staffId = payload.staffId ?? boardingHouse.staffId ?? null;
 
       const updatedBoardingHouse = await BoardingHouse.findByIdAndUpdate(
         id,
-        { $set: updateData },
+        { $set: payload },
         { new: true, runValidators: true }
       )
         .populate('boardingHouseType', 'name codeName')
         .populate('ownerId', 'email');
-
-      if (!updatedBoardingHouse) {
-        return res.status(404).json({
-          success: false,
-          message: 'Boarding house not found.',
-        });
-      }
 
       return res.status(200).json({
         success: true,
@@ -1314,129 +1285,51 @@ class BoardingHouseController {
   }
   async createBoardingHouse(req, res) {
     try {
-      const {
-        ownerUsername,
-        boardingHouseType,
-        name,
-        address,
-        location,
-        description,
-        priceRange,
-        electricityPrice,
-        waterPrice,
-        totalRooms = 0,
-        availableRooms = 0,
-        likes = 0,
-        rating = 5,
-      } = req.body;
-
-      const images = [];
-      if (req.files && req.files.length > 0) {
-        console.log(req.files);
-        req.files.forEach((file) => {
-          images.push({
-            imageUrl: file.path,
-            publicId: file.filename,
-            isPrimary: images.length === 0, // First image is primary
-          });
-        });
-      }
-
-      if (images.length === 0) {
-        console.error('No images uploaded.');
-        return res
-          .status(400)
-          .json({ message: 'You must upload at least one image.' });
-      }
-      // Validate owner
       const ownerAccount = await Account.findOne({
-        username: ownerUsername,
+        username: req.body.ownerUsername,
         role: 'owner',
       });
       if (!ownerAccount) {
-        console.error('Invalid owner:', ownerUsername);
         return res.status(400).json({
           message: 'Invalid owner username or the user is not a landlord.',
         });
       }
-      const ownerId = ownerAccount._id;
 
-      // Validate boarding house type
-      const boardingHouseTypeExists =
-        await BoardingHouseType.findById(boardingHouseType);
-      if (!boardingHouseTypeExists) {
-        console.error('Invalid boarding house type:', boardingHouseType);
-        return res
-          .status(400)
-          .json({ message: 'Invalid boarding house type.' });
+      const payload = this.normalizeBoardingHousePayload(req.body, req.files || []);
+
+      const payloadError = this.getBoardingHousePayloadError(payload);
+      if (payloadError) {
+        return res.status(400).json({ message: payloadError });
       }
 
-      // Validate name
-      if (!name || /[!@#$%^&*(),.?":{}|<>]/g.test(name)) {
-        console.error('Invalid name:', name);
+      if (!payload.images.length) {
+        return res
+          .status(400)
+          .json({ message: 'You must upload at least one image.' });
+      }
+
+      if (/[!@#$%^&*(),.?":{}|<>]/g.test(payload.name)) {
         return res.status(400).json({
           message: 'Name is required and must not contain special characters.',
         });
       }
-      // Check if the boarding house name already exists
-      const existingBoardingHouse = await BoardingHouse.findOne({ name });
+
+      const existingBoardingHouse = await BoardingHouse.findOne({ name: payload.name });
       if (existingBoardingHouse) {
-        console.error('Boarding house name already exists:', name);
         return res
           .status(400)
           .json({ message: 'A boarding house with this name already exists.' });
       }
 
-      // Validate address
-      const { province, district, ward, detail } = address;
-      if (!province || !district || !ward) {
-        console.error('Invalid address:', address);
-        return res.status(400).json({
-          message:
-            'Province, district, and ward are required fields in the address.',
-        });
+      const typeExists = await BoardingHouseType.exists({ _id: payload.boardingHouseType });
+      if (!typeExists) {
+        return res.status(400).json({ message: 'Invalid boarding house type.' });
       }
 
-      // Validate price fields
-      if (priceRange <= 0 || electricityPrice <= 0 || waterPrice <= 0) {
-        console.error('Invalid price fields:', {
-          priceRange,
-          electricityPrice,
-          waterPrice,
-        });
-        return res
-          .status(400)
-          .json({ message: 'Price fields must be greater than 0.' });
-      }
-
-      // Tạo mới boarding house
-      const newBoardingHouse = new BoardingHouse({
-        ownerId,
-        name,
-        description: description || '',
-        priceRange,
-        electricityPrice,
-        waterPrice,
-        boardingHouseType,
-        address: {
-          province,
-          district,
-          ward,
-          detail: detail || '',
-        },
-        location: {
-          lat: location.lat,
-          lon: location.lon,
-        },
-        images,
-        totalRooms,
-        availableRooms,
-        likes,
-        rating,
+      const savedBoardingHouse = await BoardingHouse.create({
+        ...payload,
+        ownerId: ownerAccount._id,
       });
-
-      // Lưu boarding house vào database
-      const savedBoardingHouse = await newBoardingHouse.save();
 
       return res.status(201).json({
         message: 'Boarding house created successfully!',
@@ -1487,73 +1380,6 @@ class BoardingHouseController {
     }
   }
 
-  async filterBoardingHouse(req, res) {
-    try {
-      let {
-        boardingHouseType,
-        district,
-        name,
-        priceRange,
-        province,
-        ward,
-        startDate,
-        endDate,
-        rating,
-        page = 1,
-        limit = 10,
-      } = req.query;
-
-      page = Math.max(parseInt(page), 1);
-      limit = Math.min(Math.max(parseInt(limit), 1), 100);
-
-      let filter = {};
-
-      if (boardingHouseType) {
-        filter.boardingHouseType = new mongoose.Types.ObjectId(boardingHouseType);
-      }
-      if (rating) {
-        const ratings = rating.split(',').map(Number);
-        const validRatings = ratings.filter((r) => !isNaN(r) && r >= 0 && r <= 5);
-        if (validRatings.length > 0) {
-          filter.rating = { $in: validRatings };
-        } else {
-          return res.status(400).json({
-            success: false,
-            message:
-              'Invalid rating format. Each rating must be a number between 0 and 5.',
-          });
-        }
-      }
-      if (priceRange && priceRange.length === 2) {
-        filter.priceRange = { $gte: priceRange[0], $lte: priceRange[1] };
-      }
-      if (startDate && endDate) {
-        filter.createdAt = {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate),
-        };
-      }
-
-      const paginatedResult = await paginate(BoardingHouse, { filter, page, limit }, req);
-      paginatedResult.data = await BoardingHouse.populate(paginatedResult.data, [
-        { path: "boardingHouseType", select: "name codeName" },
-        { path: "ownerId" }
-      ]);
-
-      paginatedResult.data = paginatedResult.data.filter(bh => {
-        return (!province || (bh.address?.province && bh.address.province.toLowerCase().includes(province.toLowerCase())))
-          && (!district || (bh.address?.district && bh.address.district.toLowerCase().includes(district.toLowerCase())))
-          && (!ward || (bh.address?.ward && bh.address.ward.toLowerCase().includes(ward.toLowerCase())))
-          && (!name || (bh.name && bh.name.toLowerCase().includes(name.toLowerCase())));
-      });
-
-      res.status(200).json(paginatedResult);
-    } catch (error) {
-      console.error('Error filtering boarding houses:', error);
-      res.status(500).json({ message: 'Server Error' });
-    }
-  }
-
   async getMaxPriceBH(req, res, next) {
     try {
       const maxPriceHouse = await BoardingHouse.findOne({
@@ -1574,44 +1400,6 @@ class BoardingHouseController {
       res
         .status(500)
         .json({ message: 'Internal Server Error', error: error.message });
-    }
-  }
-
-  async softDeleteBoardingHouse(req, res) {
-    try {
-      const { id } = req.params;
-
-      const boardingHouse = await BoardingHouse.findById(id);
-      if (!boardingHouse) {
-        return res.status(404).json({
-          success: false,
-          message: 'Boarding house not found',
-        });
-      }
-
-      if (boardingHouse.deleted) {
-        return res.status(400).json({
-          success: false,
-          message: 'Boarding house is already soft deleted',
-        });
-      }
-
-      boardingHouse.deleted = true;
-      boardingHouse.deletedAt = new Date();
-      await boardingHouse.save();
-
-      return res.status(200).json({
-        success: true,
-        message: 'Boarding house soft deleted successfully',
-      });
-    } catch (error) {
-      console.error('Error soft deleting boarding house:', error);
-      return res.status(500).json({
-        success: false,
-        message:
-          'Failed to soft delete boarding house. Please try again later.',
-        error: error.message,
-      });
     }
   }
 

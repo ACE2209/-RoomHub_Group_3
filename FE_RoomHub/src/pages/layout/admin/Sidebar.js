@@ -92,6 +92,10 @@ export default function Sidebar() {
               Refund Requests
             </NavLink>
 
+            <NavLink to="/managed-renewal-requests">
+              Renewal Requests
+            </NavLink>
+
             <NavLink to="/managed-reviews">Review Management</NavLink>
 
             <NavLink to="/task-management">Task Management</NavLink>
@@ -108,6 +112,10 @@ export default function Sidebar() {
 
             <NavLink to="/manage-monthly-rents">
               Monthly Rent Management
+            </NavLink>
+
+            <NavLink to="/manage-expenses">
+              Monthly Expenses
             </NavLink>
           </>
         )}

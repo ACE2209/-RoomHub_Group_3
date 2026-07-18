@@ -17,6 +17,7 @@ import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
 
 import BHDetailPage from "../pages/admin/BHDetailPage";
+import AddBoardingHousePage from "../pages/admin/AddBoardingHousePage";
 import ProfilePage from "../pages/admin/ProfilePage";
 
 import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
@@ -56,6 +57,9 @@ import TaskManagementPage from "../pages/ownerandstaff/TaskManagementPage";
 import MyPaymentBillsPage from "../pages/user/MyPaymentBillsPage";
 import MyRefundRequestsPage from "../pages/user/MyRefundRequestsPage";
 import ManagedRefundRequestsPage from "../pages/ownerandstaff/ManagedRefundRequestsPage";
+import MyRenewalRequestsPage from "../pages/user/MyRenewalRequestsPage";
+import ManagedRenewalRequestsPage from "../pages/ownerandstaff/ManagedRenewalRequestsPage";
+import ManageExpensesPage from "../pages/ownerandstaff/ManageExpensesPage";
 import TotalRevenuePage from "../pages/admin/Revenue/TotalRevenuePage";
 import BoardingHouseRevenuePage from "../pages/admin/Revenue/BoardingHouseRevenuePage";
 const AppRoutes = () => {
@@ -397,6 +401,15 @@ const AppRoutes = () => {
       />
 
       <Route
+        path="/admin/boarding-houses/new"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AddBoardingHousePage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/admin/boarding-houses/:boardingHouseId"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
@@ -429,6 +442,30 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["owner", "staff"]}>
             <ManagedRefundRequestsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-renewal-requests"
+        element={
+          <ProtectedRoute>
+            <MyRenewalRequestsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/managed-renewal-requests"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManagedRenewalRequestsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manage-expenses"
+        element={
+          <ProtectedRoute allowedRoles={["owner", "staff"]}>
+            <ManageExpensesPage />
           </ProtectedRoute>
         }
       />

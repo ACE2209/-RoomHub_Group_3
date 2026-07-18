@@ -12,6 +12,8 @@ import {
   refundRequestController,
   revenueController,
   taskController,
+  renewalController,
+  bhExpenseController,
 } from "../controllers/index.js";
 import { upload } from '../config/cloudinary.config.js';
 
@@ -54,6 +56,16 @@ staffRouter.get("/monthly-rents", monthlyRentController.getManagedMonthlyRents);
 staffRouter.post("/monthly-rents/calculate/:roomId", monthlyRentController.calculateMonthlyRent);
 staffRouter.patch("/monthly-rents/:billId/status", monthlyRentController.updateManagedMonthlyRentStatus);
 staffRouter.get("/monthly-rents/:billId", monthlyRentController.getManagedMonthlyRentDetail);
+
+// RENEWAL REQUEST MANAGEMENT
+staffRouter.get("/renewal-requests", renewalController.getManagedRenewalRequests);
+staffRouter.patch("/renewal-requests/:requestId/decision", renewalController.handleRenewalRequestDecision);
+
+// EXPENSE MANAGEMENT
+staffRouter.get("/expenses", bhExpenseController.getExpensesByTime);
+staffRouter.post("/expenses", bhExpenseController.addExpense);
+staffRouter.put("/expenses/:expenseId", bhExpenseController.updateExpense);
+staffRouter.delete("/expenses/:expenseId", bhExpenseController.deleteExpense);
 
 // room
 staffRouter.get("/room", roomController.getAllRooms);
