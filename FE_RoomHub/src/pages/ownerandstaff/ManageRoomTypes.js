@@ -97,10 +97,16 @@ const ManageRoomTypes = () => {
 
     const openEditModal = (roomType) => {
         setEditingRoomType(roomType);
+
+        // roomSize is stored as a string like "25m²"; pull out just the number for the input
+        const roomSizeNumber = roomType.roomSize
+            ? parseFloat(String(roomType.roomSize).replace(/[^\d.]/g, ""))
+            : undefined;
+
         form.setFieldsValue({
             typeName: roomType.typeName,
             price: roomType.price,
-            roomSize: roomType.roomSize,
+            roomSize: Number.isNaN(roomSizeNumber) ? undefined : roomSizeNumber,
             peopleNumber: roomType.peopleNumber,
         });
 
@@ -135,7 +141,12 @@ const ManageRoomTypes = () => {
 
             formData.append("typeName", values.typeName);
             formData.append("price", values.price);
-            formData.append("roomSize", values.roomSize || "");
+            formData.append(
+                "roomSize",
+                values.roomSize !== undefined && values.roomSize !== null
+                    ? `${values.roomSize}m²`
+                    : ""
+            );
             formData.append("peopleNumber", values.peopleNumber || 0);
 
             // Only send a new "roomType" file when the user actually picked one.
@@ -378,9 +389,21 @@ const ManageRoomTypes = () => {
 
                         <Form.Item
                             name="roomSize"
-                            label="Room Size"
+                            label="Room Size (m²)"
+                            rules={[
+                                {
+                                    type: "number",
+                                    min: 0,
+                                    message: "Room size must be greater than 0",
+                                },
+                            ]}
                         >
-                            <Input placeholder="e.g., 20x30, 30x40" />
+                            <InputNumber
+                                style={{ width: "100%" }}
+                                placeholder="e.g., 25"
+                                min={0}
+                                addonAfter="m²"
+                            />
                         </Form.Item>
 
                         <Form.Item
