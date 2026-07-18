@@ -98,7 +98,6 @@ const ManageRoomTypes = () => {
     const openEditModal = (roomType) => {
         setEditingRoomType(roomType);
 
-        // roomSize is stored as a string like "25m²"; pull out just the number for the input
         const roomSizeNumber = roomType.roomSize
             ? parseFloat(String(roomType.roomSize).replace(/[^\d.]/g, ""))
             : undefined;
@@ -110,7 +109,6 @@ const ManageRoomTypes = () => {
             peopleNumber: roomType.peopleNumber,
         });
 
-        // Show the current image (if any) instead of a blank uploader
         setFileList(
             roomType.image?.imageUrl
                 ? [
@@ -129,7 +127,7 @@ const ManageRoomTypes = () => {
 
     const handleSubmit = async () => {
         if (submitting) {
-            return; // prevent double submit while a request is already in flight
+            return;
         }
 
         try {
@@ -149,9 +147,6 @@ const ManageRoomTypes = () => {
             );
             formData.append("peopleNumber", values.peopleNumber || 0);
 
-            // Only send a new "roomType" file when the user actually picked one.
-            // If they kept the existing image (isExisting) we don't resend it —
-            // the backend already keeps the old image when no file is uploaded.
             const newImageFile = fileList.find((file) => file.originFileObj)?.originFileObj;
             if (newImageFile) {
                 formData.append("roomType", newImageFile);
