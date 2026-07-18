@@ -12,6 +12,24 @@ export default function PaymentResultPage() {
 
   const isSuccess = status === "success";
 
+  const getStatusPath = () => {
+    if (type === "rent") return "/my-payment-bills";
+    if (type === "deposit") return "/my-deposits";
+
+    if (type === "refund") {
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        return String(user?.role || "").toLowerCase() === "staff"
+          ? "/staff/refund-requests"
+          : "/owner/refund-requests";
+      } catch {
+        return "/owner/refund-requests";
+      }
+    }
+
+    return "/";
+  };
+
   return (
     <>
       <Header />
@@ -47,7 +65,7 @@ export default function PaymentResultPage() {
 
           <div style={styles.actions}>
             <Link
-              to={type === "rent" ? "/my-payment-bills" : "/my-deposits"}
+              to={getStatusPath()}
               style={styles.primaryBtn}
             >
               View Status

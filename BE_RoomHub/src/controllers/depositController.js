@@ -8,6 +8,10 @@ import PaymentBill from "../models/paymentBill.js";
 import UserPayment from "../models/userPayment.js";
 import paginate from "../utils/pagination.js";
 import { updateBoardingHouseRoomCounts } from "../utils/updateBoardingHouseRoomCounts.js";
+import {
+  buildDepositPaymentDeadline,
+  syncRoomAvailabilityWithReservations,
+} from "../utils/paymentPolicy.js";
 class DepositController {
   async getDepositsByOwnerOrStaff(req, res) {
     try {
@@ -334,7 +338,7 @@ class DepositController {
       if (boardingHouseTypeCode === "nha_tro_kien_truc_xa") {
         const currentAcceptedCount = await DepositRoom.countDocuments({
           roomId: deposit.roomId._id,
-          status: "accepted",
+          status: { $in: ["accepted", "confirmed"] },
         });
 
         const limit = Number(deposit.roomId.roomTypeId?.peopleNumber || 0);
@@ -366,55 +370,46 @@ class DepositController {
       }
 
       deposit.status = "accepted";
+      deposit.paymentDeadline = buildDepositPaymentDeadline();
+      deposit.expiredAt = undefined;
       await deposit.save();
 
-      await Room.updateOne(
-        { _id: deposit.roomId._id },
-        { $set: { isAvailable: false } },
-      );
+      await syncRoomAvailabilityWithReservations(deposit.roomId._id);
 
-      if (boardingHouse?._id) {
-        await updateBoardingHouseRoomCounts(boardingHouse._id);
-      }
+      const paymentUrl = `${process.env.CLIENT_URL || "http://localhost:3001"}/my-deposits`;
+      const formattedDeadline = moment(deposit.paymentDeadline).format(
+        "HH:mm [ngày] DD/MM/YYYY",
+      );
 
       const emailSent = await sendEmailSafe(
         recipientAccount.email,
         "Đặt cọc phòng trọ đã được chấp nhận",
         `
           <p>Xin chào <strong>${recipientAccount.fullname}</strong>,</p>
-          <p>Khoản đặt cọc của bạn cho phòng <strong>${deposit.roomId.roomNumber}</strong>
+          <p>Yêu cầu đặt cọc của bạn cho phòng <strong>${deposit.roomId.roomNumber}</strong>
           tại nhà trọ <strong>${boardingHouseName}</strong> đã được chấp nhận.</p>
-          <p>Vui lòng thanh toán tiền cọc để hoàn tất giữ phòng.</p>
+          <p><strong>Số tiền cần thanh toán:</strong>
+            ${Number(deposit.amount).toLocaleString("vi-VN")} VNĐ
+          </p>
+          <p><strong>Hạn thanh toán:</strong> ${formattedDeadline}</p>
+          <p>Bạn có <strong>1 ngày</strong> để thanh toán tiền cọc.
+          Sau thời hạn trên, yêu cầu sẽ tự động hết hạn và phòng sẽ được mở lại.</p>
+          <p>
+            <a href="${paymentUrl}"
+              style="display:inline-block;padding:12px 20px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
+              Thanh toán tiền cọc
+            </a>
+          </p>
         `,
       );
 
-      const otherPendingDeposits = await DepositRoom.find({
+      // Không từ chối các yêu cầu khác ở bước Accept.
+      // Chỉ khi thanh toán cọc thành công hệ thống mới chốt phòng và xử lý các yêu cầu còn lại.
+      const otherPendingDeposits = await DepositRoom.countDocuments({
         _id: { $ne: depositId },
         roomId: deposit.roomId._id,
         status: "pending",
-      }).populate({
-        path: "accountId",
-        select: "fullname email",
       });
-
-      for (const item of otherPendingDeposits) {
-        const itemRecipientAccount = await getRecipientAccount(item.accountId);
-
-        item.status = "rejected";
-        item.reasonForCancel = "Phòng đã được đặt cọc bởi người khác.";
-        await item.save();
-
-        await sendEmailSafe(
-          itemRecipientAccount?.email,
-          "Yêu cầu đặt cọc đã bị từ chối",
-          `
-              <p>Xin chào <strong>${itemRecipientAccount?.fullname || "bạn"}</strong>,</p>
-              <p>Phòng <strong>${deposit.roomId.roomNumber}</strong>
-              tại nhà trọ <strong>${boardingHouseName}</strong>
-              đã được người khác đặt cọc trước.</p>
-            `,
-        );
-      }
 
       return res.status(200).json({
         message: "Đã chấp nhận khoản đặt cọc.",
@@ -422,7 +417,8 @@ class DepositController {
         error: false,
         status: "accepted",
         depositId: deposit._id,
-        rejectedOtherDeposits: otherPendingDeposits.length,
+        pendingOtherDeposits: otherPendingDeposits,
+        paymentDeadline: deposit.paymentDeadline,
         emailSent,
       });
     } catch (error) {

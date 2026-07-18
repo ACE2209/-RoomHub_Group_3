@@ -6,6 +6,7 @@ import DepositRoom from "../models/depositRoom.js";
 import PaymentBill from "../models/paymentBill.js";
 import UserPayment from "../models/userPayment.js";
 import RefundRequest from "../models/refundRequest.js";
+import { syncRoomAvailabilityWithReservations } from "../utils/paymentPolicy.js";
 
 const sortObject = (obj) => {
   const sorted = {};
@@ -299,7 +300,16 @@ const completePayment = async (payment, rawData) => {
       throw new Error("Room not found");
     }
 
+    if (deposit.paymentDeadline && deposit.paymentDeadline <= new Date()) {
+      deposit.status = "expired";
+      deposit.expiredAt = new Date();
+      await deposit.save();
+      await syncRoomAvailabilityWithReservations(deposit.roomId._id);
+      throw new Error("Deposit payment deadline has expired");
+    }
+
     deposit.status = "confirmed";
+    deposit.confirmedAt = new Date();
 
     if (!Array.isArray(deposit.roomId.rentBy)) {
       deposit.roomId.rentBy = [];
@@ -313,6 +323,23 @@ const completePayment = async (payment, rawData) => {
 
     await deposit.roomId.save();
     await deposit.save();
+
+    await syncRoomAvailabilityWithReservations(deposit.roomId._id);
+
+    // Chỉ sau khi cọc thành công mới đóng các yêu cầu cạnh tranh cho cùng phòng.
+    await DepositRoom.updateMany(
+      {
+        _id: { $ne: deposit._id },
+        roomId: deposit.roomId._id,
+        status: { $in: ["pending", "accepted"] },
+      },
+      {
+        $set: {
+          status: "rejected",
+          reasonForCancel: "Phòng đã được người khác thanh toán cọc thành công.",
+        },
+      }
+    );
   }
 
   if (payment.paymentBillId) {
@@ -431,6 +458,13 @@ class PaymentController {
             orderInfo,
           });
 
+    // Lưu định danh giao dịch trước khi chuyển Owner/Staff sang cổng thanh toán.
+    // Callback/redirect sẽ dùng paymentOrderId để tìm đúng RefundRequest.
+    refundRequest.paymentOrderId = orderId;
+    refundRequest.paymentMethod = paymentMethod;
+    refundRequest.paymentOrderInfo = orderInfo;
+    await refundRequest.save();
+
     return {
       paymentUrl,
       payUrl: paymentUrl,
@@ -473,6 +507,18 @@ class PaymentController {
         return res.status(400).json({
           success: false,
           message: "Owner must accept deposit before payment",
+        });
+      }
+
+      if (!deposit.paymentDeadline || deposit.paymentDeadline <= new Date()) {
+        deposit.status = "expired";
+        deposit.expiredAt = new Date();
+        deposit.reasonForCancel = "Quá hạn thanh toán tiền cọc.";
+        await deposit.save();
+        await syncRoomAvailabilityWithReservations(deposit.roomId);
+        return res.status(400).json({
+          success: false,
+          message: "Deposit payment deadline has expired",
         });
       }
 
@@ -619,10 +665,17 @@ class PaymentController {
         });
       }
 
-      if (String(bill.status).toLowerCase() === "paid") {
+      if (["paid", "done"].includes(String(bill.status).toLowerCase())) {
         return res.status(400).json({
           success: false,
           message: "Bill already paid",
+        });
+      }
+
+      if (bill.gracePeriodEnd && bill.gracePeriodEnd <= new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: "Rent payment grace period has expired and the room was released",
         });
       }
 
@@ -941,10 +994,14 @@ class PaymentController {
       const orderInfo = String(zaloPayStatus.order_info || "");
       const rawInfo = `${description} ${orderInfo}`;
 
-      const refundMatch = rawInfo.match(/REFUND_([0-9a-fA-F]{24})/);
+      const refundByOrderId = await RefundRequest.findOne({
+        paymentOrderId: appTransId,
+      }).select("_id status");
 
-      if (refundMatch) {
-        const refundRequestId = refundMatch[1];
+      const refundMatch = rawInfo.match(/REFUND_([0-9a-fA-F]{24})/);
+      const refundRequestId = refundByOrderId?._id?.toString() || refundMatch?.[1];
+
+      if (refundRequestId) {
 
         if (returnCode !== 1) {
           return redirectToClient(
@@ -1059,10 +1116,15 @@ class PaymentController {
       const orderInfo = String(data.order_info || "");
       const rawInfo = `${description} ${orderInfo}`;
 
-      const refundMatch = rawInfo.match(/REFUND_([0-9a-fA-F]{24})/);
+      const refundByOrderId = await RefundRequest.findOne({
+        paymentOrderId: appTransId,
+      }).select("_id status");
 
-      if (refundMatch) {
-        await completeRefundPayment(refundMatch[1], {
+      const refundMatch = rawInfo.match(/REFUND_([0-9a-fA-F]{24})/);
+      const refundRequestId = refundByOrderId?._id?.toString() || refundMatch?.[1];
+
+      if (refundRequestId) {
+        await completeRefundPayment(refundRequestId, {
           ...data,
           zp_trans_id: data.zptransid || data.zp_trans_id,
         });
