@@ -3,9 +3,11 @@ import UserPayment from "../models/userPayment.js";
 import Room from "../models/room.js";
 import RoomAdditionalFees from "../models/roomAdditionalFees.js";
 import DepositRoom from "../models/depositRoom.js";
+import { buildRentDeadlines } from "../utils/paymentPolicy.js";
 
 const BILL_STATUS = {
   PENDING: "Pending",
+  OVERDUE: "Overdue",
   DONE: "Done",
   CANCEL: "Cancel",
 };
@@ -622,10 +624,14 @@ class MonthlyRentController {
       const baseShare = Math.floor(paymentAmount / renterCount);
       const remainder = paymentAmount - baseShare * renterCount;
 
+      const { dueDate, gracePeriodEnd } = buildRentDeadlines();
+
       const createdBill = await PaymentBill.create({
         roomId,
         paymentAmount,
         status: BILL_STATUS.PENDING,
+        dueDate,
+        gracePeriodEnd,
         additionalFee,
         electricalBill: {
           oldNumber: previousElectricityReading,

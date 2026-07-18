@@ -5,6 +5,7 @@ import route from "./routes/index.js";
 import cors from "cors";
 import { fileURLToPath } from "url";
 import path from "path";
+import { startPaymentCron } from "./utils/paymentCron.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -36,6 +37,9 @@ app.set("view engine", "ejs");
 
 // Define routes
 route(app);
+
+// Start background payment expiration processing
+startPaymentCron();
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -33,6 +33,24 @@ const refundRequestSchema = new mongoose.Schema(
     processedAt: {
       type: Date,
     },
+    paymentOrderId: {
+      type: String,
+      default: "",
+      index: true,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["VNPay", "ZaloPay", ""],
+      default: "",
+    },
+    paymentOrderInfo: {
+      type: String,
+      default: "",
+    },
+    refundTransactionNo: {
+      type: String,
+      default: "",
+    },
     status: {
       type: String,
       enum: ["pending", "accepted", "rejected"],
