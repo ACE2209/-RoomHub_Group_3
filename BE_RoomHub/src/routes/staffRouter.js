@@ -70,16 +70,16 @@ staffRouter.delete("/expenses/:expenseId", bhExpenseController.deleteExpense);
 // room
 staffRouter.get("/room", roomController.getAllRooms);
 staffRouter.get("/room/boarding-house/:boardingHouseId", roomController.getRoomsByBoardingHouse);
-staffRouter.post("/room/boarding-house", upload.single("Room"), roomController.addRoom);
-staffRouter.put("/room/boarding-house/:roomId", upload.single("Room"), roomController.updateRoom);
+staffRouter.post("/room/boarding-house", upload.array("Room", 10), roomController.addRoom);
+staffRouter.put("/room/boarding-house/:roomId", upload.array("Room", 10), roomController.updateRoom);
 staffRouter.delete("/room/boarding-house/:roomId", roomController.deleteRoom);
 
 
 //roomtype
-staffRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId);
-staffRouter.post("/boardinghouse/roomtype/:id/create", upload.single("roomType"), roomTypeController.addRoomTypeToBoardingHouse);
-staffRouter.put("/boardinghouse/roomtype/:roomTypeId/", upload.single("roomType"), roomTypeController.updateRoomTypeToBoardingHouse);
-staffRouter.delete("/boardinghouse/roomtype/:roomTypeId/", roomTypeController.softDeleteRoomType);
+staffRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId.bind(roomTypeController));
+staffRouter.post("/boardinghouse/roomtype/:id/create", upload.single("roomType"), roomTypeController.addRoomTypeToBoardingHouse.bind(roomTypeController));
+staffRouter.put("/boardinghouse/roomtype/:roomTypeId", upload.single("roomType"), roomTypeController.updateRoomTypeToBoardingHouse.bind(roomTypeController));
+staffRouter.delete("/boardinghouse/roomtype/:roomTypeId", roomTypeController.softDeleteRoomType.bind(roomTypeController));
 
 staffRouter.get("/tasks", taskController.getManagedTasks.bind(taskController));
 staffRouter.post("/tasks", taskController.createManagedTask.bind(taskController));

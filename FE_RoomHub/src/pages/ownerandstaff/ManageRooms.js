@@ -81,6 +81,7 @@ const ManageRooms = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
   const [fileList, setFileList] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -184,8 +185,14 @@ const ManageRooms = () => {
   };
 
   const handleSubmit = async () => {
+    if (submitting) {
+      return; // prevent double submit while a request is already in flight
+    }
+
     try {
       const values = await form.validateFields();
+
+      setSubmitting(true);
 
       const formData = new FormData();
 
@@ -224,6 +231,8 @@ const ManageRooms = () => {
     } catch (err) {
       console.error("❌ Error:", err);
       message.error(err.message || "An error occurred");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -364,9 +373,14 @@ const ManageRooms = () => {
           open={isModalOpen}
           width={700}
           title={editingRoom ? "Update Room" : "Create Room"}
-          onCancel={() => setIsModalOpen(false)}
+          onCancel={() => !submitting && setIsModalOpen(false)}
           onOk={handleSubmit}
           okText={editingRoom ? "Update" : "Create"}
+          confirmLoading={submitting}
+          okButtonProps={{ disabled: submitting }}
+          cancelButtonProps={{ disabled: submitting }}
+          maskClosable={!submitting}
+          closable={!submitting}
           className="manage-rooms__modal"
         >
           <Form form={form} layout="vertical">

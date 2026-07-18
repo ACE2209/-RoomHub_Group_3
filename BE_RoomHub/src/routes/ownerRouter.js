@@ -10,6 +10,7 @@ import {
   refundRequestController,
   staffManagementController,
   taskController,
+  roomController,
   renewalController,
   bhExpenseController,
 } from '../controllers/index.js';
@@ -62,10 +63,17 @@ ownerRouter.put("/expenses/:expenseId", bhExpenseController.updateExpense);
 ownerRouter.delete("/expenses/:expenseId", bhExpenseController.deleteExpense);
 
 //roomtype
-ownerRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId);
-ownerRouter.post("/boardinghouse/roomtype/:id/create", upload.single("roomType"), roomTypeController.addRoomTypeToBoardingHouse);
-ownerRouter.put("/boardinghouse/roomtype/:roomTypeId/", upload.single("roomType"), roomTypeController.updateRoomTypeToBoardingHouse);
-ownerRouter.delete("/boardinghouse/roomtype/:roomTypeId/", roomTypeController.softDeleteRoomType);
+ownerRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId.bind(roomTypeController));
+ownerRouter.post("/boardinghouse/roomtype/:id/create", upload.single("roomType"), roomTypeController.addRoomTypeToBoardingHouse.bind(roomTypeController));
+ownerRouter.put("/boardinghouse/roomtype/:roomTypeId/", upload.single("roomType"), roomTypeController.updateRoomTypeToBoardingHouse.bind(roomTypeController));
+ownerRouter.delete("/boardinghouse/roomtype/:roomTypeId/", roomTypeController.softDeleteRoomType.bind(roomTypeController));
+
+//room
+ownerRouter.get("/room", roomController.getAllRooms);
+ownerRouter.get("/room/boarding-house/:boardingHouseId", roomController.getRoomsByBoardingHouse);
+ownerRouter.post("/room/boarding-house", upload.array("Room", 10), roomController.addRoom);
+ownerRouter.put("/room/boarding-house/:roomId", upload.array("Room", 10), roomController.updateRoom);
+ownerRouter.delete("/room/boarding-house/:roomId", roomController.deleteRoom);
 
 ownerRouter.get("/staffs", staffManagementController.getOwnerStaffs.bind(staffManagementController));
 ownerRouter.post("/staffs", staffManagementController.createOwnerStaff.bind(staffManagementController));
