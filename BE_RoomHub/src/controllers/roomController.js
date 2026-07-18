@@ -5,7 +5,7 @@ import PaymentBill from "../models/paymentBill.js";
 import paginate from "../utils/pagination.js";
 import DepositRoom from "../models/depositRoom.js";
 import { updateBoardingHouseRoomCounts } from '../utils/updateBoardingHouseRoomCounts.js';
-
+import BoardingHouse from "../models/boardingHouse.js";
 
 const attachAcceptedDepositStatus = async (rooms) => {
   const roomIds = rooms.map((room) => room._id).filter(Boolean);
@@ -156,12 +156,31 @@ class RoomController {
 
   async getAllRooms(req, res) {
     try {
+      const userId = req.user?.userId || req.user?._id;
+
+      const managedBoardingHouses = await BoardingHouse.find({
+        $or: [
+          { ownerId: userId },
+          { staffId: userId }
+        ]
+      }).select("_id");
+
+      const boardingHouseIds = managedBoardingHouses.map(
+        (item) => item._id
+      );
+
       const paginationOptions = {
         defaultPage: 1,
         defaultLimit: 10,
         maxLimit: 100,
         sortField: "createdAt",
         sortOrder: "desc",
+
+        filter: {
+          boardingHouseId: {
+            $in: boardingHouseIds,
+          },
+        },
 
         populate: [
           {
@@ -232,13 +251,19 @@ class RoomController {
         });
       }
 
+      // Route now uses upload.array("Room", 10) so multiple images can be sent
+      const uploadedImages = (req.files || []).map((file) => ({
+        imageUrl: file.path,
+        publicId: file.filename,
+      }));
+
       const roomDocs = rooms.map((room) => ({
         roomNumber: room.roomNumber,
         boardingHouseId: room.boardingHouseId,
         description: room.description,
         roomTypeId: room.roomTypeId,
         isAvailable: true,
-        images: room.images || null,
+        images: room.images || uploadedImages,
       }));
 
       // Save all rooms
@@ -306,7 +331,7 @@ class RoomController {
       if (isAvailable !== undefined && isAvailable !== null && isAvailable !== '') {
         const boolValue = isAvailable === true || isAvailable === 'true';
         room.isAvailable = boolValue;
-        room.manuallySet = true;  
+        room.manuallySet = true;
       }
       if (
         previousElectricityReading !== undefined &&
@@ -328,15 +353,19 @@ class RoomController {
         room.currentWaterReading = Number(currentWaterReading);
       }
 
-      if (req.file) {
-        if (room?.images?.publicId) {
-          await cloudinary.uploader.destroy(room.images.publicId);
+      if (req.files && req.files.length > 0) {
+        if (Array.isArray(room.images)) {
+          for (const oldImage of room.images) {
+            if (oldImage?.publicId) {
+              await cloudinary.uploader.destroy(oldImage.publicId);
+            }
+          }
         }
 
-        room.images = {
-          imageUrl: req.file.path,
-          publicId: req.file.filename,
-        };
+        room.images = req.files.map((file) => ({
+          imageUrl: file.path,
+          publicId: file.filename,
+        }));
       }
 
       await room.save();

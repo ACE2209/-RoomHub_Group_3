@@ -27,7 +27,7 @@ commonRouter.post("/verify-register", authController.verifyRegister);
 // ======================
 // Report
 // ======================
-commonRouter.post("/reports", authMiddleware, reportController.createReport);
+commonRouter.post("/reports", authMiddleware, reportController.createReport.bind(reportController));
 
 // ======================
 // Boarding House
@@ -98,16 +98,16 @@ commonRouter.get(
   authMiddleware,
   monthlyRentController.getMyMonthlyRentDetail
 );
-commonRouter.patch(
+commonRouter.post(
   "/monthly-rents/my/:userPaymentId/pay",
   authMiddleware,
-  monthlyRentController.payMyMonthlyRent
+  paymentController.payUserMonthlyRent
 );
 
 // ======================
 // Payment Callback
 // ======================
 commonRouter.get("/payment/vnpay-return", paymentController.vnpayReturn);
-commonRouter.get("/payment/momo-return", paymentController.momoReturn);
-
+commonRouter.get("/payment/zalopay-redirect", paymentController.zalopayRedirect);
+commonRouter.post("/payment/zalopay-return", paymentController.zalopayReturn);
 export { commonRouter };

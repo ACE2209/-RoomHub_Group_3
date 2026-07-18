@@ -260,7 +260,7 @@ class accountController {
       });
 
       const mailOptions = {
-        from: "support@example.com",
+        from: 'RoomHub <trantnce180829@fpt.edu.vn>',
         to: email,
         subject: "Mã OTP xác nhận thay đổi email",
         html: `

@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, BedDouble } from "lucide-react";
 
-import { getRoomsByRoomType } from "../api/room";
-import { getImageSource, setFallbackImage } from "../api/config";
-import CreateAppointmentModal from "../components/CreateAppointmentModal";
+import { getRoomsByRoomType } from "../../api/room";
+import { getImageSource, setFallbackImage } from "../../api/config";
+import CreateAppointmentModal from "../../components/CreateAppointmentModal";
 
-import Footer from "./layout/homepage/footer";
-import Header from "./layout/homepage/header";
+import Footer from "../layout/homepage/footer";
+import Header from "../layout/homepage/header";
 import "./BoardingHouseDetailPage.css";
 
 const getListData = (res) => {

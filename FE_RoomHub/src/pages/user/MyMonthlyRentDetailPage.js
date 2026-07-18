@@ -57,20 +57,28 @@ const MyMonthlyRentDetailPage = () => {
     loadDetail();
   }, [loadDetail]);
 
-  const handlePay = async () => {
-    try {
-      const values = await form.validateFields();
-      setPaying(true);
-      await payMyMonthlyRent(userPaymentId, values);
-      message.success("Payment completed successfully");
-      setIsModalOpen(false);
-      await loadDetail();
-    } catch (error) {
-      message.error(error.message || "Failed to pay monthly rent");
-    } finally {
-      setPaying(false);
+const handlePay = async () => {
+  try {
+    const values = await form.validateFields();
+    setPaying(true);
+
+    const res = await payMyMonthlyRent(userPaymentId, values);
+    const paymentUrl = res?.data?.paymentUrl || res?.data?.payUrl;
+
+    if (paymentUrl) {
+      window.location.href = paymentUrl;
+      return;
     }
-  };
+
+    message.success("Payment completed successfully");
+    setIsModalOpen(false);
+    await loadDetail();
+  } catch (error) {
+    message.error(error.message || "Failed to pay monthly rent");
+  } finally {
+    setPaying(false);
+  }
+};
 
   const bill = payment?.paymentBillId;
   const room = bill?.roomId;
@@ -278,19 +286,17 @@ const MyMonthlyRentDetailPage = () => {
           <Form
             form={form}
             layout="vertical"
-            initialValues={{ paymentMethod: "Cash" }}
-          >
+initialValues={{ method: "VNPay" }}          >
             <Form.Item
-              name="paymentMethod"
-              label="Payment Method"
-              rules={[{ required: true, message: "Please select payment method" }]}
-            >
-              <Select>
-                <Option value="Cash">Cash</Option>
-                <Option value="Bank Transfer">Bank Transfer</Option>
-                <Option value="Momo">Momo</Option>
-              </Select>
-            </Form.Item>
+  name="method"
+  label="Payment Method"
+  rules={[{ required: true, message: "Please select payment method" }]}
+>
+  <Select>
+    <Option value="VNPay">VNPay</Option>
+    <Option value="ZaloPay">ZaloPay</Option>
+  </Select>
+</Form.Item>
           </Form>
         </Modal>
       </div>

@@ -1,35 +1,56 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const roomAdditionalFeesSchema = new mongoose.Schema({
-    roomId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Room',
-        required: true
-    },
-    feeName: {
-        type: String,
-        required: true,
-        trim: true
-    },
-    feeAmount: {
-        type: Number,
-        required: true,
-        min: 0
-    },
-    month: {
-        type: Number,
-        required: true,
-        min: 1,
-        max: 12
-    },
-    year: {
-        type: Number,
-        required: true,
-    },
-}, {
-    timestamps: true
-});
+const roomAdditionalFeesSchema = new mongoose.Schema(
+    {
+        roomId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Room",
+            required: true
+        },
 
-const RoomAdditionalFees = mongoose.model('RoomAdditionalFees', roomAdditionalFeesSchema);
+        feeName: {
+            type: String,
+            required: true,
+            trim: true
+        },
 
-export default RoomAdditionalFees;
+        feeAmount: {
+            type: Number,
+            required: true,
+            min: 0
+        },
+
+        month: {
+            type: Number,
+            required: true,
+            min: 1,
+            max: 12
+        },
+
+        year: {
+            type: Number,
+            required: true
+        }
+    },
+    {
+        timestamps: true
+    }
+);
+
+// BR-32
+roomAdditionalFeesSchema.index(
+    {
+        roomId: 1,
+        month: 1,
+        year: 1,
+        feeName: 1
+    },
+    {
+        unique: true
+    }
+);
+
+export default mongoose.model(
+    "RoomAdditionalFees",
+    roomAdditionalFeesSchema
+);

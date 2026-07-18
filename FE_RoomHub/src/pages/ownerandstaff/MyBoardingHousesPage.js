@@ -9,8 +9,19 @@ import {
 
 const pageSizeOptions = [5, 10, 20];
 
+const getCurrentRole = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    return user?.role || localStorage.getItem("role") || "";
+  } catch (error) {
+    return localStorage.getItem("role") || "";
+  }
+};
+
 export default function MyBoardingHousesPage() {
   const navigate = useNavigate();
+  const currentRole = useMemo(() => getCurrentRole(), []);
+  const canAddOrDelete = currentRole === "owner";
   const [houses, setHouses] = useState([]);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -21,6 +32,9 @@ export default function MyBoardingHousesPage() {
   const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const stats = useMemo(() => {
     const availableRooms = houses.reduce(
@@ -56,17 +70,31 @@ export default function MyBoardingHousesPage() {
     fetchHouses(1);
   }, [fetchHouses]);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this boarding house?")) return;
+  const openDeleteModal = (house) => {
+    setNotice(null);
+    setDeleteTarget(house);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setDeleteTarget(null);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget?._id) return;
 
     try {
-      const res = await deleteOwnBoardingHouse(id);
+      setDeleting(true);
+      const res = await deleteOwnBoardingHouse(deleteTarget._id);
       if (res?.success) {
+        setDeleteTarget(null);
+        setNotice({ type: "success", message: "Đã xóa nhà trọ thành công." });
         fetchHouses(pagination.currentPage, limit);
-        alert("Boarding house deleted successfully");
       }
     } catch (err) {
-      alert(err.message || "Delete failed");
+      setNotice({ type: "error", message: err.message || "Xóa nhà trọ thất bại." });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -89,10 +117,12 @@ export default function MyBoardingHousesPage() {
           <p style={subtitleStyle}>Manage boarding houses assigned to your account.</p>
         </div>
 
-        <button style={primaryBtnStyle} onClick={() => navigate("/my-boarding-houses/new")}>
-          <Plus size={17} />
-          Add Boarding House
-        </button>
+        {canAddOrDelete && (
+          <button style={primaryBtnStyle} onClick={() => navigate("/my-boarding-houses/new")}>
+            <Plus size={17} />
+            Add Boarding House
+          </button>
+        )}
       </div>
 
       <div style={summaryStyle}>
@@ -105,6 +135,8 @@ export default function MyBoardingHousesPage() {
           <span>{stats.availableRooms} rooms available</span>
         </div>
       </div>
+
+      {notice && <div style={noticeStyle(notice.type)}>{notice.message}</div>}
 
       <div style={tableCardStyle}>
         <table style={tableStyle}>
@@ -149,9 +181,11 @@ export default function MyBoardingHousesPage() {
                       <button title="Update" style={iconBtnStyle} onClick={() => navigate(`/my-boarding-houses/${house._id}`)}>
                         <Edit3 size={17} />
                       </button>
-                      <button title="Delete" style={deleteIconBtnStyle} onClick={() => handleDelete(house._id)}>
-                        <Trash2 size={17} />
-                      </button>
+                      {canAddOrDelete && (
+                        <button title="Delete" style={deleteIconBtnStyle} onClick={() => openDeleteModal(house)}>
+                          <Trash2 size={17} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -174,6 +208,29 @@ export default function MyBoardingHousesPage() {
           </div>
         </div>
       </div>
+
+      {deleteTarget && (
+        <div style={modalOverlayStyle} role="dialog" aria-modal="true">
+          <div style={modalCardStyle}>
+            <div style={modalIconStyle}>
+              <Trash2 size={22} />
+            </div>
+            <h3 style={modalTitleStyle}>Xóa nhà trọ?</h3>
+            <p style={modalTextStyle}>
+              Nhà trọ <strong>{deleteTarget.name || "này"}</strong> sẽ bị xóa khỏi danh sách quản lý. Bạn có chắc muốn tiếp tục?
+            </p>
+            <div style={modalActionsStyle}>
+              <button type="button" style={secondaryBtnStyle} onClick={closeDeleteModal} disabled={deleting}>
+                Hủy
+              </button>
+              <button type="button" style={dangerBtnStyle(deleting)} onClick={handleDelete} disabled={deleting}>
+                <Trash2 size={16} />
+                {deleting ? "Đang xóa..." : "Xóa nhà trọ"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
@@ -186,6 +243,7 @@ const headerStyle = { display: "flex", justifyContent: "space-between", gap: 16,
 const titleStyle = { margin: 0, color: "#27364a", fontWeight: 700 };
 const subtitleStyle = { color: "#667085", fontSize: 13 };
 const primaryBtnStyle = { display: "inline-flex", alignItems: "center", gap: 8, border: "none", borderRadius: 6, background: "#12b76a", color: "#fff", padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
+const secondaryBtnStyle = { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, border: "1px solid #d0d5dd", borderRadius: 6, background: "#fff", color: "#344054", padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
 const summaryStyle = { display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 18 };
 const summaryItemStyle = { display: "flex", alignItems: "center", gap: 8, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 14px", color: "#344054", fontWeight: 600 };
 const tableCardStyle = { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.04)" };
@@ -200,6 +258,22 @@ const ellipsisStyle = { display: "block", overflow: "hidden", textOverflow: "ell
 const actionStyle = { display: "flex", gap: 8 };
 const iconBtnStyle = { width: 36, height: 36, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "#eef4ff", color: "#2563eb", border: "1px solid #bfdbfe", borderRadius: 6, cursor: "pointer" };
 const deleteIconBtnStyle = { ...iconBtnStyle, background: "#fef3f2", color: "#d92d20", border: "1px solid #fecdca" };
+const noticeStyle = (type) => ({
+  background: type === "success" ? "#ecfdf3" : "#fef3f2",
+  color: type === "success" ? "#027a48" : "#b42318",
+  border: `1px solid ${type === "success" ? "#abefc6" : "#fecdca"}`,
+  borderRadius: 8,
+  padding: "12px 14px",
+  marginBottom: 16,
+  fontWeight: 700,
+});
+const modalOverlayStyle = { position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18, zIndex: 1000 };
+const modalCardStyle = { width: "min(440px, 100%)", background: "#fff", borderRadius: 8, boxShadow: "0 24px 60px rgba(15, 23, 42, 0.24)", padding: 22, border: "1px solid #fee4e2" };
+const modalIconStyle = { width: 44, height: 44, borderRadius: 8, background: "#fef3f2", color: "#d92d20", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 };
+const modalTitleStyle = { margin: 0, color: "#27364a", fontSize: 20 };
+const modalTextStyle = { margin: "10px 0 0", color: "#667085", lineHeight: 1.6 };
+const modalActionsStyle = { display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22, flexWrap: "wrap" };
+const dangerBtnStyle = (disabled) => ({ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, border: "none", borderRadius: 6, background: disabled ? "#fda29b" : "#d92d20", color: "#fff", padding: "10px 16px", fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer" });
 const emptyStyle = { textAlign: "center", padding: 42, color: "#667085" };
 const paginationStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, padding: "14px 16px", borderTop: "1px solid #e5e7eb", flexWrap: "wrap" };
 const pageButtonWrapStyle = { display: "flex", alignItems: "center", gap: 8 };

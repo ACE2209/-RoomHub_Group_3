@@ -24,15 +24,25 @@ instance.interceptors.request.use(
 
 instance.interceptors.response.use(
   function (response) {
-    if (response && response.data) return response.data;
+    if (response?.data) {
+      return response.data;
+    }
+
     return response;
   },
   function (error) {
-    if (error.response?.status === 401) {
+    const status = error?.response?.status;
+    const requestUrl = String(error?.config?.url || "");
+    const hadToken = Boolean(localStorage.getItem("token"));
+
+    const isLoginRequest = requestUrl.includes("/login");
+    const isOnLoginPage = window.location.pathname === "/login";
+
+    if (status === 401 && hadToken && !isLoginRequest) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
 
-      if (window.location.pathname !== "/login") {
+      if (!isOnLoginPage) {
         window.location.replace("/login");
       }
     }

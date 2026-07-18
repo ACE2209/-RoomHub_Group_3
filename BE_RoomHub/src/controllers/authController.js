@@ -46,7 +46,7 @@ class AuthController {
         },
       });
       const mailOptions = {
-        from: 'support@example.com',
+        from: 'RoomHub <trantnce180829@fpt.edu.vn>',
         to: account.email,
         subject: 'Mã OTP xác minh tài khoản của bạn',
         html: `
@@ -176,7 +176,7 @@ class AuthController {
         },
       });
       const mailOptions = {
-        from: 'support@example.com',
+        from: 'RoomHub <trantnce180829@fpt.edu.vn>',
         to: email,
         subject: 'Đặt lại mật khẩu tài khoản của bạn',
         html: `

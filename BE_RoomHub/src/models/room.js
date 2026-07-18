@@ -32,15 +32,17 @@ const RoomSchema = new mongoose.Schema(
       default: false,
     },
 
-    images: {
-      imageUrl: {
-        type: String,
+    images: [
+      {
+        imageUrl: {
+          type: String,
+        },
+        publicId: {
+          type: String,
+          default: "",
+        },
       },
-      publicId: {
-        type: String,
-        default: "",
-      },
-    },
+    ],
 
     roomTypeId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -72,6 +74,27 @@ const RoomSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    additionalFees: [
+      {
+        feeId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "RoomAdditionalFees",
+        },
+        feeName: {
+          type: String,
+        },
+        feeAmount: {
+          type: Number,
+        },
+        month: {
+          type: Number,
+        },
+        year: {
+          type: Number,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

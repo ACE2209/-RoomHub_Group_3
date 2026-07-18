@@ -1,5 +1,18 @@
 import { Router } from 'express';
-import { boardingHouseController, appointmentController, depositController, roomAdditionFeeController, ReviewController, monthlyRentController } from '../controllers/index.js';
+import {
+  boardingHouseController,
+  appointmentController,
+  depositController,
+  roomAdditionFeeController,
+  ReviewController,
+  monthlyRentController,
+  roomTypeController,
+  refundRequestController,
+  staffManagementController,
+  taskController,
+  renewalController,
+  bhExpenseController,
+} from '../controllers/index.js';
 import { upload } from '../config/cloudinary.config.js';
 
 const ownerRouter = Router();
@@ -38,4 +51,46 @@ ownerRouter.post("/monthly-rents/calculate/:roomId", monthlyRentController.calcu
 ownerRouter.patch("/monthly-rents/:billId/status", monthlyRentController.updateManagedMonthlyRentStatus);
 ownerRouter.get("/monthly-rents/:billId", monthlyRentController.getManagedMonthlyRentDetail);
 
+// RENEWAL REQUEST MANAGEMENT
+ownerRouter.get("/renewal-requests", renewalController.getManagedRenewalRequests);
+ownerRouter.patch("/renewal-requests/:requestId/decision", renewalController.handleRenewalRequestDecision);
+
+// EXPENSE MANAGEMENT
+ownerRouter.get("/expenses", bhExpenseController.getExpensesByTime);
+ownerRouter.post("/expenses", bhExpenseController.addExpense);
+ownerRouter.put("/expenses/:expenseId", bhExpenseController.updateExpense);
+ownerRouter.delete("/expenses/:expenseId", bhExpenseController.deleteExpense);
+
+//roomtype
+ownerRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId);
+ownerRouter.post("/boardinghouse/roomtype/:id/create", upload.single("roomType"), roomTypeController.addRoomTypeToBoardingHouse);
+ownerRouter.put("/boardinghouse/roomtype/:roomTypeId/", upload.single("roomType"), roomTypeController.updateRoomTypeToBoardingHouse);
+ownerRouter.delete("/boardinghouse/roomtype/:roomTypeId/", roomTypeController.softDeleteRoomType);
+
+ownerRouter.get("/staffs", staffManagementController.getOwnerStaffs.bind(staffManagementController));
+ownerRouter.post("/staffs", staffManagementController.createOwnerStaff.bind(staffManagementController));
+ownerRouter.post("/staffs/:staffId/invitation", staffManagementController.resendOwnerStaffInvitation.bind(staffManagementController));
+ownerRouter.put("/staffs/:staffId", staffManagementController.updateOwnerStaff.bind(staffManagementController));
+ownerRouter.delete("/staffs/:staffId", staffManagementController.deleteOwnerStaff.bind(staffManagementController));
+
+ownerRouter.get("/tasks", taskController.getManagedTasks.bind(taskController));
+ownerRouter.post("/tasks", taskController.createManagedTask.bind(taskController));
+ownerRouter.get("/tasks/:taskId", taskController.getManagedTaskDetail.bind(taskController));
+ownerRouter.put("/tasks/:taskId", taskController.updateManagedTask.bind(taskController));
+ownerRouter.delete("/tasks/:taskId", taskController.deleteManagedTask.bind(taskController));
+// REFUND MANAGEMENT
+ownerRouter.get(
+  "/refund-requests",
+  refundRequestController.getManagedRefundRequests
+);
+
+ownerRouter.patch(
+  "/refund-requests/:refundRequestId/reject",
+  refundRequestController.rejectRefundRequest
+);
+
+ownerRouter.post(
+  "/refund-requests/:refundRequestId/pay",
+  refundRequestController.createRefundPayment
+);
 export { ownerRouter };

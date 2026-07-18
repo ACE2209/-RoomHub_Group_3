@@ -81,10 +81,10 @@ export default function MonthlyRentPage() {
                 {canPay && (
                   <div style={{ display: "flex", gap: 12 }}>
                     <button
-                      onClick={() => handlePay(bill._id, "MoMo")}
-                      disabled={paying === `${bill._id}-MoMo`}
+                      onClick={() => handlePay(bill._id, "ZaloPay")}
+disabled={paying === `${bill._id}-ZaloPay`}
                     >
-                      Pay with MoMo
+                      Pay with ZaloPay
                     </button>
 
                     <button

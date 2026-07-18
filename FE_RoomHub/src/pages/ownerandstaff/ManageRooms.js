@@ -14,7 +14,6 @@ import {
   Col,
   Upload,
   Switch,
-  InputNumber,
 } from "antd";
 
 import {
@@ -29,7 +28,6 @@ import {
 import {
   getRoomTypesByBoardingHouse,
   getRoomsByBoardingHouse,
-  getAllRooms,
   createRoom,
   updateRoom,
   deleteRoom,
@@ -87,7 +85,7 @@ const ManageRooms = () => {
 
   useEffect(() => {
     loadBoardingHouses();
-    loadAllRooms();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadBoardingHouses = async () => {
@@ -97,6 +95,13 @@ const ManageRooms = () => {
         limit: 100,
       });
       setBoardingHouses(res.data || []);
+      // Auto-select first boarding house if available
+      if (res.data && res.data.length > 0) {
+        const firstBhId = res.data[0]._id;
+        setSelectedBoardingHouse(firstBhId);
+        loadRoomTypes(firstBhId);
+        loadRooms(firstBhId);
+      }
     } catch (err) {
       message.error(err.message || "Failed to load boarding houses");
     }
@@ -108,26 +113,6 @@ const ManageRooms = () => {
       setRoomTypes(res.data || []);
     } catch (err) {
       message.error(err.message || "Failed to load room types");
-    }
-  };
-
-  const loadAllRooms = async (page = 1) => {
-    try {
-      setLoading(true);
-
-      const res = await getAllRooms({
-        page,
-        limit: 10,
-      });
-
-      setRooms(res.data || []);
-      setPagination(res.pagination || {});
-    } catch (err) {
-      message.error(
-        err.message || "Failed to load rooms"
-      );
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -144,14 +129,6 @@ const ManageRooms = () => {
       message.error(err.message || "Failed to load rooms");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const reloadRooms = () => {
-    if (selectedBoardingHouse) {
-      loadRooms(selectedBoardingHouse);
-    } else {
-      loadAllRooms();
     }
   };
 
@@ -185,24 +162,24 @@ const ManageRooms = () => {
 
     setEditingRoom(room);
 
-    // ✅ FIX: Include isAvailable when loading form
     form.setFieldsValue({
       roomNumber: room.roomNumber,
       description: room.description,
       roomTypeId: room.roomTypeId?._id,
       boardingHouseId: boardingHouseId,
-      previousElectricityReading:
-        room.previousElectricityReading,
-      previousWaterReading:
-        room.previousWaterReading,
-      currentElectricityReading:
-        room.currentElectricityReading,
-      currentWaterReading:
-        room.currentWaterReading,
-      isAvailable: room.isAvailable,  // ✅ THÊM DÒNG NÀY
+      isAvailable: room.isAvailable,
     });
 
-    setFileList([]);
+    setFileList(
+      (room.images || []).map((img, idx) => ({
+        uid: img.publicId || `existing-${idx}`,
+        name: img.publicId || `image-${idx + 1}`,
+        status: "done",
+        url: img.imageUrl,
+        isExisting: true,
+        imageData: img,
+      }))
+    );
     setIsModalOpen(true);
   };
 
@@ -210,46 +187,40 @@ const ManageRooms = () => {
     try {
       const values = await form.validateFields();
 
-      // ✅ DEBUG: Log form values
-      console.log("✅ Form values:", values);
-      console.log("✅ isAvailable value:", values.isAvailable);
-      console.log("✅ isAvailable type:", typeof values.isAvailable);
-
       const formData = new FormData();
 
-      // ✅ FIX: Explicitly append all fields including isAvailable
       Object.keys(values).forEach((key) => {
         if (values[key] !== undefined && values[key] !== null) {
-          console.log(`📦 Appending ${key}:`, values[key]);
           formData.append(key, values[key]);
         }
       });
 
-      // ✅ DEBUG: Log FormData
-      console.log("📤 FormData entries:");
-      for (let [key, value] of formData.entries()) {
-        console.log(`   ${key}: ${value}`);
+      // Existing images the user kept (didn't remove) vs newly added files
+      if (editingRoom) {
+        const remainingExistingImages = fileList
+          .filter((file) => file.isExisting)
+          .map((file) => file.imageData);
+        formData.append("existingImages", JSON.stringify(remainingExistingImages));
       }
 
-      if (fileList.length > 0) {
-        formData.append("Room", fileList[0].originFileObj);
-      }
+      fileList.forEach((file) => {
+        if (!file.isExisting && file.originFileObj) {
+          formData.append("Room", file.originFileObj);
+        }
+      });
 
       if (editingRoom) {
-        console.log("🔄 Updating room:", editingRoom._id);
         await updateRoom(editingRoom._id, formData);
         message.success("Room updated successfully");
       } else {
-        console.log("✨ Creating new room");
         await createRoom(formData);
         message.success("Room created successfully");
       }
 
       setIsModalOpen(false);
-
-      // ✅ FIX: Reload rooms after successful update
-      console.log("🔃 Reloading rooms...");
-      reloadRooms();
+      if (selectedBoardingHouse) {
+        loadRooms(selectedBoardingHouse);
+      }
     } catch (err) {
       console.error("❌ Error:", err);
       message.error(err.message || "An error occurred");
@@ -259,10 +230,10 @@ const ManageRooms = () => {
   const handleDelete = async (roomId) => {
     try {
       await deleteRoom(roomId);
-
       message.success("Room deleted successfully");
-
-      reloadRooms();
+      if (selectedBoardingHouse) {
+        loadRooms(selectedBoardingHouse);
+      }
     } catch (err) {
       console.error(err);
       message.error(err.message || "Failed to delete room");
@@ -383,8 +354,6 @@ const ManageRooms = () => {
               onChange: (page) => {
                 if (selectedBoardingHouse) {
                   loadRooms(selectedBoardingHouse, page);
-                } else {
-                  loadAllRooms(page);
                 }
               },
             }}
@@ -435,71 +404,38 @@ const ManageRooms = () => {
               <TextArea rows={4} placeholder="Room description..." />
             </Form.Item>
 
-            <Form.Item label="Room Image">
+            <Form.Item label="Room Images">
               <Upload
                 beforeUpload={() => false}
                 fileList={fileList}
                 onChange={(info) => setFileList(info.fileList)}
-                maxCount={1}
+                multiple
+                maxCount={10}
+                accept="image/*"
+                listType="picture-card"
               >
-                <Button icon={<UploadOutlined />}>Upload Image</Button>
+                {fileList.length < 10 && (
+                  <span>
+                    <UploadOutlined />
+                    <div style={{ marginTop: 4 }}>Upload</div>
+                  </span>
+                )}
               </Upload>
+              {editingRoom && (
+                <p style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+                  Click the ✕ on an image to remove it, or upload more to add new ones.
+                </p>
+              )}
             </Form.Item>
 
             {editingRoom && (
-              <>
-                <Form.Item
-                  name="previousElectricityReading"
-                  label="Previous Electricity Reading"
-                  rules={[
-                    {
-                      type: "number",
-                      min: 0,
-                      message: "Value must be greater than or equal to 0",
-                    },
-                  ]}
-                >
-                  <InputNumber
-                    min={0}
-                    style={{ width: "100%" }}
-                  />
-                </Form.Item>
-
-                <Form.Item
-                  name="previousWaterReading"
-                  label="Previous Water Reading"
-                >
-                  <Input type="number" placeholder="0" />
-                </Form.Item>
-
-                <Form.Item
-                  name="currentElectricityReading"
-                  label="Current Electricity Reading"
-                >
-                  <Input type="number" placeholder="0" />
-                </Form.Item>
-
-                <Form.Item
-                  name="currentWaterReading"
-                  label="Current Water Reading"
-                >
-                  <Input type="number" placeholder="0" />
-                </Form.Item>
-
-                {/* ✅ FIX: Ensure isAvailable field is properly included */}
-                <Form.Item
-                  name="isAvailable"
-                  label="Available"
-                  valuePropName="checked"
-                >
-                  <Switch
-                    onChange={(val) => {
-                      console.log("✅ Switch changed to:", val);
-                      form.setFieldValue("isAvailable", val);
-                    }}
-                  />
-                </Form.Item>
-              </>
+              <Form.Item
+                name="isAvailable"
+                label="Available"
+                valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
             )}
           </Form>
         </Modal>

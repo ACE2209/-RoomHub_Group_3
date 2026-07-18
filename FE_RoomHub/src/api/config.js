@@ -21,6 +21,27 @@ export const parseJsonResponse = async (res) => {
   return data;
 };
 
+export const getRolePrefix = () => {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const role = String(user?.role || "").toLowerCase();
+
+  if (role === "staff") return "staff";
+  return "owner";
+};
+
+export const buildQuery = (params = {}) => {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      query.append(key, value);
+    }
+  });
+
+  const queryString = query.toString();
+  return queryString ? `?${queryString}` : "";
+};
+
 const getOriginalUrlFromCloudinaryFetch = (imageUrl) => {
   const fetchMarker = "/image/fetch/";
 

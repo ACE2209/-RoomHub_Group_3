@@ -92,7 +92,7 @@ export const getMyMonthlyRentDetail = async (userPaymentId) => {
 
 export const payMyMonthlyRent = async (userPaymentId, data) => {
   const res = await fetch(`${API_URL}/monthly-rents/my/${userPaymentId}/pay`, {
-    method: "PATCH",
+    method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...authHeaders(),

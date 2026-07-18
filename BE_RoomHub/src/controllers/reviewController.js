@@ -1,6 +1,7 @@
 import Review from "../models/review.js";
 import paginate from "../utils/pagination.js";
 import BoardingHouse from "../models/boardingHouse.js";
+import { v2 as cloudinary } from "cloudinary";
 
 class ReviewController {
   getUserId(req) {
@@ -22,6 +23,26 @@ class ReviewController {
     }).select("_id");
 
     return Boolean(boardingHouse);
+  }
+
+  async recalculateBoardingHouseRating(boardingHouseId) {
+    const reviews = await Review.find({
+      boardingHouseId,
+      parentId: null,
+      deleted: false,
+    });
+
+    const nextRating = reviews.length
+      ? Number((reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length).toFixed(1))
+      : 5;
+
+    await BoardingHouse.findByIdAndUpdate(
+      boardingHouseId,
+      { rating: nextRating },
+      { new: true, timestamps: false }
+    );
+
+    return nextRating;
   }
 
   async getManagedReviewByBhId(req, res) {
@@ -752,10 +773,10 @@ class ReviewController {
       const accountId = req.user?.userId;
 
 
-      const { content, rating, boardingHouseId } = req.body;
+      const { content, rating } = req.body;
 
       if (!accountId) {
-        if (req.files.images) {
+        if (req.files?.images) {
           await Promise.all(req.files.images.map(
             file => cloudinary.uploader.destroy(file.filename)
           ));
@@ -767,7 +788,7 @@ class ReviewController {
 
       const review = await Review.findOne({ _id: reviewId, accountId });
       if (!review) {
-        if (req.files.images) {
+        if (req.files?.images) {
           await Promise.all(req.files.images.map(
             file => cloudinary.uploader.destroy(file.filename)
           ));
@@ -777,10 +798,21 @@ class ReviewController {
         );
       }
 
-      review.content = content || review.content;
-      review.rating = rating || review.rating;
+      if (rating !== undefined && rating !== null && rating !== '') {
+        const nextRating = Number(rating);
+        if (!Number.isFinite(nextRating) || nextRating < 1 || nextRating > 5) {
+          return res.status(400).json({
+            success: false,
+            message: 'Rating must be between 1 and 5 stars.',
+          });
+        }
 
-      if (req.files.images && req.files.images.length > 0) {
+        review.rating = nextRating;
+      }
+
+      review.content = content ?? review.content;
+
+      if (req.files?.images && req.files.images.length > 0) {
         if (review.images && review.images.length > 0) {
           await Promise.all(review.images.map(
             oldImg => cloudinary.uploader.destroy(oldImg.publicId)
@@ -794,24 +826,14 @@ class ReviewController {
       }
 
       await review.save();
-
-      const reviews = await Review.find(
-        { boardingHouseId: review.boardingHouseId, parentId: null, deleted: false }
-      );
-
-      if (reviews.length > 0) {
-        const avgRating = (reviews.reduce((sum, rev) => sum + rev.rating, 0) / reviews.length).toFixed(1);
-        await BoardingHouse.findByIdAndUpdate(
-          review.boardingHouseId, { rating: avgRating }, { new: true, timestamps: false }
-        );
-      }
+      await this.recalculateBoardingHouseRating(review.boardingHouseId);
 
       return res.status(200).json(
         { success: true, message: 'Review updated successfully', review }
       );
     } catch (error) {
       console.error('Error:', error);
-      if (req.files.images) {
+      if (req.files?.images) {
         await Promise.all(req.files.images.map(file => cloudinary.uploader.destroy(file.filename)));
       }
       return res.status(500).json(
@@ -820,6 +842,57 @@ class ReviewController {
     }
   }
   // Xem review của user
+  async softDeleteOwnReview(req, res) {
+    try {
+      const { reviewId } = req.params;
+      const accountId = req.user?.userId;
+
+      if (!accountId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Account ID not found.',
+        });
+      }
+
+      const review = await Review.findOne({
+        _id: reviewId,
+        accountId,
+      });
+
+      if (!review) {
+        return res.status(404).json({
+          success: false,
+          message: 'Review not found',
+        });
+      }
+
+      if (review.deleted === true) {
+        return res.status(400).json({
+          success: false,
+          message: 'Review has already been deleted',
+        });
+      }
+
+      await review.delete();
+
+      if (!review.parentId) {
+        await this.recalculateBoardingHouseRating(review.boardingHouseId);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Review deleted successfully',
+        data: review,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server Error',
+        error: error.message,
+      });
+    }
+  }
+
   async getReviewsUser(req, res) {
     try {
       // 🔥 Lấy toàn bộ review gốc (không có parentId)

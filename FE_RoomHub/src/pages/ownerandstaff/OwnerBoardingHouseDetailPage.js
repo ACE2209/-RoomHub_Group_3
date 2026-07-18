@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Edit3, MessageSquare, Save, Send, Star, Trash2, Upload } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Edit3, MapPin, MessageSquare, Save, Send, Star, Trash2, Upload } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AdminLayout from "../layout/admin/AdminLayout";
+import LocationPicker from "../../component/LocationPicker/LocationPicker";
 import {
   createOwnBoardingHouse,
   getBoardingHouseTypes,
@@ -14,6 +15,8 @@ import {
   replyManagedReview,
   updateManagedReviewReply,
 } from "../../api/review";
+
+const MemoizedLocationPicker = memo(LocationPicker);
 
 const emptyForm = {
   boardingHouseType: "",
@@ -31,8 +34,64 @@ const emptyForm = {
   wardName: "",
   wardNameEn: "",
   detail: "",
+  latitude: "",
+  longitude: "",
+  staffId: "",
+  assignedStaff: null,
   images: [],
   existingImages: [],
+};
+
+const DEFAULT_MAP_POSITION = [16.047079, 108.20623];
+const ADDRESS_FIELD_KEYS = new Set(["provinceName", "districtName", "wardName", "detail"]);
+
+const buildAddressSearchText = ({ detail, wardName, districtName, provinceName }) => {
+  const parts = [detail, wardName, districtName, provinceName]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean);
+
+  if (!parts.length) return "";
+
+  return `${parts.join(", ")}, Viet Nam`;
+};
+
+const formatCoordinate = (value) => Number(value).toFixed(6);
+
+const parseCoordinate = (value) => {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+
+  const coordinate = Number(text);
+  return Number.isFinite(coordinate) ? coordinate : null;
+};
+
+const getReverseGeocodedAddress = async (lat, lon) => {
+  const params = new URLSearchParams({
+    format: "json",
+    lat: String(lat),
+    lon: String(lon),
+    zoom: "18",
+    addressdetails: "1",
+    "accept-language": "vi",
+  });
+
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?${params.toString()}`
+  );
+
+  if (!response.ok) throw new Error("Unable to reverse geocode coordinates");
+
+  const result = await response.json();
+  return result?.display_name || "";
+};
+
+const getCurrentRole = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    return user?.role || localStorage.getItem("role") || "";
+  } catch (error) {
+    return localStorage.getItem("role") || "";
+  }
 };
 
 export default function OwnerBoardingHouseDetailPage() {
@@ -41,6 +100,7 @@ export default function OwnerBoardingHouseDetailPage() {
   const [searchParams] = useSearchParams();
   const isReadOnly = !isCreate && searchParams.get("mode") === "view";
   const navigate = useNavigate();
+  const currentRole = useMemo(() => getCurrentRole(), []);
   const [form, setForm] = useState(emptyForm);
   const [types, setTypes] = useState([]);
   const [loading, setLoading] = useState(!isCreate);
@@ -55,10 +115,18 @@ export default function OwnerBoardingHouseDetailPage() {
   });
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState("");
+  const [notice, setNotice] = useState(null);
   const [replyDrafts, setReplyDrafts] = useState({});
   const [editingReplyId, setEditingReplyId] = useState("");
   const [editReplyContent, setEditReplyContent] = useState("");
   const [savingReplyId, setSavingReplyId] = useState("");
+  const [mapPosition, setMapPosition] = useState(DEFAULT_MAP_POSITION);
+  const [mapCandidate, setMapCandidate] = useState(null);
+  const [mapZoom, setMapZoom] = useState(13);
+  const [geocoding, setGeocoding] = useState(false);
+  const [mapMessage, setMapMessage] = useState("Nhập địa chỉ để bản đồ tự di chuyển đến khu vực phù hợp.");
+  const [geocodeRequest, setGeocodeRequest] = useState({ query: "", precise: false });
+  const geocodeRequestRef = useRef(0);
 
   const previews = useMemo(() => {
     const newImages = Array.from(form.images || []).map((file) => ({
@@ -74,6 +142,19 @@ export default function OwnerBoardingHouseDetailPage() {
       ...newImages,
     ];
   }, [form.images, form.existingImages]);
+
+  const selectedPosition = useMemo(() => {
+    const lat = parseCoordinate(form.latitude);
+    const lon = parseCoordinate(form.longitude);
+
+    return lat !== null && lon !== null ? [lat, lon] : null;
+  }, [form.latitude, form.longitude]);
+
+  useEffect(() => {
+    if (isCreate && currentRole === "staff") {
+      navigate("/my-boarding-houses", { replace: true });
+    }
+  }, [currentRole, isCreate, navigate]);
 
   useEffect(() => {
     const loadTypes = async () => {
@@ -113,6 +194,10 @@ export default function OwnerBoardingHouseDetailPage() {
           wardName: house?.address?.ward?.name || "",
           wardNameEn: house?.address?.ward?.name_en || "",
           detail: house?.address?.detail || "",
+          latitude: house?.location?.lat ?? "",
+          longitude: house?.location?.lon ?? "",
+          staffId: house?.staffId?._id || house?.staffId || "",
+          assignedStaff: house?.staffId || null,
           images: [],
           existingImages: house?.images || [],
         });
@@ -125,6 +210,92 @@ export default function OwnerBoardingHouseDetailPage() {
 
     loadDetail();
   }, [id, isCreate]);
+
+  useEffect(() => {
+    if (!selectedPosition) return;
+
+    setMapPosition(selectedPosition);
+    setMapCandidate({
+      lat: selectedPosition[0],
+      lon: selectedPosition[1],
+      label: "Vị trí đã lưu",
+    });
+    setMapZoom(16);
+    setMapMessage("Vị trí nhà trọ đang được hiển thị trên bản đồ.");
+  }, [selectedPosition]);
+
+  useEffect(() => {
+    if (isReadOnly) return;
+
+    const query = geocodeRequest.query.trim();
+    if (!query) {
+      setGeocoding(false);
+      return;
+    }
+
+    const requestId = geocodeRequestRef.current + 1;
+    geocodeRequestRef.current = requestId;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        setGeocoding(true);
+        const params = new URLSearchParams({
+          format: "json",
+          q: query,
+          limit: "1",
+          addressdetails: "1",
+          "accept-language": "vi",
+        });
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+          { signal: controller.signal }
+        );
+
+        if (!response.ok) throw new Error("Unable to geocode address");
+
+        const results = await response.json();
+        if (requestId !== geocodeRequestRef.current) return;
+
+        const result = results?.[0];
+        if (!result) {
+          setMapCandidate(null);
+          setMapMessage("Không tìm thấy vị trí phù hợp. Bạn có thể bấm trực tiếp trên bản đồ để chọn.");
+          return;
+        }
+
+        const lat = Number(result.lat);
+        const lon = Number(result.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+          throw new Error("Invalid coordinates");
+        }
+
+        setMapPosition([lat, lon]);
+        setMapCandidate({
+          lat,
+          lon,
+          label: result.display_name || query,
+        });
+        setMapZoom(geocodeRequest.precise ? 16 : 13);
+        setMapMessage(
+          geocodeRequest.precise
+            ? "Bản đồ đã kéo đến địa chỉ chi tiết. Bấm \"Chọn vị trí này\" để ghim."
+            : "Bản đồ đã kéo đến khu vực đã nhập. Nhập thêm địa chỉ chi tiết để chính xác hơn."
+        );
+      } catch (err) {
+        if (err.name === "AbortError" || requestId !== geocodeRequestRef.current) return;
+        setMapMessage("Không thể tự tìm vị trí lúc này. Bạn vẫn có thể bấm trực tiếp trên bản đồ.");
+      } finally {
+        if (requestId === geocodeRequestRef.current) {
+          setGeocoding(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [geocodeRequest, isReadOnly]);
 
   const fetchReviews = useCallback(async (page = 1) => {
     if (isCreate || !id) return;
@@ -151,10 +322,100 @@ export default function OwnerBoardingHouseDetailPage() {
   }, [fetchReviews]);
 
   const updateField = (key, value) => {
-    setForm((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    const shouldResetPinnedLocation = ADDRESS_FIELD_KEYS.has(key);
+
+    if (shouldResetPinnedLocation && mapCandidate) {
+      setMapCandidate(null);
+    }
+
+    setForm((prev) => {
+      const nextForm = {
+        ...prev,
+        [key]: value,
+      };
+
+      if (shouldResetPinnedLocation && (prev.latitude || prev.longitude)) {
+        nextForm.latitude = "";
+        nextForm.longitude = "";
+      }
+
+      return nextForm;
+    });
+  };
+
+  const requestAddressLookup = (overrides = {}, precise = false) => {
+    const address = {
+      detail: precise ? form.detail : "",
+      wardName: form.wardName,
+      districtName: form.districtName,
+      provinceName: form.provinceName,
+      ...overrides,
+    };
+    const query = buildAddressSearchText(address);
+
+    if (!query) {
+      setMapMessage("Nhập địa chỉ để bản đồ tự di chuyển đến khu vực phù hợp.");
+      return;
+    }
+
+    setGeocodeRequest({ query, precise });
+  };
+
+  const handleAddressRegionBlur = (key, value) => {
+    requestAddressLookup({ [key]: value, detail: "" }, false);
+  };
+
+  const handleDetailAddressBlur = (value) => {
+    requestAddressLookup({ detail: value }, Boolean(String(value || "").trim()));
+  };
+
+  const handleMapCandidateChange = useCallback((lat, lon) => {
+    setMapPosition([lat, lon]);
+    setMapCandidate({
+      lat,
+      lon,
+      label: "Vị trí được chọn trên bản đồ",
+    });
+    setMapZoom(16);
+    setMapMessage("Đã di chuyển ghim trên bản đồ. Bấm \"Chọn vị trí này\" để lưu vị trí này.");
+  }, []);
+
+  const handleConfirmMapPosition = async () => {
+    const candidate = mapCandidate;
+
+    if (!candidate) {
+      setError("Vui lòng nhập địa chỉ hoặc chọn vị trí trên bản đồ.");
+      return;
+    }
+
+    try {
+      setGeocoding(true);
+      setMapMessage("Đang lấy địa chỉ từ vị trí đã ghim...");
+      const pinnedAddress = await getReverseGeocodedAddress(candidate.lat, candidate.lon);
+
+      setForm((prev) => ({
+        ...prev,
+        detail: pinnedAddress || prev.detail,
+        latitude: formatCoordinate(candidate.lat),
+        longitude: formatCoordinate(candidate.lon),
+      }));
+      setError("");
+      setMapMessage(
+        pinnedAddress
+          ? "Đã ghim vị trí và cập nhật địa chỉ chi tiết."
+          : "Đã ghim vị trí này cho nhà trọ."
+      );
+    } catch (err) {
+      setForm((prev) => ({
+        ...prev,
+        latitude: formatCoordinate(candidate.lat),
+        longitude: formatCoordinate(candidate.lon),
+      }));
+      setError("");
+      setMapMessage("Đã ghim vị trí, nhưng chưa lấy được địa chỉ chi tiết từ bản đồ.");
+    } finally {
+      setGeocoding(false);
+    }
   };
 
   const buildPayload = () => {
@@ -168,12 +429,15 @@ export default function OwnerBoardingHouseDetailPage() {
     data.append("electricityPrice", form.electricityPrice);
     data.append("waterPrice", form.waterPrice);
     data.append("address[province][name]", form.provinceName);
-    data.append("address[province][name_en]", form.provinceName);
+    data.append("address[province][name_en]", form.provinceNameEn || form.provinceName);
     data.append("address[district][name]", form.districtName);
-    data.append("address[district][name_en]", form.districtName);
+    data.append("address[district][name_en]", form.districtNameEn || form.districtName);
     data.append("address[ward][name]", form.wardName);
-    data.append("address[ward][name_en]", form.wardName);
+    data.append("address[ward][name_en]", form.wardNameEn || form.wardName);
     data.append("address[detail]", form.detail);
+    data.append("location[lat]", form.latitude);
+    data.append("location[lon]", form.longitude);
+    data.append("staffId", form.staffId || "");
 
     if (!isCreate) {
       data.append("boardingHouse", JSON.stringify(form.existingImages || []));
@@ -205,6 +469,10 @@ export default function OwnerBoardingHouseDetailPage() {
     if (missing) return "Vui lòng nhập đầy đủ các trường bắt buộc.";
     if (isCreate && !form.images.length) return "Vui lòng tải lên ít nhất một hình ảnh.";
 
+    if (!String(form.latitude || "").trim() || !String(form.longitude || "").trim()) {
+      return "Vui lòng chọn vị trí trên bản đồ.";
+    }
+
     const nonNegativeFields = [
       ["Giá thuê", form.priceRange],
       ["Tổng số phòng", form.totalRooms],
@@ -222,6 +490,16 @@ export default function OwnerBoardingHouseDetailPage() {
 
     if (Number(form.availableRooms) > Number(form.totalRooms)) {
       return "Số phòng còn trống không được lớn hơn tổng số phòng.";
+    }
+
+    const latitude = Number(form.latitude);
+    const longitude = Number(form.longitude);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+      return "Vĩ độ phải nằm trong khoảng -90 đến 90.";
+    }
+
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      return "Kinh độ phải nằm trong khoảng -180 đến 180.";
     }
 
     return "";
@@ -244,8 +522,11 @@ export default function OwnerBoardingHouseDetailPage() {
         : await updateOwnBoardingHouse(id, payload);
 
       if (res?.success) {
-        alert(isCreate ? "Thêm nhà trọ thành công" : "Cập nhật nhà trọ thành công");
-        navigate("/my-boarding-houses");
+        setNotice({
+          type: "success",
+          message: isCreate ? "Thêm nhà trọ thành công." : "Cập nhật nhà trọ thành công.",
+        });
+        window.setTimeout(() => navigate("/my-boarding-houses"), 700);
       }
     } catch (err) {
       setError(err.message || "Lưu thông tin thất bại");
@@ -319,6 +600,7 @@ export default function OwnerBoardingHouseDetailPage() {
           <div style={emptyStyle}>Đang tải thông tin nhà trọ...</div>
         ) : (
           <>
+            {notice && <div style={noticeStyle(notice.type)}>{notice.message}</div>}
             {error && <div style={errorStyle}>{error}</div>}
 
             <div style={gridStyle}>
@@ -333,11 +615,11 @@ export default function OwnerBoardingHouseDetailPage() {
               </label>
 
               <TextField label="Tên nhà trọ *" value={form.name} onChange={(value) => updateField("name", value)} disabled={isReadOnly} />
-              <TextField label="Giá thuê dự kiến (VNĐ) *" type="number" value={form.priceRange} onChange={(value) => updateField("priceRange", value)} disabled={isReadOnly} />
+              <TextField label="Giá thuê dự kiến (VNĐ) *" type="text" formatCurrency value={form.priceRange} onChange={(value) => updateField("priceRange", value)} disabled={isReadOnly} />
               <TextField label="Tổng số phòng *" type="number" value={form.totalRooms} onChange={(value) => updateField("totalRooms", value)} disabled={isReadOnly} />
               <TextField label="Số phòng còn trống *" type="number" value={form.availableRooms} onChange={(value) => updateField("availableRooms", value)} disabled={isReadOnly} />
-              <TextField label="Giá điện (VNĐ/kWh) *" type="number" value={form.electricityPrice} onChange={(value) => updateField("electricityPrice", value)} disabled={isReadOnly} />
-              <TextField label="Giá nước (VNĐ/m3) *" type="number" value={form.waterPrice} onChange={(value) => updateField("waterPrice", value)} disabled={isReadOnly} />
+              <TextField label="Giá điện (VNĐ/kWh) *" type="text" formatCurrency value={form.electricityPrice} onChange={(value) => updateField("electricityPrice", value)} disabled={isReadOnly} />
+              <TextField label="Giá nước (VNĐ/m3) *" type="text" formatCurrency value={form.waterPrice} onChange={(value) => updateField("waterPrice", value)} disabled={isReadOnly} />
             </div>
 
             <label style={{ ...fieldStyle, marginTop: 16 }}>
@@ -347,15 +629,54 @@ export default function OwnerBoardingHouseDetailPage() {
 
             <h3 style={sectionTitleStyle}>Địa chỉ</h3>
             <div style={gridStyle}>
-              <TextField label="Tỉnh/Thành phố *" value={form.provinceName} onChange={(value) => updateField("provinceName", value)} disabled={isReadOnly} />
-              <TextField label="Quận/Huyện *" value={form.districtName} onChange={(value) => updateField("districtName", value)} disabled={isReadOnly} />
-              <TextField label="Phường/Xã *" value={form.wardName} onChange={(value) => updateField("wardName", value)} disabled={isReadOnly} />
+              <TextField label="Tỉnh/Thành phố *" value={form.provinceName} onChange={(value) => updateField("provinceName", value)} onBlur={(value) => handleAddressRegionBlur("provinceName", value)} disabled={isReadOnly} />
+              <TextField label="Quận/Huyện *" value={form.districtName} onChange={(value) => updateField("districtName", value)} onBlur={(value) => handleAddressRegionBlur("districtName", value)} disabled={isReadOnly} />
+              <TextField label="Phường/Xã *" value={form.wardName} onChange={(value) => updateField("wardName", value)} onBlur={(value) => handleAddressRegionBlur("wardName", value)} disabled={isReadOnly} />
             </div>
 
             <label style={{ ...fieldStyle, marginTop: 16 }}>
               <span style={labelStyle}>Địa chỉ chi tiết *</span>
-              <textarea value={form.detail} onChange={(e) => updateField("detail", e.target.value)} rows={3} style={textareaStyle} disabled={isReadOnly} />
+              <textarea value={form.detail} onChange={(e) => updateField("detail", e.target.value)} onBlur={(e) => handleDetailAddressBlur(e.target.value)} rows={3} style={textareaStyle} disabled={isReadOnly} />
             </label>
+
+            <section style={mapPickerSectionStyle}>
+              <div style={mapHeaderStyle}>
+                <div>
+                  <h3 style={mapTitleStyle}>Vị trí trên bản đồ</h3>
+                  <p style={mapHintStyle}>
+                    {isReadOnly ? "Vị trí nhà trọ đang được hiển thị trên bản đồ." : mapMessage}
+                  </p>
+                </div>
+                {!isReadOnly && geocoding && <span style={mapLoadingStyle}>Đang tìm...</span>}
+              </div>
+
+              <div style={mapFrameStyle}>
+                <MemoizedLocationPicker
+                  initialPosition={mapPosition}
+                  onChange={handleMapCandidateChange}
+                  readOnly={isReadOnly}
+                  height="360px"
+                  zoom={mapZoom}
+                />
+              </div>
+
+              {!isReadOnly && (
+                <div style={mapActionRowStyle}>
+                  <button
+                    type="button"
+                    style={mapSelectBtnStyle(!mapCandidate || saving || geocoding)}
+                    onClick={handleConfirmMapPosition}
+                    disabled={!mapCandidate || saving || geocoding}
+                  >
+                    <MapPin size={17} />
+                    Chọn vị trí này
+                  </button>
+                  <span style={mapSelectedTextStyle}>
+                    {form.latitude && form.longitude ? "Đã ghim vị trí cho nhà trọ." : "Chưa ghim vị trí."}
+                  </span>
+                </div>
+              )}
+            </section>
 
             <h3 style={sectionTitleStyle}>Hình ảnh</h3>
             {!isReadOnly && (
@@ -538,14 +859,50 @@ export default function OwnerBoardingHouseDetailPage() {
   );
 }
 
-function TextField({ label, value, onChange, type = "text", disabled = false }) {
+function TextField({ label, value, onChange, onBlur, type = "text", disabled = false, formatCurrency = false }) {
+  const displayValue = formatCurrency
+    ? formatCurrencyValue(value)
+    : value ?? "";
+
+  const handleChange = (e) => {
+    if (formatCurrency) {
+      const raw = String(e.target.value || "").replace(/[^0-9]/g, "");
+      onChange(raw);
+    } else {
+      onChange(e.target.value);
+    }
+  };
+
+  const handleBlur = (e) => {
+    onBlur?.(formatCurrency ? String(value ?? "") : e.target.value);
+  };
+
   return (
     <label style={fieldStyle}>
       <span style={labelStyle}>{label}</span>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} disabled={disabled} />
+      <input
+        type={formatCurrency ? "text" : type}
+        value={displayValue}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        style={inputStyle}
+        disabled={disabled}
+        inputMode={formatCurrency ? "numeric" : undefined}
+      />
     </label>
   );
 }
+
+const formatCurrencyValue = (value) => {
+  const cleaned = String(value ?? "").replace(/[^0-9]/g, "");
+  return cleaned ? Number(cleaned).toLocaleString("vi-VN") : "";
+};
+
+const getStaffDisplayName = (staff) => {
+  if (!staff) return "Not assigned";
+  if (typeof staff === "string") return "Assigned staff";
+  return staff.fullname || staff.username || staff.email || "Assigned staff";
+};
 
 const headerStyle = { display: "flex", alignItems: "center", gap: 16, marginBottom: 18 };
 const titleStyle = { margin: 0, color: "#27364a", fontWeight: 700 };
@@ -555,8 +912,30 @@ const gridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minm
 const fieldStyle = { display: "flex", flexDirection: "column", gap: 8 };
 const labelStyle = { color: "#344054", fontSize: 13, fontWeight: 700 };
 const inputStyle = { minHeight: 42, border: "1px solid #d0d5dd", borderRadius: 6, padding: "0 12px", color: "#344054", outline: "none", background: "#fff" };
+const readonlyInfoStyle = { minHeight: 42, border: "1px solid #d0d5dd", borderRadius: 6, padding: "8px 12px", color: "#344054", background: "#f9fafb", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3 };
 const textareaStyle = { ...inputStyle, padding: 12, resize: "vertical", fontFamily: "inherit" };
 const sectionTitleStyle = { margin: "22px 0 14px", color: "#27364a", fontSize: 18 };
+const mapPickerSectionStyle = { marginTop: 18, display: "grid", gap: 12 };
+const mapHeaderStyle = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" };
+const mapTitleStyle = { margin: 0, color: "#27364a", fontSize: 18 };
+const mapHintStyle = { margin: "6px 0 0", color: "#667085", fontSize: 13, lineHeight: 1.5 };
+const mapLoadingStyle = { color: "#2563eb", fontSize: 13, fontWeight: 700, paddingTop: 3 };
+const mapFrameStyle = { border: "1px solid #d0d5dd", borderRadius: 8, overflow: "hidden", background: "#f9fafb" };
+const mapActionRowStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" };
+const mapSelectBtnStyle = (disabled) => ({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  border: "none",
+  borderRadius: 6,
+  background: disabled ? "#98a2b3" : "#2563eb",
+  color: "#fff",
+  padding: "10px 16px",
+  fontWeight: 700,
+  cursor: disabled ? "not-allowed" : "pointer",
+});
+const mapSelectedTextStyle = { color: "#667085", fontSize: 13, fontWeight: 700 };
 const uploadStyle = { display: "inline-flex", alignItems: "center", gap: 8, border: "1px dashed #98a2b3", borderRadius: 8, padding: "12px 16px", cursor: "pointer", color: "#344054", fontWeight: 700 };
 const previewGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12, marginTop: 14 };
 const previewStyle = { width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: 8, border: "1px solid #e5e7eb" };
@@ -564,6 +943,15 @@ const actionRowStyle = { display: "flex", justifyContent: "flex-end", gap: 10, m
 const primaryBtnStyle = { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, border: "none", borderRadius: 6, background: "#12b76a", color: "#fff", padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
 const secondaryBtnStyle = { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, border: "1px solid #d0d5dd", borderRadius: 6, background: "#fff", color: "#344054", padding: "10px 16px", fontWeight: 700, cursor: "pointer" };
 const errorStyle = { background: "#fef3f2", color: "#b42318", border: "1px solid #fecdca", borderRadius: 8, padding: 12, marginBottom: 16 };
+const noticeStyle = (type) => ({
+  background: type === "success" ? "#ecfdf3" : "#fef3f2",
+  color: type === "success" ? "#027a48" : "#b42318",
+  border: `1px solid ${type === "success" ? "#abefc6" : "#fecdca"}`,
+  borderRadius: 8,
+  padding: 12,
+  marginBottom: 16,
+  fontWeight: 700,
+});
 const emptyStyle = { textAlign: "center", padding: 42, color: "#667085" };
 const reviewSectionStyle = { ...formCardStyle, marginTop: 18 };
 const reviewHeaderStyle = { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, borderBottom: "1px solid #e5e7eb", paddingBottom: 14, marginBottom: 16 };

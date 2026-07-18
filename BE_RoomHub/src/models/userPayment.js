@@ -30,7 +30,7 @@ const userPaymentSchema = new mongoose.Schema(
     paymentMethod: {
       type: String,
       required: true,
-      enum: ["Unpaid", "Cash", "Bank Transfer", "Momo", "MoMo", "VNPay"],
+enum: ["Unpaid", "Cash", "Bank Transfer", "Momo", "MoMo", "VNPay", "ZaloPay"],
       default: "Unpaid",
     },
      orderId: {

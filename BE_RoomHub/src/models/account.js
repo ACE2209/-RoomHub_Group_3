@@ -50,6 +50,10 @@ const AccountSchema = new Schema({
     type: Boolean,
     default: false
   },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
 }, accountOptions);
 
 // Tạo model Account gốc
@@ -89,6 +93,18 @@ const StaffSchema = new Schema({
   createdBy: {
     type: Schema.Types.ObjectId,
     ref: 'Account'
+  },
+  invitationEmailSent: {
+    type: Boolean,
+    default: false
+  },
+  invitationEmailSentAt: {
+    type: Date,
+    default: null
+  },
+  invitationEmailError: {
+    type: String,
+    default: null
   },
 });
 

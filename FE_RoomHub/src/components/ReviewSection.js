@@ -4,11 +4,12 @@ import {
     addReview,
     updateReview
 } from "../api/review";
-import { Star } from "lucide-react";
+import { Flag, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import "./ReviewSection.css";
 import Swal from "sweetalert2";
+import ReportModal from "./ReportModal";
 
 const ReviewSection = ({ boardingHouseId }) => {
     const [reviews, setReviews] = useState([]);
@@ -26,6 +27,9 @@ const ReviewSection = ({ boardingHouseId }) => {
     const [currentUserId, setCurrentUserId] =
         useState(null);
 
+    const [reportTarget, setReportTarget] = useState(null);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
     const token = localStorage.getItem("token");
 
     useEffect(() => {
@@ -34,14 +38,11 @@ const ReviewSection = ({ boardingHouseId }) => {
                 const decoded =
                     jwtDecode(token);
 
-                console.log(
-                    "TOKEN:",
-                    decoded
-                );
-
-                setCurrentUserId(
-                    decoded.userId
-                );
+                if (decoded?.userId) {
+                    setCurrentUserId(
+                        decoded.userId
+                    );
+                }
             } catch (error) {
                 console.error(error);
             }
@@ -55,9 +56,14 @@ const ReviewSection = ({ boardingHouseId }) => {
                     boardingHouseId
                 );
 
-            setReviews(res.data || []);
+            const reviewPayload = Array.isArray(res)
+                ? res
+                : res?.data || res?.reviews || [];
+
+            setReviews(reviewPayload);
         } catch (err) {
             console.error(err);
+            setReviews([]);
         } finally {
             setLoading(false);
         }
@@ -134,6 +140,21 @@ const ReviewSection = ({ boardingHouseId }) => {
                 review.accountId?._id ===
                 currentUserId
         );
+
+    const openReportModal = (review) => {
+        if (!token) {
+            Swal.fire({
+                icon: "info",
+                title: "Login required",
+                text: "Please sign in to report this review.",
+                confirmButtonText: "OK",
+            });
+            return;
+        }
+
+        setReportTarget({ id: review._id, type: "review" });
+        setIsReportModalOpen(true);
+    };
 
     return (
         <section className="review-section">
@@ -272,6 +293,20 @@ const ReviewSection = ({ boardingHouseId }) => {
                 </div>
             )}
 
+            <ReportModal
+                isOpen={isReportModalOpen}
+                onClose={() => {
+                    setIsReportModalOpen(false);
+                    setReportTarget(null);
+                }}
+                targetId={reportTarget?.id}
+                reportType={reportTarget?.type}
+                onSubmitted={() => {
+                    setIsReportModalOpen(false);
+                    setReportTarget(null);
+                }}
+            />
+
             {loading ? (
                 <p>Loading reviews...</p>
             ) : reviews.length === 0 ? (
@@ -343,11 +378,20 @@ const ReviewSection = ({ boardingHouseId }) => {
                                     }
                                 </p>
 
-                                {currentUserId ===
-                                    review
-                                        .accountId
-                                        ?._id && (
-                                        <div className="review-actions">
+                                <div className="review-actions">
+                                    <button
+                                        className="report-review-btn"
+                                        onClick={() => openReportModal(review)}
+                                        type="button"
+                                    >
+                                        <Flag size={14} />
+                                        Report Review
+                                    </button>
+
+                                    {currentUserId ===
+                                        review
+                                            .accountId
+                                            ?._id && (
                                             <button
                                                 className="edit-review-btn"
                                                 onClick={() =>
@@ -359,8 +403,8 @@ const ReviewSection = ({ boardingHouseId }) => {
                                                 Edit
                                                 Review
                                             </button>
-                                        </div>
-                                    )}
+                                        )}
+                                </div>
 
                                 {review.replyContent && (
                                     <div className="review-reply">

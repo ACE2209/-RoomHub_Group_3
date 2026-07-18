@@ -30,14 +30,16 @@
       "selectProvince": "Vui lòng chọn tỉnh/thành phố.",
       "selectDistrict": "Vui lòng chọn quận/huyện.",
       "selectWard": "Vui lòng chọn phường/xã."
-    }
+    },
+    "dragDrop": "Kéo-thả hoặc nhấn vào đây để chọn tệp"
   },
   "errors": {
     "noId": "Không tìm thấy ID nhà trọ.",
     "fetchFailed": "Không thể lấy dữ liệu nhà trọ.",
     "fetchAddressFailed": "Không thể lấy dữ liệu địa chỉ.",
     "fetchBoardingHouseTypes": "Không thể lấy loại nhà trọ.",
-    "maxOtherImages": "Bạn chỉ có thể tải lên tối đa 15 ảnh khác."
+    "maxOtherImages": "Bạn chỉ có thể tải lên tối đa 15 ảnh khác.",
+    "primaryImageRequired": "Bạn phải có ảnh chính."
   },
   "validation": {
     "selectBoardingHouseType": "Vui lòng chọn loại nhà trọ.",
