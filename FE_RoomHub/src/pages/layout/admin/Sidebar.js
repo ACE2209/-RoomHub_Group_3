@@ -68,6 +68,13 @@ export default function Sidebar() {
             </NavLink>
 
             <NavLink to="/admin/reviews">Review Management</NavLink>
+            <NavLink to="/admin/revenue/total">
+  Total Revenue
+</NavLink>
+
+<NavLink to="/admin/revenue/boarding-houses">
+  Revenue Per Boarding House
+</NavLink>
           </>
         )}
 
