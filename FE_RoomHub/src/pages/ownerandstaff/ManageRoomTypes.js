@@ -245,7 +245,7 @@ const ManageRoomTypes = () => {
                         icon={<EditOutlined />}
                         size="small"
                         onClick={() => openEditModal(record)}
-                        style={{ backgroundColor: "#1890ff" }}
+                        style={{ backgroundColor: "#FF6B00" }}
                     >
                         Edit
                     </Button>
