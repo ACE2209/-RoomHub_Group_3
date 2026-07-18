@@ -36,8 +36,7 @@ const getClientReturnUrl = ({ status, type, provider, message }) => {
 
 const getServerBaseUrl = () =>
   process.env.SERVER_URL ||
-  `http://${process.env.APP_HOST || "localhost"}:${
-    process.env.APP_PORT || process.env.PORT || 3000
+  `http://${process.env.APP_HOST || "localhost"}:${process.env.APP_PORT || process.env.PORT || 3000
   }`;
 
 const getZaloPayRedirectUrl = () =>
@@ -231,8 +230,8 @@ const buildZaloPayUrl = async ({ orderId, amount, orderInfo }) => {
   if (Number(response.data?.returncode) !== 1) {
     throw new Error(
       response.data?.returnmessage ||
-        response.data?.subreturnmessage ||
-        "Create ZaloPay order failed"
+      response.data?.subreturnmessage ||
+      "Create ZaloPay order failed"
     );
   }
 
@@ -268,9 +267,8 @@ const verifyZaloPayRedirect = (query) => {
 
   if (!appid || !apptransid || !checksum) return false;
 
-  const checksumData = `${appid}|${apptransid}|${pmcid || ""}|${
-    bankcode || ""
-  }|${amount || ""}|${discountamount || ""}|${status || ""}`;
+  const checksumData = `${appid}|${apptransid}|${pmcid || ""}|${bankcode || ""
+    }|${amount || ""}|${discountamount || ""}|${status || ""}`;
 
   const checkSum = crypto
     .createHmac("sha256", process.env.ZALOPAY_KEY2)
@@ -458,6 +456,9 @@ const completeRefundPayment = async (refundRequestId, rawData = {}) => {
   await deposit.save();
   await refundRequest.save();
 
+  // Tính lại trạng thái phòng sau khi hoàn tiền và xóa người thuê
+  await syncRoomAvailabilityWithReservations(room._id);
+
   return refundRequest;
 };
 
@@ -483,16 +484,16 @@ class PaymentController {
     const paymentUrl =
       paymentMethod === "VNPay"
         ? buildVNPayUrl({
-            req,
-            orderId,
-            amount,
-            orderInfo,
-          })
+          req,
+          orderId,
+          amount,
+          orderInfo,
+        })
         : await buildZaloPayUrl({
-            orderId,
-            amount,
-            orderInfo,
-          });
+          orderId,
+          amount,
+          orderInfo,
+        });
 
     // Lưu định danh giao dịch trước khi chuyển Owner/Staff sang cổng thanh toán.
     // Callback/redirect sẽ dùng paymentOrderId để tìm đúng RefundRequest.
@@ -611,16 +612,16 @@ class PaymentController {
       const paymentUrl =
         paymentMethod === "VNPay"
           ? buildVNPayUrl({
-              req,
-              orderId,
-              amount: deposit.amount,
-              orderInfo,
-            })
+            req,
+            orderId,
+            amount: deposit.amount,
+            orderInfo,
+          })
           : await buildZaloPayUrl({
-              orderId,
-              amount: deposit.amount,
-              orderInfo,
-            });
+            orderId,
+            amount: deposit.amount,
+            orderInfo,
+          });
 
       return res.status(200).json({
         success: true,
@@ -768,16 +769,16 @@ class PaymentController {
       const paymentUrl =
         paymentMethod === "VNPay"
           ? buildVNPayUrl({
-              req,
-              orderId,
-              amount: bill.paymentAmount,
-              orderInfo,
-            })
+            req,
+            orderId,
+            amount: bill.paymentAmount,
+            orderInfo,
+          })
           : await buildZaloPayUrl({
-              orderId,
-              amount: bill.paymentAmount,
-              orderInfo,
-            });
+            orderId,
+            amount: bill.paymentAmount,
+            orderInfo,
+          });
 
       return res.status(200).json({
         success: true,
@@ -873,16 +874,16 @@ class PaymentController {
       const paymentUrl =
         paymentMethod === "VNPay"
           ? buildVNPayUrl({
-              req,
-              orderId,
-              amount: userPayment.paymentAmount,
-              orderInfo,
-            })
+            req,
+            orderId,
+            amount: userPayment.paymentAmount,
+            orderInfo,
+          })
           : await buildZaloPayUrl({
-              orderId,
-              amount: userPayment.paymentAmount,
-              orderInfo,
-            });
+            orderId,
+            amount: userPayment.paymentAmount,
+            orderInfo,
+          });
 
       return res.status(200).json({
         success: true,
@@ -1044,8 +1045,8 @@ class PaymentController {
             "failed",
             "refund",
             zaloPayStatus.returnmessage ||
-              zaloPayStatus.return_message ||
-              "ZaloPay refund payment failed"
+            zaloPayStatus.return_message ||
+            "ZaloPay refund payment failed"
           );
         }
 
@@ -1103,8 +1104,8 @@ class PaymentController {
           "pending",
           type,
           zaloPayStatus.returnmessage ||
-            zaloPayStatus.return_message ||
-            "ZaloPay payment is still processing, please check again later"
+          zaloPayStatus.return_message ||
+          "ZaloPay payment is still processing, please check again later"
         );
       }
 
@@ -1122,8 +1123,8 @@ class PaymentController {
         "failed",
         type,
         zaloPayStatus.returnmessage ||
-          zaloPayStatus.return_message ||
-          "ZaloPay payment failed"
+        zaloPayStatus.return_message ||
+        "ZaloPay payment failed"
       );
     } catch (error) {
       console.error("ZaloPay redirect error:", error);
