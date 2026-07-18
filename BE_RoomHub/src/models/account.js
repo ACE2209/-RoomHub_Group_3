@@ -94,6 +94,18 @@ const StaffSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'Account'
   },
+  invitationEmailSent: {
+    type: Boolean,
+    default: false
+  },
+  invitationEmailSentAt: {
+    type: Date,
+    default: null
+  },
+  invitationEmailError: {
+    type: String,
+    default: null
+  },
 });
 
 // Schema cho Admin
