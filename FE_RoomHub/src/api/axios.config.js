@@ -9,7 +9,12 @@ const instance = axios.create({
 
 instance.interceptors.request.use(
   function (config) {
-    config.headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
+    const token = localStorage.getItem("token");
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
     return config;
   },
   function (error) {
@@ -23,6 +28,15 @@ instance.interceptors.response.use(
     return response;
   },
   function (error) {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
+      if (window.location.pathname !== "/login") {
+        window.location.replace("/login");
+      }
+    }
+
     return Promise.reject(error);
   }
 );

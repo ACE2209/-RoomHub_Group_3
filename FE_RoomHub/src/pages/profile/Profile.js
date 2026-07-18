@@ -52,6 +52,14 @@ const Profile = () => {
                 phoneNumber: data.phoneNumber || "",
                 gender: data.gender || "",
             });
+        } catch (error) {
+            if (error.response?.status !== 401) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Error",
+                    text: error.response?.data?.message || "Unable to load profile",
+                });
+            }
         } finally {
             setLoading(false);
         }
