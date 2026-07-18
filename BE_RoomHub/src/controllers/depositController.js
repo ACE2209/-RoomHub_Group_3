@@ -338,7 +338,11 @@ class DepositController {
       if (boardingHouseTypeCode === "nha_tro_kien_truc_xa") {
         const currentAcceptedCount = await DepositRoom.countDocuments({
           roomId: deposit.roomId._id,
-          status: { $in: ["accepted", "confirmed"] },
+          _id: { $ne: deposit._id },
+          $or: [
+            { status: "confirmed" },
+            { status: "accepted", paymentDeadline: { $gt: new Date() } },
+          ],
         });
 
         const limit = Number(deposit.roomId.roomTypeId?.peopleNumber || 0);
@@ -637,13 +641,13 @@ class DepositController {
 
       const status = String(depositRoom.status || "").toLowerCase();
 
-      const deletableStatuses = ["rejected", "accepted", "confirmed"];
+      const deletableStatuses = ["pending", "rejected", "expired", "cancelled"];
 
       if (!deletableStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
           message:
-            "Only rejected, accepted, or confirmed deposits can be deleted",
+            "Only pending, rejected, expired, or cancelled deposits can be deleted",
         });
       }
 

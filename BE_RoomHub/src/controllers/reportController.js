@@ -289,13 +289,26 @@ class reportController {
     try {
       const { reportId } = req.params;
 
-      const report = await Report.findById(reportId)
-        .populate('reporter', 'fullname email avatarImage')
-        .populate('processedBy', 'fullname');
+      if (!mongoose.Types.ObjectId.isValid(reportId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid report id',
+        });
+      }
+
+      const report = await Report.findOne({
+        _id: reportId,
+        reportType: 'review',
+        deleted: { $ne: true },
+      })
+        .populate('reporter', 'fullname email avatarImage phoneNumber')
+        .populate('processedBy', 'fullname email')
+        .lean();
 
       if (!report) {
         return res.status(404).json({
-          message: 'Report not found',
+          success: false,
+          message: 'Review report not found',
         });
       }
 
@@ -303,18 +316,23 @@ class reportController {
         { _id: report.targetId },
         null,
         { withDeleted: true }
-      ).populate({
-        path: 'accountId',
-        select: 'fullname email avatarImage',
-      });
+      )
+        .populate('accountId', 'fullname email avatarImage')
+        .populate('boardingHouseId', 'name address images ownerId')
+        .lean();
 
       return res.status(200).json({
-        ...report.toObject(),
-        target: review,
+        success: true,
+        data: {
+          ...report,
+          target: review,
+        },
       });
     } catch (error) {
+      console.error('Error fetching review report detail:', error);
       return res.status(500).json({
-        error: error.message,
+        success: false,
+        message: error.message || 'Error fetching review report detail',
       });
     }
   }
@@ -370,6 +388,13 @@ class reportController {
   async getOwnReportDetail(req, res) {
     try {
       const { reportId } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(reportId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid report id',
+        });
+      }
 
       const report = await Report.findOne({
         _id: reportId,
@@ -458,6 +483,7 @@ class reportController {
     if (report.reportType === 'review') {
       return Review.findOne({ _id: report.targetId }, null, { withDeleted: true })
         .populate('accountId', 'fullname email avatarImage')
+        .populate('boardingHouseId', 'name address images ownerId')
         .lean();
     }
 

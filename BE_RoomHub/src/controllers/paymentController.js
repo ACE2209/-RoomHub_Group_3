@@ -322,9 +322,17 @@ const completePayment = async (payment, rawData) => {
   }
 
   if (payment.depositRoomId && !payment.paymentBillId) {
-    const deposit = await DepositRoom.findById(payment.depositRoomId).populate(
-      "roomId"
-    );
+    const deposit = await DepositRoom.findById(payment.depositRoomId).populate({
+      path: "roomId",
+      populate: [
+        { path: "roomTypeId", select: "peopleNumber" },
+        {
+          path: "boardingHouseId",
+          select: "boardingHouseType name",
+          populate: { path: "boardingHouseType", select: "codeName" },
+        },
+      ],
+    });
 
     if (!deposit) throw new Error("Deposit not found");
 
@@ -362,20 +370,34 @@ const completePayment = async (payment, rawData) => {
 
     await syncRoomAvailabilityWithReservations(deposit.roomId._id);
 
-    // Chỉ sau khi cọc thành công mới đóng các yêu cầu cạnh tranh cho cùng phòng.
-    await DepositRoom.updateMany(
-      {
-        _id: { $ne: deposit._id },
-        roomId: deposit.roomId._id,
-        status: { $in: ["pending", "accepted"] },
-      },
-      {
-        $set: {
-          status: "rejected",
-          reasonForCancel: "Phòng đã được người khác thanh toán cọc thành công.",
-        },
-      }
+    const typeCode =
+      deposit.roomId.boardingHouseId?.boardingHouseType?.codeName;
+    const isDormitory = typeCode === "nha_tro_kien_truc_xa";
+    const capacity = Math.max(
+      1,
+      Number(deposit.roomId.roomTypeId?.peopleNumber || 1)
     );
+    const occupiedCount = deposit.roomId.rentBy.length;
+
+    // Phòng thường đóng ngay sau khi có một người cọc thành công.
+    // Ký túc xá chỉ đóng những yêu cầu dư khi đã đủ sức chứa.
+    if (!isDormitory || occupiedCount >= capacity) {
+      await DepositRoom.updateMany(
+        {
+          _id: { $ne: deposit._id },
+          roomId: deposit.roomId._id,
+          status: { $in: ["pending", "accepted"] },
+        },
+        {
+          $set: {
+            status: "rejected",
+            reasonForCancel: isDormitory
+              ? "Phòng ký túc xá đã đủ số lượng người."
+              : "Phòng đã được người khác thanh toán cọc thành công.",
+          },
+        }
+      );
+    }
   }
 
   if (payment.paymentBillId) {
@@ -446,19 +468,22 @@ const completeRefundPayment = async (refundRequestId, rawData = {}) => {
     refundRequest.refundTransactionNo ||
     "";
 
-  deposit.status = "refunded";
+deposit.status = "refunded";
 
-  if (Array.isArray(room.rentBy)) {
-    room.rentBy = room.rentBy.filter(
-      (id) => id.toString() !== deposit.accountId.toString()
-    );
-  }
+if (Array.isArray(room.rentBy)) {
+  room.rentBy = room.rentBy.filter(
+    (id) => id.toString() !== deposit.accountId.toString()
+  );
+}
 
-  await room.save();
-  await deposit.save();
-  await refundRequest.save();
+await room.save();
+await deposit.save();
+await refundRequest.save();
 
-  return refundRequest;
+// Tính lại trạng thái phòng sau khi hoàn tiền và xóa người thuê
+await syncRoomAvailabilityWithReservations(room._id);
+
+return refundRequest;
 };
 
 class PaymentController {

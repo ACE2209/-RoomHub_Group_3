@@ -2,6 +2,7 @@ import moment from "moment";
 
 import RefundRequest from "../models/refundRequest.js";
 import DepositRoom from "../models/depositRoom.js";
+import UserPayment from "../models/userPayment.js";
 import Room from "../models/room.js";
 import BoardingHouse from "../models/boardingHouse.js";
 import paymentController from "./paymentController.js";
@@ -62,6 +63,20 @@ class RefundRequestController {
         return res.status(400).json({
           success: false,
           message: "Only confirmed deposits can request refund",
+        });
+      }
+
+      const unpaidRent = await UserPayment.exists({
+        depositRoomId: deposit._id,
+        paymentBillId: { $ne: null },
+        status: { $in: ["Pending", "Overdue", "Failed"] },
+      });
+
+      if (unpaidRent) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "You must complete all monthly rent payments before requesting a refund",
         });
       }
 
