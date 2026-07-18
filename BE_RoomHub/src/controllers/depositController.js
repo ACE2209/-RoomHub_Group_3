@@ -4,6 +4,8 @@ import DepositRoom from "../models/depositRoom.js";
 import Room from "../models/room.js";
 import BoardingHouse from "../models/boardingHouse.js";
 import { Account } from "../models/account.js";
+import PaymentBill from "../models/paymentBill.js";
+import UserPayment from "../models/userPayment.js";
 import paginate from "../utils/pagination.js";
 import { updateBoardingHouseRoomCounts } from "../utils/updateBoardingHouseRoomCounts.js";
 class DepositController {
@@ -247,14 +249,14 @@ class DepositController {
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
-          user: process.env.MAIL_USER,
-          pass: process.env.MAIL_PASS,
+          user: "trantnce180829@fpt.edu.vn",
+          pass: "rjvs rqzj nsut asvr",
         },
       });
 
       const sendEmail = async (to, subject, html) => {
         await transporter.sendMail({
-          from: process.env.MAIL_USER,
+          from: "trantnce180829@fpt.edu.vn",
           to,
           subject,
           html,
@@ -649,7 +651,7 @@ class DepositController {
         });
       }
 
-      if (status === "confirmed" && depositRoom.roomId?.rentBy) {
+      if (["accepted", "confirmed"].includes(status) && depositRoom.roomId?.rentBy) {
         depositRoom.roomId.rentBy = depositRoom.roomId.rentBy.filter(
           (id) => id.toString() !== depositRoom.accountId.toString(),
         );
@@ -657,14 +659,63 @@ class DepositController {
         await depositRoom.roomId.save();
       }
 
+      const userPayments = await UserPayment.find({
+        depositRoomId,
+        paymentBillId: { $ne: null },
+      }).select("paymentBillId");
+
+      const paymentBillIds = [
+        ...new Set(
+          userPayments
+            .map((payment) => payment.paymentBillId?.toString())
+            .filter(Boolean),
+        ),
+      ];
+
+      const deletedUserPayments = await UserPayment.deleteMany({
+        depositRoomId,
+        paymentBillId: { $ne: null },
+      });
+
+      let deletedPaymentBills = 0;
+
+      for (const paymentBillId of paymentBillIds) {
+        const hasOtherUserPayments = await UserPayment.exists({
+          paymentBillId,
+        });
+
+        if (!hasOtherUserPayments) {
+          const result = await PaymentBill.deleteOne({ _id: paymentBillId });
+          deletedPaymentBills += result.deletedCount;
+        }
+      }
+
       await DepositRoom.deleteOne({
         _id: depositRoomId,
       });
+
+      if (["accepted", "confirmed"].includes(status) && depositRoom.roomId?._id) {
+        const hasOtherActiveDeposit = await DepositRoom.exists({
+          roomId: depositRoom.roomId._id,
+          status: { $in: ["accepted", "confirmed"] },
+        });
+
+        await Room.updateOne(
+          { _id: depositRoom.roomId._id },
+          { $set: { isAvailable: !hasOtherActiveDeposit } },
+        );
+
+        if (boardingHouse?._id) {
+          await updateBoardingHouseRoomCounts(boardingHouse._id);
+        }
+      }
 
       return res.status(200).json({
         success: true,
         message: "Deposit request deleted successfully",
         depositRoomId,
+        deletedUserPayments: deletedUserPayments.deletedCount,
+        deletedPaymentBills,
       });
     } catch (error) {
       return res.status(500).json({

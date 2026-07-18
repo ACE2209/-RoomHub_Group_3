@@ -62,49 +62,17 @@ export const softDeleteAccountAPI = async (accountId) => {
 };
 
 export const getProfileAPI = async () => {
-    const res = await axios.get(`${API_URL}/auth/profile`, {
-        headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-    });
-    return res.data;
+    return axiosClient.get("auth/profile");
 };
 
 export const updateProfileAPI = async (data) => {
-    const res = await axios.put(
-        `${API_URL}/auth/profile`,
-        data,
-        {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-        }
-    );
-    return res.data;
+    return axiosClient.put("auth/profile", data);
 };
 
 export const sendOTPChangeEmailAPI = async (email) => {
-    const res = await axios.post(
-        `${API_URL}/auth/send-otp-change-email`,
-        { email },
-        {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-        }
-    );
-    return res.data;
+    return axiosClient.post("auth/send-otp-change-email", { email });
 };
 
 export const verifyChangeEmailAPI = async (data) => {
-    const res = await axios.post(
-        `${API_URL}/auth/verify-change-email`,
-        data,
-        {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-        }
-    );
-    return res.data;
+    return axiosClient.post("auth/verify-change-email", data);
 };
