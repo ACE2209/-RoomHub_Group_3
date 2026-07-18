@@ -321,7 +321,7 @@ const completePayment = async (payment, rawData) => {
     throw new Error("Payment is not pending");
   }
 
-  if (payment.depositRoomId) {
+  if (payment.depositRoomId && !payment.paymentBillId) {
     const deposit = await DepositRoom.findById(payment.depositRoomId).populate(
       "roomId"
     );
@@ -965,7 +965,7 @@ class PaymentController {
         return res.redirect(
           getClientReturnUrl({
             status: "failed",
-            type: payment.depositRoomId ? "deposit" : "rent",
+            type: payment.paymentBillId ? "rent" : "deposit",
             provider: "vnpay",
             message: "VNPay payment failed",
           })
@@ -977,7 +977,7 @@ class PaymentController {
       return res.redirect(
         getClientReturnUrl({
           status: "success",
-          type: payment.depositRoomId ? "deposit" : "rent",
+          type: payment.paymentBillId ? "rent" : "deposit",
           provider: "vnpay",
           message: "Payment successful",
         })
@@ -1071,7 +1071,7 @@ class PaymentController {
         );
       }
 
-      const type = payment.depositRoomId ? "deposit" : "rent";
+      const type = payment.paymentBillId ? "rent" : "deposit";
 
       if (["Paid", "Done"].includes(payment.status)) {
         return redirectToClient("success", type, "Payment already completed");
