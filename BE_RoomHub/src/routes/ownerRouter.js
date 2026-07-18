@@ -69,6 +69,7 @@ ownerRouter.delete("/boardinghouse/roomtype/:roomTypeId/", roomTypeController.so
 
 ownerRouter.get("/staffs", staffManagementController.getOwnerStaffs.bind(staffManagementController));
 ownerRouter.post("/staffs", staffManagementController.createOwnerStaff.bind(staffManagementController));
+ownerRouter.post("/staffs/:staffId/invitation", staffManagementController.resendOwnerStaffInvitation.bind(staffManagementController));
 ownerRouter.put("/staffs/:staffId", staffManagementController.updateOwnerStaff.bind(staffManagementController));
 ownerRouter.delete("/staffs/:staffId", staffManagementController.deleteOwnerStaff.bind(staffManagementController));
 

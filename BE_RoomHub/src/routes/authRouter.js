@@ -30,7 +30,7 @@ authRouter.put("/avatar", upload.single("avatar"), accountController.updateAvata
 authRouter.get("/reports", reportController.getOwnReports.bind(reportController));
 authRouter.get("/reports/exist", reportController.checkReportExist.bind(reportController));
 authRouter.get("/reports/:reportId", reportController.getOwnReportDetail.bind(reportController));
-authRouter.post("/reports", upload.array("report", 5), reportController.createReport);
+authRouter.post("/reports", upload.array("report", 5), reportController.createReport.bind(reportController));
 
 // reviews
 authRouter.post("/reviews", ReviewController.addReview);

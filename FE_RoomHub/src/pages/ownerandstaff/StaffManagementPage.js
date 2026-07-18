@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Button,
+  Checkbox,
   Form,
   Input,
   Modal,
@@ -13,6 +14,7 @@ import {
 } from "antd";
 import {
   Building2,
+  Mail,
   Pencil,
   Plus,
   RotateCcw,
@@ -27,6 +29,7 @@ import {
   createOwnerStaff,
   deleteOwnerStaff,
   getOwnerStaffs,
+  resendOwnerStaffInvitation,
   updateOwnerStaff,
 } from "../../api/ownerandstaff/staffManagement";
 
@@ -50,6 +53,7 @@ export default function StaffManagementPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [resendingStaffId, setResendingStaffId] = useState(null);
 
   const fetchStaffs = useCallback(
     async ({ page = 1, limit = pagination.limit, searchValue = search } = {}) => {
@@ -115,7 +119,11 @@ export default function StaffManagementPage() {
   const openCreateModal = () => {
     setEditingStaff(null);
     form.resetFields();
-    form.setFieldsValue({ gender: "male", boardingHouseIds: [] });
+    form.setFieldsValue({
+      gender: "male",
+      boardingHouseIds: [],
+      sendInvitationEmail: true,
+    });
     setModalOpen(true);
   };
 
@@ -130,6 +138,7 @@ export default function StaffManagementPage() {
       hireDate: formatDateInput(staff.hireDate),
       boardingHouseIds: (staff.assignedBoardingHouses || []).map((house) => house._id),
       password: "",
+      sendInvitationEmail: false,
     });
     setModalOpen(true);
   };
@@ -152,14 +161,33 @@ export default function StaffManagementPage() {
         delete payload.password;
       }
 
+      if (editingStaff) {
+        delete payload.sendInvitationEmail;
+      }
+
+      if (!editingStaff && payload.sendInvitationEmail) {
+        delete payload.password;
+      }
+
       setSubmitting(true);
 
       if (editingStaff) {
         await updateOwnerStaff(editingStaff._id, payload);
         message.success("Staff updated successfully");
       } else {
-        await createOwnerStaff(payload);
-        message.success("Staff created successfully");
+        const res = await createOwnerStaff(payload);
+        if (payload.sendInvitationEmail && res?.invitationEmailSent === false) {
+          message.warning(
+            getInvitationWarningMessage(
+              "Staff created, but invitation email was not sent",
+              res?.invitationEmailError
+            )
+          );
+        } else if (payload.sendInvitationEmail) {
+          message.success("Staff created and invitation email sent");
+        } else {
+          message.success("Staff created successfully");
+        }
       }
 
       closeModal();
@@ -181,6 +209,34 @@ export default function StaffManagementPage() {
       fetchBoardingHouses();
     } catch (error) {
       message.error(error.message || "Delete staff failed");
+    }
+  };
+
+  const handleResendInvitation = async (staffId) => {
+    try {
+      setResendingStaffId(staffId);
+      const res = await resendOwnerStaffInvitation(staffId);
+
+      if (res?.data) {
+        setStaffs((currentStaffs) =>
+          currentStaffs.map((staff) => (staff._id === staffId ? res.data : staff))
+        );
+      }
+
+      if (res?.invitationEmailSent) {
+        message.success("Invitation email sent successfully");
+      } else {
+        message.warning(
+          getInvitationWarningMessage(
+            "Invitation email was not sent",
+            res?.invitationEmailError
+          )
+        );
+      }
+    } catch (error) {
+      message.error(error.message || "Send invitation failed");
+    } finally {
+      setResendingStaffId(null);
     }
   };
 
@@ -215,6 +271,7 @@ export default function StaffManagementPage() {
         <div>
           <div>{staff.email || "N/A"}</div>
           <div style={mutedTextStyle}>{staff.phoneNumber || "No phone"}</div>
+          {getInvitationStatusTag(staff)}
         </div>
       ),
     },
@@ -245,9 +302,16 @@ export default function StaffManagementPage() {
     {
       title: "Action",
       key: "action",
-      width: 128,
+      width: 168,
       render: (_, staff) => (
         <Space>
+          <Button
+            title="Resend invitation"
+            aria-label="Resend invitation email"
+            icon={<Mail size={16} />}
+            loading={resendingStaffId === staff._id}
+            onClick={() => handleResendInvitation(staff._id)}
+          />
           <Button
             title="Update"
             aria-label="Update staff"
@@ -400,17 +464,45 @@ export default function StaffManagementPage() {
             </Form.Item>
           </div>
 
+          {!editingStaff && (
+            <Form.Item name="sendInvitationEmail" valuePropName="checked">
+              <Checkbox>Send invitation email</Checkbox>
+            </Form.Item>
+          )}
+
           <Form.Item
-            name="password"
-            label={editingStaff ? "New password" : "Password"}
-            rules={[
-              {
-                required: !editingStaff,
-                message: "Password is required",
-              },
-            ]}
+            noStyle
+            shouldUpdate={(prevValues, currentValues) =>
+              prevValues.sendInvitationEmail !== currentValues.sendInvitationEmail
+            }
           >
-            <Input.Password placeholder={editingStaff ? "Leave blank to keep current password" : "Password"} />
+            {({ getFieldValue }) => {
+              const hidePassword =
+                !editingStaff && getFieldValue("sendInvitationEmail");
+
+              if (hidePassword) return null;
+
+              return (
+                <Form.Item
+                  name="password"
+                  label={editingStaff ? "New password" : "Password"}
+                  rules={[
+                    {
+                      required: !editingStaff,
+                      message: "Password is required",
+                    },
+                  ]}
+                >
+                  <Input.Password
+                    placeholder={
+                      editingStaff
+                        ? "Leave blank to keep current password"
+                        : "Password"
+                    }
+                  />
+                </Form.Item>
+              );
+            }}
           </Form.Item>
 
           <Form.Item name="boardingHouseIds" label="Boarding houses">
@@ -437,6 +529,33 @@ const formatDate = (value) => {
 const formatDateInput = (value) => {
   if (!value) return "";
   return new Date(value).toISOString().slice(0, 10);
+};
+
+const getInvitationStatusTag = (staff) => {
+  if (staff.invitationEmailSent) {
+    return (
+      <div style={inviteTagWrapperStyle}>
+        <Tag color="green">Invite sent</Tag>
+      </div>
+    );
+  }
+
+  if (staff.invitationEmailError) {
+    return (
+      <div style={inviteTagWrapperStyle}>
+        <Tag color="orange" title={staff.invitationEmailError}>
+          Invite not sent
+        </Tag>
+      </div>
+    );
+  }
+
+  return null;
+};
+
+const getInvitationWarningMessage = (messageText, errorText) => {
+  if (!errorText) return messageText;
+  return `${messageText}: ${errorText}`;
 };
 
 const getInitials = (value = "") =>
@@ -528,6 +647,10 @@ const nameStyle = {
 const mutedTextStyle = {
   color: "#667085",
   fontSize: 12,
+};
+
+const inviteTagWrapperStyle = {
+  marginTop: 6,
 };
 
 const formStyle = {

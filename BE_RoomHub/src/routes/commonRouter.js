@@ -27,7 +27,7 @@ commonRouter.post("/verify-register", authController.verifyRegister);
 // ======================
 // Report
 // ======================
-commonRouter.post("/reports", authMiddleware, reportController.createReport);
+commonRouter.post("/reports", authMiddleware, reportController.createReport.bind(reportController));
 
 // ======================
 // Boarding House

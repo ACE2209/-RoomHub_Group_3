@@ -46,6 +46,15 @@ export const updateOwnerStaff = async (staffId, payload) => {
   return parseJsonResponse(res);
 };
 
+export const resendOwnerStaffInvitation = async (staffId) => {
+  const res = await fetch(`${API_URL}/owner/staffs/${staffId}/invitation`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+};
+
 export const deleteOwnerStaff = async (staffId) => {
   const res = await fetch(`${API_URL}/owner/staffs/${staffId}`, {
     method: "DELETE",

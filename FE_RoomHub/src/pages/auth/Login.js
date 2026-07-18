@@ -263,25 +263,6 @@ const Login = () => {
                             {/* Remember + Forgot */}
                             <div className="d-flex justify-content-between align-items-center mb-4">
                                 <div className="form-check">
-                                    <input
-                                        className="form-check-input"
-                                        type="checkbox"
-                                        id="remember"
-                                        name="remember"
-                                        checked={formData.remember}
-                                        onChange={handleChange}
-                                        style={{
-                                            borderColor: "#ff6b00",
-                                            accentColor: "#ff6b00",
-                                        }}
-                                    />
-
-                                    <label
-                                        className="form-check-label"
-                                        htmlFor="remember"
-                                    >
-                                        Remember me
-                                    </label>
                                 </div>
 
                                 <Link
