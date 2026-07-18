@@ -48,6 +48,7 @@ const ManageRoomTypes = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRoomType, setEditingRoomType] = useState(null);
     const [fileList, setFileList] = useState([]);
+    const [submitting, setSubmitting] = useState(false);
     const [form] = Form.useForm();
 
     useEffect(() => {
@@ -102,13 +103,34 @@ const ManageRoomTypes = () => {
             roomSize: roomType.roomSize,
             peopleNumber: roomType.peopleNumber,
         });
-        setFileList([]);
+
+        // Show the current image (if any) instead of a blank uploader
+        setFileList(
+            roomType.image?.imageUrl
+                ? [
+                    {
+                        uid: roomType.image.publicId || "existing-image",
+                        name: roomType.image.publicId || "image",
+                        status: "done",
+                        url: roomType.image.imageUrl,
+                        isExisting: true,
+                    },
+                ]
+                : []
+        );
         setIsModalOpen(true);
     };
 
     const handleSubmit = async () => {
+        if (submitting) {
+            return; // prevent double submit while a request is already in flight
+        }
+
         try {
             const values = await form.validateFields();
+
+            setSubmitting(true);
+
             const formData = new FormData();
 
             formData.append("typeName", values.typeName);
@@ -116,8 +138,12 @@ const ManageRoomTypes = () => {
             formData.append("roomSize", values.roomSize || "");
             formData.append("peopleNumber", values.peopleNumber || 0);
 
-            if (fileList.length > 0) {
-                formData.append("roomType", fileList[0].originFileObj);
+            // Only send a new "roomType" file when the user actually picked one.
+            // If they kept the existing image (isExisting) we don't resend it —
+            // the backend already keeps the old image when no file is uploaded.
+            const newImageFile = fileList.find((file) => file.originFileObj)?.originFileObj;
+            if (newImageFile) {
+                formData.append("roomType", newImageFile);
             }
 
             if (editingRoomType) {
@@ -125,8 +151,9 @@ const ManageRoomTypes = () => {
                 message.success("Room type updated successfully");
             } else {
                 formData.append("facilities", JSON.stringify([]));
-                if (fileList.length === 0) {
+                if (!newImageFile) {
                     message.error("Please upload an image for the room type");
+                    setSubmitting(false);
                     return;
                 }
                 await createRoomType(selectedBoardingHouse, formData);
@@ -137,6 +164,8 @@ const ManageRoomTypes = () => {
             loadRoomTypes(selectedBoardingHouse);
         } catch (err) {
             message.error(err.message || "An error occurred");
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -304,9 +333,14 @@ const ManageRoomTypes = () => {
                     open={isModalOpen}
                     width={700}
                     title={editingRoomType ? "Edit Room Type" : "Create New Room Type"}
-                    onCancel={() => setIsModalOpen(false)}
+                    onCancel={() => !submitting && setIsModalOpen(false)}
                     onOk={handleSubmit}
                     okText={editingRoomType ? "Update" : "Create"}
+                    confirmLoading={submitting}
+                    okButtonProps={{ disabled: submitting }}
+                    cancelButtonProps={{ disabled: submitting }}
+                    maskClosable={!submitting}
+                    closable={!submitting}
                     className="manage-room-types__modal"
                 >
                     <Form form={form} layout="vertical">
@@ -367,9 +401,20 @@ const ManageRoomTypes = () => {
                                 onChange={(info) => setFileList(info.fileList)}
                                 maxCount={1}
                                 accept="image/*"
+                                listType="picture-card"
                             >
-                                <Button icon={<UploadOutlined />}>Upload Image</Button>
+                                {fileList.length < 1 && (
+                                    <span>
+                                        <UploadOutlined />
+                                        <div style={{ marginTop: 4 }}>Upload</div>
+                                    </span>
+                                )}
                             </Upload>
+                            {editingRoomType && (
+                                <p style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+                                    Upload a new image to replace the current one.
+                                </p>
+                            )}
                         </Form.Item>
                     </Form>
                 </Modal>
