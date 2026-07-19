@@ -57,8 +57,10 @@ const attachAcceptedDepositStatus = async (rooms) => {
       reservedCount,
       availableSlots,
       isFull,
-      isAvailable: !isFull,
-      hasAcceptedDeposit: reservedCount > 0,
+isAvailable:
+  room.manuallySet === true
+    ? Boolean(room.isAvailable)
+    : !isFull,      hasAcceptedDeposit: reservedCount > 0,
       depositStatus: reservedCount > 0 ? "accepted" : null,
       acceptedTenants: [...entry.confirmed, ...entry.reserved],
     };
@@ -280,14 +282,15 @@ class RoomController {
         publicId: file.filename,
       }));
 
-      const roomDocs = rooms.map((room) => ({
-        roomNumber: room.roomNumber,
-        boardingHouseId: room.boardingHouseId,
-        description: room.description,
-        roomTypeId: room.roomTypeId,
-        isAvailable: true,
-        images: room.images || uploadedImages,
-      }));
+const roomDocs = rooms.map((room) => ({
+  roomNumber: room.roomNumber,
+  boardingHouseId: room.boardingHouseId,
+  description: room.description,
+  roomTypeId: room.roomTypeId,
+  isAvailable: true,
+  manuallySet: false,
+  images: room.images || uploadedImages,
+}));
 
       // Save all rooms
       const savedRooms = await Room.insertMany(roomDocs);
