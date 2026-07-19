@@ -102,11 +102,14 @@ const RoomSchema = new mongoose.Schema(
 );
 
 RoomSchema.pre("save", async function (next) {
-  if (this.manuallySet) {
-    this.manuallySet = false;
+  // Nếu trạng thái phòng được chỉnh thủ công,
+  // không tự động ghi đè lại isAvailable.
+  if (this.manuallySet === true) {
     return next();
   }
 
+  // Chỉ tự tính trạng thái khi rentBy thay đổi
+  // hoặc khi phòng vừa được tạo.
   if (!this.isModified("rentBy") && !this.isNew) {
     return next();
   }
@@ -131,7 +134,9 @@ RoomSchema.pre("save", async function (next) {
 
     const roomType = this.roomTypeId;
 
-    const currentRenters = this.rentBy.length;
+    const currentRenters = Array.isArray(this.rentBy)
+      ? this.rentBy.length
+      : 0;
 
     if (boardingHouseType && roomType) {
       const typeCode = boardingHouseType.codeName;
@@ -145,7 +150,7 @@ RoomSchema.pre("save", async function (next) {
         newAvailability = currentRenters === 0;
       } else if (typeCode === "nha_tro_kien_truc_xa") {
         const maxPeople =
-          parseInt(roomType.peopleNumber) || 0;
+          parseInt(roomType.peopleNumber, 10) || 0;
 
         newAvailability = currentRenters < maxPeople;
       }
@@ -167,10 +172,10 @@ RoomSchema.pre("save", async function (next) {
   next();
 });
 
-RoomSchema.statics.updateRoomAvailability =
-  async function (roomId) {
+RoomSchema.statics.updateAllRoomsAvailability =
+  async function () {
     try {
-      const room = await this.findById(roomId)
+      const rooms = await this.find()
         .populate({
           path: "boardingHouseId",
           populate: {
@@ -183,18 +188,26 @@ RoomSchema.statics.updateRoomAvailability =
           select: "peopleNumber",
         });
 
-      if (!room) {
-        throw new Error("Room not found");
-      }
+      const bulkOps = [];
+      let updatedCount = 0;
 
-      const boardingHouseType =
-        room.boardingHouseId?.boardingHouseType;
+      for (const room of rooms) {
+        // Bỏ qua phòng đã được chỉnh trạng thái thủ công.
+        if (room.manuallySet === true) {
+          continue;
+        }
 
-      const roomType = room.roomTypeId;
+        const boardingHouseType =
+          room.boardingHouseId?.boardingHouseType;
 
-      const currentRenters = room.rentBy.length;
+        const roomType = room.roomTypeId;
 
-      if (boardingHouseType && roomType) {
+        const currentRenters = room.rentBy.length;
+
+        if (!boardingHouseType || !roomType) {
+          continue;
+        }
+
         const typeCode = boardingHouseType.codeName;
 
         let newAvailability;
@@ -206,7 +219,7 @@ RoomSchema.statics.updateRoomAvailability =
           newAvailability = currentRenters === 0;
         } else if (typeCode === "nha_tro_kien_truc_xa") {
           const maxPeople =
-            parseInt(roomType.peopleNumber) || 0;
+            parseInt(roomType.peopleNumber, 10) || 0;
 
           newAvailability = currentRenters < maxPeople;
         }
@@ -215,19 +228,32 @@ RoomSchema.statics.updateRoomAvailability =
           newAvailability !== undefined &&
           room.isAvailable !== newAvailability
         ) {
-          await this.updateOne(
-            { _id: roomId },
-            { isAvailable: newAvailability }
-          );
+          bulkOps.push({
+            updateOne: {
+              filter: {
+                _id: room._id,
+              },
+              update: {
+                isAvailable: newAvailability,
+              },
+            },
+          });
 
-          room.isAvailable = newAvailability;
+          updatedCount++;
         }
       }
 
-      return room;
+      if (bulkOps.length > 0) {
+        await this.bulkWrite(bulkOps);
+      }
+
+      return {
+        updatedCount,
+        totalProcessed: rooms.length,
+      };
     } catch (error) {
       console.error(
-        "Error updating room availability:",
+        "Error updating all rooms availability:",
         error
       );
       throw error;
