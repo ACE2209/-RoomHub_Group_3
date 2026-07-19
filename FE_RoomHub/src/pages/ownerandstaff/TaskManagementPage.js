@@ -225,11 +225,11 @@ export default function TaskManagementPage() {
       setSubmitting(true);
 
       if (editingTask) {
-        await updateManagedTask(editingTask._id, payload);
-        message.success("Task updated successfully");
+        const res = await updateManagedTask(editingTask._id, payload);
+        showTaskSaveMessage(res, "Task updated successfully");
       } else {
-        await createManagedTask(payload);
-        message.success("Task created successfully");
+        const res = await createManagedTask(payload);
+        showTaskSaveMessage(res, "Task created successfully");
       }
 
       closeModal();
@@ -555,6 +555,15 @@ const isOverdue = (value) => {
   today.setHours(0, 0, 0, 0);
 
   return dueDate < today;
+};
+
+const showTaskSaveMessage = (response, successMessage) => {
+  if (response?.taskAssignmentEmailError) {
+    message.warning(`${successMessage}, but assignment email was not sent`);
+    return;
+  }
+
+  message.success(successMessage);
 };
 
 const formatDate = (value) => {

@@ -39,7 +39,7 @@ commonRouter.get("/boardinghouse/highrating", boardingHouseController.getHighRat
 commonRouter.get("/boardinghouse/newest", boardingHouseController.getNewestBH);
 commonRouter.get("/boardinghouse/types", boardingHouseController.getAllBoardingHouseTypes);
 commonRouter.get("/boardinghouse/:id", boardingHouseController.getBoardingHouseDetailInUser);
-commonRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId);
+commonRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId.bind(roomTypeController));
 
 // ======================
 // Reviews
