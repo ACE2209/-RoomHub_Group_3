@@ -3,6 +3,7 @@
 import mongoose from 'mongoose';
 import BoardingHouse from '../models/boardingHouse.js';
 import Room from '../models/room.js';
+import DepositRoom from '../models/depositRoom.js';
 
 /**
  * Tự động cập nhật số lượng phòng cho boarding house
@@ -11,32 +12,75 @@ import Room from '../models/room.js';
  */
 export const updateBoardingHouseRoomCounts = async (boardingHouseId) => {
     try {
+        const objectId = new mongoose.Types.ObjectId(boardingHouseId);
+        const rooms = await Room.find({ boardingHouseId: objectId })
+            .populate({
+                path: 'boardingHouseId',
+                populate: { path: 'boardingHouseType', select: 'codeName' }
+            })
+            .populate({ path: 'roomTypeId', select: 'peopleNumber' });
 
-        // Đếm tổng số phòng (không bao gồm phòng đã xóa)
-        const totalRooms = await Room.countDocuments({
-            boardingHouseId: new mongoose.Types.ObjectId(boardingHouseId)
-        });
+        const roomIds = rooms.map((room) => room._id);
+        const activeHolds = roomIds.length
+            ? await DepositRoom.find({
+                roomId: { $in: roomIds },
+                status: 'accepted',
+                paymentDeadline: { $gt: new Date() }
+            }).select('roomId accountId').lean()
+            : [];
 
-        // Đếm số phòng available
-        const availableRooms = await Room.countDocuments({
-            boardingHouseId: new mongoose.Types.ObjectId(boardingHouseId),
-            isAvailable: true
-        });
+        const holdsByRoom = new Map();
+        for (const hold of activeHolds) {
+            const key = hold.roomId.toString();
+            const set = holdsByRoom.get(key) || new Set();
+            if (hold.accountId) set.add(hold.accountId.toString());
+            holdsByRoom.set(key, set);
+        }
 
-        // Cập nhật boarding house
+        let availableRooms = 0;
+        const roomUpdates = [];
+
+        for (const room of rooms) {
+            const occupied = new Set(
+                (Array.isArray(room.rentBy) ? room.rentBy : [])
+                    .map((id) => id.toString())
+            );
+            const reserved = holdsByRoom.get(room._id.toString()) || new Set();
+            for (const accountId of occupied) reserved.delete(accountId);
+
+            const typeCode = room.boardingHouseId?.boardingHouseType?.codeName || '';
+            const isDormitory = typeCode === 'nha_tro_kien_truc_xa';
+            const capacity = isDormitory
+                ? Math.max(1, Number(room.roomTypeId?.peopleNumber || 1))
+                : 1;
+            const isAvailable = occupied.size + reserved.size < capacity;
+
+            if (isAvailable) availableRooms += 1;
+
+            if (room.isAvailable !== isAvailable || room.manuallySet !== false) {
+                roomUpdates.push({
+                    updateOne: {
+                        filter: { _id: room._id },
+                        update: { $set: { isAvailable, manuallySet: false } }
+                    }
+                });
+            }
+        }
+
+        if (roomUpdates.length) {
+            await Room.bulkWrite(roomUpdates);
+        }
+
+        const totalRooms = rooms.length;
         const updatedBoardingHouse = await BoardingHouse.findByIdAndUpdate(
-            boardingHouseId,
-            {
-                totalRooms,
-                availableRooms
-            },
+            objectId,
+            { totalRooms, availableRooms },
             { new: true }
         );
 
         if (!updatedBoardingHouse) {
             throw new Error('Boarding house not found');
         }
-
 
         return {
             success: true,
@@ -45,7 +89,6 @@ export const updateBoardingHouseRoomCounts = async (boardingHouseId) => {
             availableRooms,
             updatedBoardingHouse
         };
-
     } catch (error) {
         console.error(`❌ Error updating room counts:`, error);
         throw error;
@@ -100,76 +143,31 @@ export const updateMultipleBoardingHouseRoomCounts = async (boardingHouseIds) =>
  */
 export const updateAllBoardingHouseRoomCounts = async () => {
     try {
-
-        // Lấy danh sách tất cả boarding house IDs
         const boardingHouses = await BoardingHouse.find({}, '_id').lean();
-        const boardingHouseIds = boardingHouses.map(bh => bh._id.toString());
+        const results = [];
+        const errors = [];
 
-
-        // Sử dụng aggregation pipeline để tính toán hiệu quả hơn
-        const roomCounts = await Room.aggregate([
-            {
-                $group: {
-                    _id: '$boardingHouseId',
-                    totalRooms: { $sum: 1 },
-                    availableRooms: {
-                        $sum: {
-                            $cond: [{ $eq: ['$isAvailable', true] }, 1, 0]
-                        }
-                    }
-                }
+        for (const boardingHouse of boardingHouses) {
+            try {
+                results.push(
+                    await updateBoardingHouseRoomCounts(boardingHouse._id)
+                );
+            } catch (error) {
+                errors.push({
+                    boardingHouseId: boardingHouse._id,
+                    error: error.message
+                });
             }
-        ]);
-
-        // Tạo map để lookup nhanh
-        const countsMap = new Map();
-        roomCounts.forEach(count => {
-            countsMap.set(count._id.toString(), {
-                totalRooms: count.totalRooms,
-                availableRooms: count.availableRooms
-            });
-        });
-
-        // Prepare bulk operations
-        const bulkOps = [];
-        let updatedCount = 0;
-
-        for (const boardingHouseId of boardingHouseIds) {
-            const counts = countsMap.get(boardingHouseId) || {
-                totalRooms: 0,
-                availableRooms: 0
-            };
-
-            bulkOps.push({
-                updateOne: {
-                    filter: { _id: new mongoose.Types.ObjectId(boardingHouseId) },
-                    update: {
-                        $set: {
-                            totalRooms: counts.totalRooms,
-                            availableRooms: counts.availableRooms
-                        }
-                    }
-                }
-            });
-
-            updatedCount++;
-        }
-
-        // Execute bulk update
-        if (bulkOps.length > 0) {
-            const bulkResult = await BoardingHouse.bulkWrite(bulkOps);
-
         }
 
         return {
-            success: true,
-            totalProcessed: boardingHouseIds.length,
-            updatedCount: bulkResult?.modifiedCount || 0,
-            summary: roomCounts
+            success: errors.length === 0,
+            totalProcessed: boardingHouses.length,
+            updatedCount: results.length,
+            errors
         };
-
     } catch (error) {
-        console.error(`❌ Error updating all boarding house room counts:`, error);
+        console.error('❌ Error updating all boarding house counts:', error);
         throw error;
     }
 };

@@ -39,11 +39,21 @@ const attachAcceptedDepositStatus = async (rooms) => {
     const entry = byRoom.get(room._id.toString()) || { confirmed: [], reserved: [] };
     const typeCode = room.boardingHouseId?.boardingHouseType?.codeName;
     const isDormitory = typeCode === "nha_tro_kien_truc_xa";
-    const capacity = Math.max(1, Number(room.roomTypeId?.peopleNumber || 1));
-    const occupiedCount = Array.isArray(room.rentBy)
-      ? room.rentBy.length
-      : entry.confirmed.length;
-    const reservedCount = entry.reserved.length;
+    const capacity = isDormitory
+      ? Math.max(1, Number(room.roomTypeId?.peopleNumber || 1))
+      : 1;
+    const occupiedIds = new Set(
+      (Array.isArray(room.rentBy) ? room.rentBy : entry.confirmed)
+        .map((account) => (account?._id || account)?.toString())
+        .filter(Boolean)
+    );
+    const reservedIds = new Set(
+      entry.reserved
+        .map((account) => (account?._id || account)?.toString())
+        .filter((id) => id && !occupiedIds.has(id))
+    );
+    const occupiedCount = occupiedIds.size;
+    const reservedCount = reservedIds.size;
     const availableSlots = Math.max(0, capacity - occupiedCount - reservedCount);
     const isFull = isDormitory
       ? availableSlots === 0
@@ -57,11 +67,27 @@ const attachAcceptedDepositStatus = async (rooms) => {
       reservedCount,
       availableSlots,
       isFull,
-isAvailable:
-  room.manuallySet === true
-    ? Boolean(room.isAvailable)
-    : !isFull,      hasAcceptedDeposit: reservedCount > 0,
-      depositStatus: reservedCount > 0 ? "accepted" : null,
+      occupancyStatus:
+        occupiedCount > 0
+          ? "occupied"
+          : reservedCount > 0
+            ? "reserved"
+            : "available",
+      // Trạng thái hiển thị luôn theo người đang ở + chỗ accepted còn hạn.
+      // Không để cờ chỉnh tay làm phòng đầy vẫn xuất hiện là còn trống.
+      isAvailable: !isFull,
+      // Deposit confirmed mới là người thuê chính thức.
+      hasConfirmedDeposit: occupiedCount > 0 || entry.confirmed.length > 0,
+      hasAcceptedDeposit: reservedCount > 0,
+      depositStatus:
+        occupiedCount > 0 || entry.confirmed.length > 0
+          ? "confirmed"
+          : reservedCount > 0
+            ? "accepted"
+            : null,
+      confirmedTenants: entry.confirmed,
+      reservedTenants: entry.reserved,
+      // Giữ field cũ để không làm hỏng các màn hình đang sử dụng.
       acceptedTenants: [...entry.confirmed, ...entry.reserved],
     };
   });
@@ -119,7 +145,7 @@ class RoomController {
       }).distinct("roomId");
 
       const validDeposits = await DepositRoom.find({
-        status: { $in: ["accepted", "confirmed"] },
+        status: "confirmed",
         startDate: { $lte: now },
         endDate: { $gte: now },
       }).select("roomId");

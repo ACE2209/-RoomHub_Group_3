@@ -8,6 +8,11 @@ import {
   AUTO_RELEASE_OVERDUE_RENT,
   syncRoomAvailabilityWithReservations,
 } from "./paymentPolicy.js";
+import { updateBoardingHouseRoomCounts } from "./updateBoardingHouseRoomCounts.js";
+import {
+  completePayment,
+  queryZaloPayStatus,
+} from "../controllers/paymentController.js";
 import {
   formatDateTimeVi,
   formatVnd,
@@ -15,6 +20,7 @@ import {
 } from "./paymentEmail.js";
 
 let running = false;
+let initialRoomReconciliationDone = false;
 
 const sendEmailSafe = async (to, subject, html) =>
   sendPaymentEmail({ to, subject, html });
@@ -26,6 +32,56 @@ export const processExpiredPayments = async () => {
 
   try {
     const now = new Date();
+
+    // Chạy một lần sau khi server khởi động để sửa dữ liệu cũ và đồng bộ
+    // availableRooms bên ngoài với trạng thái từng phòng bên trong.
+    if (!initialRoomReconciliationDone) {
+      const boardingHouseIds = await Room.distinct("boardingHouseId");
+      for (const boardingHouseId of boardingHouseIds) {
+        await updateBoardingHouseRoomCounts(boardingHouseId);
+      }
+      initialRoomReconciliationDone = true;
+    }
+
+    // Khôi phục các giao dịch ZaloPay đã trừ tiền nhưng callback localhost bị
+    // miss hoặc redirect trước đây báo sai checksum. Chỉ truy vấn giao dịch gần
+    // đây để tránh quét vô hạn các giao dịch cũ.
+    const recentThreshold = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+    const pendingZaloPayments = await UserPayment.find({
+      paymentMethod: "ZaloPay",
+      status: { $in: ["Pending", "Failed"] },
+      orderId: { $exists: true, $ne: "" },
+      updatedAt: { $gte: recentThreshold },
+    })
+      .sort({ updatedAt: -1 })
+      .limit(50);
+
+    for (const payment of pendingZaloPayments) {
+      try {
+        const zaloStatus = await queryZaloPayStatus(payment.orderId);
+        const returnCode = Number(
+          zaloStatus.returncode ?? zaloStatus.return_code
+        );
+
+        if (returnCode === 1) {
+          await completePayment(payment, {
+            ...zaloStatus,
+            zp_trans_id:
+              zaloStatus.zptransid ||
+              zaloStatus.zp_trans_id ||
+              payment.transactionNo,
+          });
+        } else if (returnCode === 2 && payment.status !== "Failed") {
+          payment.status = "Failed";
+          await payment.save();
+        }
+      } catch (zaloError) {
+        console.error(
+          `ZaloPay reconciliation failed for ${payment.orderId}:`,
+          zaloError.message
+        );
+      }
+    }
 
     const expiredDeposits = await DepositRoom.find({
       status: "accepted",

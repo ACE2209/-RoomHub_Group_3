@@ -67,8 +67,22 @@ const getCurrentPeriod = () => {
   };
 };
 
-const hasAcceptedDeposit = (room) =>
-  room?.hasAcceptedDeposit || room?.depositStatus === "accepted";
+// Chỉ hiển thị phòng có người thuê chính thức để tạo hóa đơn tháng.
+// Deposit "accepted" mới chỉ là giữ chỗ, chưa được tính là người thuê.
+const hasConfirmedTenant = (room) => {
+  const confirmedTenants = Array.isArray(room?.confirmedTenants)
+    ? room.confirmedTenants
+    : [];
+  const rentBy = Array.isArray(room?.rentBy) ? room.rentBy : [];
+
+  return (
+    room?.hasConfirmedDeposit === true ||
+    room?.depositStatus === "confirmed" ||
+    confirmedTenants.length > 0 ||
+    rentBy.length > 0 ||
+    Number(room?.occupiedCount || 0) > 0
+  );
+};
 
 const MONTHLY_RENT_STATUSES = ["Pending", "Done", "Cancel"];
 
@@ -124,7 +138,7 @@ const ManageMonthlyRents = () => {
         page: 1,
         limit: 100,
       });
-      setRooms((res.data || []).filter(hasAcceptedDeposit));
+      setRooms((res.data || []).filter(hasConfirmedTenant));
     } catch (error) {
       message.error(error.message || "Failed to load rooms");
     }

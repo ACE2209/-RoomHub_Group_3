@@ -556,8 +556,13 @@ class MonthlyRentController {
         });
       }
 
+      // rentBy has been populated above, so each item may be a Mongoose document
+      // instead of a raw ObjectId. Always compare using the tenant _id.
       const renterIds = new Set(
-        (room.rentBy || []).map((id) => id.toString())
+        (room.rentBy || [])
+          .map((tenant) => tenant?._id || tenant)
+          .filter(Boolean)
+          .map((tenantId) => tenantId.toString())
       );
 
       const acceptedTenants = [

@@ -6,7 +6,10 @@ import DepositRoom from "../models/depositRoom.js";
 import PaymentBill from "../models/paymentBill.js";
 import UserPayment from "../models/userPayment.js";
 import RefundRequest from "../models/refundRequest.js";
-import { syncRoomAvailabilityWithReservations } from "../utils/paymentPolicy.js";
+import {
+  getRoomCapacityState,
+  syncRoomAvailabilityWithReservations,
+} from "../utils/paymentPolicy.js";
 
 const sortObject = (obj) => {
   const sorted = {};
@@ -334,12 +337,52 @@ const completePayment = async (payment, rawData) => {
 
     if (!deposit) throw new Error("Deposit not found");
 
-    if (deposit.status !== "accepted") {
-      throw new Error("Deposit must be accepted before payment");
-    }
-
     if (!deposit.roomId) {
       throw new Error("Room not found");
+    }
+
+    const alreadyConfirmed = deposit.status === "confirmed";
+    const alreadyInRoom = Array.isArray(deposit.roomId.rentBy) &&
+      deposit.roomId.rentBy.some(
+        (id) => id.toString() === deposit.accountId.toString()
+      );
+
+    // Callback có thể đã xác nhận deposit nhưng chưa kịp cập nhật UserPayment.
+    // Cho phép chạy lại an toàn để hoàn tất trạng thái giao dịch.
+    if (alreadyConfirmed && alreadyInRoom) {
+      payment.status = completedStatus;
+      payment.transactionNo =
+        rawData.vnp_TransactionNo ||
+        rawData.transId ||
+        rawData.zp_trans_id ||
+        rawData.zptransid ||
+        payment.transactionNo ||
+        "";
+      await payment.save();
+      const currentState = await getRoomCapacityState(deposit.roomId._id);
+      if (currentState && currentState.availableSlots === 0) {
+        await DepositRoom.updateMany(
+          {
+            _id: { $ne: deposit._id },
+            roomId: deposit.roomId._id,
+            status: { $in: ["pending", "accepted"] },
+          },
+          {
+            $set: {
+              status: "rejected",
+              reasonForCancel: currentState.isDormitory
+                ? "Phòng ký túc xá đã đủ số lượng người."
+                : "Phòng đã được người khác thanh toán cọc thành công.",
+            },
+          }
+        );
+      }
+      await syncRoomAvailabilityWithReservations(deposit.roomId._id);
+      return payment;
+    }
+
+    if (deposit.status !== "accepted") {
+      throw new Error("Deposit must be accepted before payment");
     }
 
     if (deposit.paymentDeadline && deposit.paymentDeadline <= new Date()) {
@@ -348,6 +391,18 @@ const completePayment = async (payment, rawData) => {
       await deposit.save();
       await syncRoomAvailabilityWithReservations(deposit.roomId._id);
       throw new Error("Deposit payment deadline has expired");
+    }
+
+    const capacityState = await getRoomCapacityState(deposit.roomId._id, {
+      excludeDepositId: deposit._id,
+    });
+
+    if (!capacityState || capacityState.availableSlots <= 0) {
+      deposit.status = "rejected";
+      deposit.reasonForCancel = "Phòng đã hết chỗ trước khi giao dịch được xác nhận.";
+      await deposit.save();
+      await syncRoomAvailabilityWithReservations(deposit.roomId._id);
+      throw new Error("Room capacity is no longer available");
     }
 
     deposit.status = "confirmed";
@@ -368,13 +423,8 @@ const completePayment = async (payment, rawData) => {
 
     await syncRoomAvailabilityWithReservations(deposit.roomId._id);
 
-    const typeCode =
-      deposit.roomId.boardingHouseId?.boardingHouseType?.codeName;
-    const isDormitory = typeCode === "nha_tro_kien_truc_xa";
-    const capacity = Math.max(
-      1,
-      Number(deposit.roomId.roomTypeId?.peopleNumber || 1)
-    );
+    const isDormitory = capacityState.isDormitory;
+    const capacity = capacityState.capacity;
     const occupiedCount = deposit.roomId.rentBy.length;
 
     // Phòng thường đóng ngay sau khi có một người cọc thành công.
@@ -465,21 +515,6 @@ const completeRefundPayment = async (refundRequestId, rawData = {}) => {
     rawData.zptransid ||
     refundRequest.refundTransactionNo ||
     "";
-
-deposit.status = "refunded";
-
-if (Array.isArray(room.rentBy)) {
-  room.rentBy = room.rentBy.filter(
-    (id) => id.toString() !== deposit.accountId.toString()
-  );
-}
-
-await room.save();
-await deposit.save();
-await refundRequest.save();
-
-// Tính lại trạng thái phòng sau khi hoàn tiền và xóa người thuê
-await syncRoomAvailabilityWithReservations(room._id);
 
   deposit.status = "refunded";
 
@@ -1047,16 +1082,56 @@ class PaymentController {
     try {
       console.log("ZaloPay redirect query:", req.query);
 
-      if (!verifyZaloPayRedirect(req.query)) {
+      const appTransId = req.query.apptransid || req.query.app_trans_id;
+
+      if (!appTransId) {
         return redirectToClient(
           "failed",
           "unknown",
-          "Invalid ZaloPay redirect checksum"
+          "Missing ZaloPay transaction id"
         );
       }
 
-      const appTransId = req.query.apptransid;
-      const zaloPayStatus = await queryZaloPayStatus(appTransId);
+      // Redirect chạy trên trình duyệt chỉ dùng để điều hướng. Một số phiên bản
+      // ZaloPay sandbox trả bộ tham số checksum khác nhau, vì vậy không được
+      // kết luận thanh toán thất bại chỉ từ checksum redirect. Kết quả thật
+      // được xác minh lại bằng API getstatusbyapptransid và callback có MAC.
+      if (!verifyZaloPayRedirect(req.query)) {
+        console.warn(
+          "ZaloPay redirect checksum mismatch; verifying transaction with ZaloPay API instead."
+        );
+      }
+
+      // Callback có thể đến trước redirect. Nếu DB đã hoàn tất thì trả thành
+      // công ngay, không phụ thuộc việc API trạng thái tạm thời lỗi.
+      const localRefund = await RefundRequest.findOne({
+        paymentOrderId: appTransId,
+      }).select("_id status");
+      const localPayment = await findUserPaymentForZaloPay(appTransId);
+
+      if (localRefund?.status === "accepted") {
+        return redirectToClient("success", "refund", "Refund payment successful");
+      }
+
+      if (localPayment && ["Paid", "Done"].includes(localPayment.status)) {
+        return redirectToClient(
+          "success",
+          localPayment.paymentBillId ? "rent" : "deposit",
+          "Payment successful"
+        );
+      }
+
+      let zaloPayStatus;
+      try {
+        zaloPayStatus = await queryZaloPayStatus(appTransId);
+      } catch (statusError) {
+        console.error("Cannot query ZaloPay status:", statusError.message);
+        return redirectToClient(
+          "pending",
+          localPayment?.paymentBillId ? "rent" : localPayment ? "deposit" : "unknown",
+          "Payment is being verified. Please refresh your payment list shortly."
+        );
+      }
 
       console.log("ZaloPay status response:", zaloPayStatus);
 
@@ -1068,7 +1143,7 @@ class PaymentController {
       const orderInfo = String(zaloPayStatus.order_info || "");
       const rawInfo = `${description} ${orderInfo}`;
 
-      const refundByOrderId = await RefundRequest.findOne({
+      const refundByOrderId = localRefund || await RefundRequest.findOne({
         paymentOrderId: appTransId,
       }).select("_id status");
 
@@ -1099,13 +1174,13 @@ class PaymentController {
         );
       }
 
-      const payment = await findUserPaymentForZaloPay(appTransId, rawInfo);
+      const payment = localPayment || await findUserPaymentForZaloPay(appTransId, rawInfo);
 
       if (!payment) {
         return redirectToClient(
           "failed",
-          "rent",
-          "Rent payment transaction not found"
+          "unknown",
+          "Payment transaction not found"
         );
       }
 
@@ -1115,7 +1190,7 @@ class PaymentController {
         return redirectToClient("success", type, "Payment already completed");
       }
 
-      if (payment.status !== "Pending") {
+      if (!["Pending", "Failed"].includes(payment.status)) {
         return redirectToClient(
           "failed",
           type,
@@ -1192,7 +1267,7 @@ class PaymentController {
       const orderInfo = String(data.order_info || "");
       const rawInfo = `${description} ${orderInfo}`;
 
-      const refundByOrderId = await RefundRequest.findOne({
+      const refundByOrderId = localRefund || await RefundRequest.findOne({
         paymentOrderId: appTransId,
       }).select("_id status");
 
@@ -1237,5 +1312,11 @@ class PaymentController {
     }
   }
 }
+
+export {
+  completePayment,
+  findUserPaymentForZaloPay,
+  queryZaloPayStatus,
+};
 
 export default new PaymentController();
