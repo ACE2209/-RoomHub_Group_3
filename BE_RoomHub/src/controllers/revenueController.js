@@ -57,12 +57,13 @@ const getBoardingHouseFromPayment = (payment) => {
 };
 
 const getPaymentType = (payment) => {
-  if (payment.depositRoomId) {
-    return "deposit";
-  }
 
   if (payment.paymentBillId) {
     return "rent";
+  }
+
+  if (payment.depositRoomId) {
+    return "deposit";
   }
 
   return null;
