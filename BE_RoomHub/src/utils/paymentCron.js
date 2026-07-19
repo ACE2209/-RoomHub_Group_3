@@ -1,5 +1,4 @@
 import cron from "node-cron";
-import nodemailer from "nodemailer";
 import DepositRoom from "../models/depositRoom.js";
 import PaymentBill from "../models/paymentBill.js";
 import UserPayment from "../models/userPayment.js";
@@ -9,33 +8,16 @@ import {
   AUTO_RELEASE_OVERDUE_RENT,
   syncRoomAvailabilityWithReservations,
 } from "./paymentPolicy.js";
+import {
+  formatDateTimeVi,
+  formatVnd,
+  sendPaymentEmail,
+} from "./paymentEmail.js";
 
 let running = false;
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: "trantnce180829@fpt.edu.vn",
-    pass: "rjvs rqzj nsut asvr",
-  },
-});
-
-const sendEmailSafe = async (to, subject, html) => {
-  if (!to) return false;
-
-  try {
-    await transporter.sendMail({
-      from: "trantnce180829@fpt.edu.vn",
-      to,
-      subject,
-      html,
-    });
-    return true;
-  } catch (error) {
-    console.error("Payment expiration email failed:", error.message);
-    return false;
-  }
-};
+const sendEmailSafe = async (to, subject, html) =>
+  sendPaymentEmail({ to, subject, html });
 
 
 export const processExpiredPayments = async () => {
@@ -86,6 +68,60 @@ export const processExpiredPayments = async () => {
       );
     }
 
+    // Gửi email riêng cho từng người chưa trả. Dùng orderInfo làm marker để
+    // không gửi lặp lại ở mỗi lần cron chạy và không cần thêm field/model mới.
+    const pendingRentPayments = await UserPayment.find({
+      status: "Pending",
+      paymentBillId: { $ne: null },
+    })
+      .populate("accountId", "fullname email")
+      .populate({
+        path: "paymentBillId",
+        populate: { path: "roomId", select: "roomNumber" },
+      });
+
+    for (const payment of pendingRentPayments) {
+      const bill = payment.paymentBillId;
+      if (!bill?.dueDate) continue;
+
+      const millisecondsUntilDue = new Date(bill.dueDate).getTime() - now.getTime();
+      const oneDay = 24 * 60 * 60 * 1000;
+      let marker = null;
+      let subject = null;
+      let message = null;
+
+      if (millisecondsUntilDue > 0 && millisecondsUntilDue <= oneDay) {
+        marker = "RENT_REMINDER_BEFORE_DUE";
+        subject = "Nhắc thanh toán tiền thuê sắp đến hạn";
+        message = "Khoản tiền thuê của bạn sẽ đến hạn trong vòng 24 giờ.";
+      } else if (millisecondsUntilDue <= 0) {
+        marker = "RENT_REMINDER_OVERDUE";
+        subject = "Tiền thuê đã quá hạn thanh toán";
+        message = "Khoản tiền thuê của bạn đã quá hạn. Vui lòng thanh toán trong thời gian gia hạn.";
+      }
+
+      if (!marker || String(payment.orderInfo || "").includes(marker)) continue;
+
+      const sent = await sendEmailSafe(
+        payment.accountId?.email,
+        subject,
+        `
+          <p>Xin chào <strong>${payment.accountId?.fullname || "bạn"}</strong>,</p>
+          <p>${message}</p>
+          <p>Phòng: <strong>${bill.roomId?.roomNumber || ""}</strong></p>
+          <p>Số tiền cần thanh toán: <strong>${formatVnd(payment.paymentAmount)}</strong></p>
+          <p>Hạn thanh toán: <strong>${formatDateTimeVi(bill.dueDate)}</strong></p>
+          <p>Thời gian gia hạn đến: <strong>${formatDateTimeVi(bill.gracePeriodEnd)}</strong></p>
+          <p><a href="${process.env.CLIENT_URL || "http://localhost:3001"}/monthly-rents">Mở trang thanh toán</a></p>
+        `
+      );
+
+      if (sent) {
+        payment.orderInfo = `${payment.orderInfo || ""} ${marker}`.trim();
+        await payment.save();
+      }
+    }
+
     await PaymentBill.updateMany(
       {
         status: "Pending",
@@ -126,8 +162,9 @@ export const processExpiredPayments = async () => {
         payment.orderInfo = `${payment.orderInfo || ""} AUTO_RELEASE_OVERDUE_RENT`.trim();
         await payment.save();
 
-        await DepositRoom.updateMany(
+        await DepositRoom.updateOne(
           {
+            _id: payment.depositRoomId,
             accountId: payment.accountId,
             roomId: bill.roomId,
             status: "confirmed",
@@ -141,16 +178,28 @@ export const processExpiredPayments = async () => {
           }
         );
 
+        const account = await Account.findById(payment.accountId).select("fullname email");
+        await sendEmailSafe(
+          account?.email,
+          "Hợp đồng thuê đã bị chấm dứt",
+          `
+            <p>Xin chào <strong>${account?.fullname || "bạn"}</strong>,</p>
+            <p>Hợp đồng thuê phòng <strong>${room.roomNumber || ""}</strong> đã bị chấm dứt
+            do khoản tiền thuê quá hạn không được thanh toán trong thời gian gia hạn.</p>
+            <p>Chỉ tài khoản của bạn được xóa khỏi phòng; các người thuê khác không bị ảnh hưởng.</p>
+          `
+        );
+
         await syncRoomAvailabilityWithReservations(bill.roomId);
       }
 
       const overdueBills = await PaymentBill.find({ status: "Overdue" });
       for (const bill of overdueBills) {
-        const unpaid = await UserPayment.exists({
+        const unresolved = await UserPayment.exists({
           paymentBillId: bill._id,
-          status: { $nin: ["Done", "Paid"] },
+          status: { $in: ["Pending", "Overdue", "Failed"] },
         });
-        if (!unpaid) {
+        if (!unresolved) {
           bill.status = "Done";
           bill.closedAt = now;
           await bill.save();
