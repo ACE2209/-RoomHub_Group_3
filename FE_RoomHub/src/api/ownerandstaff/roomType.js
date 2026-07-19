@@ -10,7 +10,10 @@ const getRolePrefix = () => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const role = user?.role || localStorage.getItem("role");
 
-    return role === "owner" ? "/owner" : "/staff";
+    if (role === "owner") return "/owner";
+    if (role === "staff") return "/staff";
+
+    throw new Error("You do not have permission to manage room types");
 };
 
 API.interceptors.request.use((config) => {
@@ -22,7 +25,8 @@ API.interceptors.request.use((config) => {
 });
 
 const handleError = (error) => {
-    const message = error.response?.data?.message || error.message;
+    const details = error.response?.data?.error || error.response?.data?.errors;
+    const message = details || error.response?.data?.message || error.message;
     throw new Error(message);
 };
 

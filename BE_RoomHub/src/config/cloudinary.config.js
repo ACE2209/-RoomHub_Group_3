@@ -1,6 +1,9 @@
 import multer from "multer";
+import dotenv from "dotenv";
 import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
+
+dotenv.config();
 
 // Cấu hình Cloudinary
 cloudinary.config({

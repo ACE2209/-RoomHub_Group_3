@@ -424,8 +424,8 @@ export default function OwnerBoardingHouseDetailPage() {
     data.append("name", form.name);
     data.append("description", form.description);
     data.append("priceRange", form.priceRange);
-    data.append("totalRooms", form.totalRooms || 0);
-    data.append("availableRooms", form.availableRooms || 0);
+    data.append("totalRooms", isCreate ? 0 : form.totalRooms || 0);
+    data.append("availableRooms", isCreate ? 0 : form.availableRooms || 0);
     data.append("electricityPrice", form.electricityPrice);
     data.append("waterPrice", form.waterPrice);
     data.append("address[province][name]", form.provinceName);
@@ -455,8 +455,6 @@ export default function OwnerBoardingHouseDetailPage() {
       "boardingHouseType",
       "name",
       "priceRange",
-      "totalRooms",
-      "availableRooms",
       "electricityPrice",
       "waterPrice",
       "provinceName",
@@ -616,8 +614,6 @@ export default function OwnerBoardingHouseDetailPage() {
 
               <TextField label="Tên nhà trọ *" value={form.name} onChange={(value) => updateField("name", value)} disabled={isReadOnly} />
               <TextField label="Giá thuê dự kiến (VNĐ) *" type="text" formatCurrency value={form.priceRange} onChange={(value) => updateField("priceRange", value)} disabled={isReadOnly} />
-              <TextField label="Tổng số phòng *" type="number" value={form.totalRooms} onChange={(value) => updateField("totalRooms", value)} disabled={isReadOnly} />
-              <TextField label="Số phòng còn trống *" type="number" value={form.availableRooms} onChange={(value) => updateField("availableRooms", value)} disabled={isReadOnly} />
               <TextField label="Giá điện (VNĐ/kWh) *" type="text" formatCurrency value={form.electricityPrice} onChange={(value) => updateField("electricityPrice", value)} disabled={isReadOnly} />
               <TextField label="Giá nước (VNĐ/m3) *" type="text" formatCurrency value={form.waterPrice} onChange={(value) => updateField("waterPrice", value)} disabled={isReadOnly} />
             </div>
