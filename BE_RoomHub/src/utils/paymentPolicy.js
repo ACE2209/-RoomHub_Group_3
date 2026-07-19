@@ -38,9 +38,15 @@ export const syncRoomAvailabilityWithReservations = async (roomId) => {
   const room = await Room.findById(roomId)
     .populate({
       path: "boardingHouseId",
-      populate: { path: "boardingHouseType", select: "codeName" },
+      populate: {
+        path: "boardingHouseType",
+        select: "codeName",
+      },
     })
-    .populate({ path: "roomTypeId", select: "peopleNumber" });
+    .populate({
+      path: "roomTypeId",
+      select: "peopleNumber",
+    });
 
   if (!room) return null;
 
@@ -50,22 +56,33 @@ export const syncRoomAvailabilityWithReservations = async (roomId) => {
     paymentDeadline: { $gt: new Date() },
   });
 
-  const renterCount = Array.isArray(room.rentBy) ? room.rentBy.length : 0;
-  const occupiedOrReserved = renterCount + activeReservations;
-  const typeCode = room.boardingHouseId?.boardingHouseType?.codeName;
-  const capacity = Number(room.roomTypeId?.peopleNumber || 1);
+  const renterCount = Array.isArray(room.rentBy)
+    ? room.rentBy.length
+    : 0;
 
-  if (typeCode === "nha_tro_kien_truc_xa") {
+  const capacity = Math.max(
+    1,
+    Number(room.roomTypeId?.peopleNumber || 1)
+  );
+
+  const occupiedOrReserved =
+    renterCount + activeReservations;
+
+  if (capacity > 1) {
     room.isAvailable = occupiedOrReserved < capacity;
   } else {
     room.isAvailable = occupiedOrReserved === 0;
   }
 
-  room.manuallySet = true;
+  // Đây là trạng thái hệ thống tự tính.
+  room.manuallySet = false;
+
   await room.save();
 
   if (room.boardingHouseId?._id) {
-    await updateBoardingHouseRoomCounts(room.boardingHouseId._id);
+    await updateBoardingHouseRoomCounts(
+      room.boardingHouseId._id
+    );
   }
 
   return room;
