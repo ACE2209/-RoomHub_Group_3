@@ -88,11 +88,11 @@ export default function MyBoardingHousesPage() {
       const res = await deleteOwnBoardingHouse(deleteTarget._id);
       if (res?.success) {
         setDeleteTarget(null);
-        setNotice({ type: "success", message: "Đã xóa nhà trọ thành công." });
+        setNotice({ type: "success", message: "Boarding house deleted successfully." });
         fetchHouses(pagination.currentPage, limit);
       }
     } catch (err) {
-      setNotice({ type: "error", message: err.message || "Xóa nhà trọ thất bại." });
+      setNotice({ type: "error", message: err.message || "Failed to delete boarding house." });
     } finally {
       setDeleting(false);
     }
@@ -215,17 +215,17 @@ export default function MyBoardingHousesPage() {
             <div style={modalIconStyle}>
               <Trash2 size={22} />
             </div>
-            <h3 style={modalTitleStyle}>Xóa nhà trọ?</h3>
+            <h3 style={modalTitleStyle}>Delete Boarding House?</h3>
             <p style={modalTextStyle}>
-              Nhà trọ <strong>{deleteTarget.name || "này"}</strong> sẽ bị xóa khỏi danh sách quản lý. Bạn có chắc muốn tiếp tục?
+              Boarding house <strong>{deleteTarget.name || "this item"}</strong> will be removed from the management list. Are you sure you want to continue?
             </p>
             <div style={modalActionsStyle}>
               <button type="button" style={secondaryBtnStyle} onClick={closeDeleteModal} disabled={deleting}>
-                Hủy
+                Cancel
               </button>
               <button type="button" style={dangerBtnStyle(deleting)} onClick={handleDelete} disabled={deleting}>
                 <Trash2 size={16} />
-                {deleting ? "Đang xóa..." : "Xóa nhà trọ"}
+                {deleting ? "Deleting..." : "Delete Boarding House"}
               </button>
             </div>
           </div>
