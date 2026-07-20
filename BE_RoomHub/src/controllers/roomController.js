@@ -75,8 +75,9 @@ const attachAcceptedDepositStatus = async (rooms) => {
             : "available",
       // Trạng thái hiển thị luôn theo người đang ở + chỗ accepted còn hạn.
       // Không để cờ chỉnh tay làm phòng đầy vẫn xuất hiện là còn trống.
-      isAvailable: !isFull,
-      // Deposit confirmed mới là người thuê chính thức.
+isAvailable: room.manuallySet
+  ? room.isAvailable && !isFull
+  : !isFull,      // Deposit confirmed mới là người thuê chính thức.
       hasConfirmedDeposit: occupiedCount > 0 || entry.confirmed.length > 0,
       hasAcceptedDeposit: reservedCount > 0,
       depositStatus:
