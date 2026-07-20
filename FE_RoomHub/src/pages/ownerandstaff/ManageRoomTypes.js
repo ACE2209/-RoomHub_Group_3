@@ -34,6 +34,10 @@ import "./ManageRoomTypes.css";
 
 const { Option } = Select;
 
+const pricePattern = /^[0-9.,]+$/;
+
+const normalizePriceInput = (value) => String(value ?? "").replace(/[.,]/g, "");
+
 const ManageRoomTypes = () => {
     const [loading, setLoading] = useState(false);
     const [boardingHouses, setBoardingHouses] = useState([]);
@@ -138,7 +142,7 @@ const ManageRoomTypes = () => {
             const formData = new FormData();
 
             formData.append("typeName", values.typeName);
-            formData.append("price", values.price);
+            formData.append("price", normalizePriceInput(values.price));
             formData.append(
                 "roomSize",
                 values.roomSize !== undefined && values.roomSize !== null
@@ -370,16 +374,32 @@ const ManageRoomTypes = () => {
                             rules={[
                                 { required: true, message: "Please enter price" },
                                 {
-                                    type: "number",
-                                    min: 0,
-                                    message: "Price must be greater than 0",
+                                    validator: (_, value) => {
+                                        const priceValue = String(value ?? "").trim();
+
+                                        if (!priceValue) {
+                                            return Promise.resolve();
+                                        }
+
+                                        if (!pricePattern.test(priceValue)) {
+                                            return Promise.reject(
+                                                new Error("Price can only contain numbers, dots, and commas")
+                                            );
+                                        }
+
+                                        const normalizedPrice = normalizePriceInput(priceValue);
+                                        if (!normalizedPrice || Number(normalizedPrice) <= 0) {
+                                            return Promise.reject(
+                                                new Error("Price must be greater than 0")
+                                            );
+                                        }
+
+                                        return Promise.resolve();
+                                    },
                                 },
                             ]}
                         >
-                            <InputNumber
-                                style={{ width: "100%" }}
-                                placeholder="e.g., 3000000"
-                            />
+                            <Input placeholder="e.g., 3,000,000 or 3.000.000" />
                         </Form.Item>
 
                         <Form.Item

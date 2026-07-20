@@ -78,8 +78,8 @@ staffRouter.delete("/room/boarding-house/:roomId", roomController.deleteRoom);
 //roomtype
 staffRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId.bind(roomTypeController));
 staffRouter.post("/boardinghouse/roomtype/:id/create", upload.single("roomType"), roomTypeController.addRoomTypeToBoardingHouse.bind(roomTypeController));
-staffRouter.put("/boardinghouse/roomtype/:roomTypeId", upload.single("roomType"), roomTypeController.updateRoomTypeToBoardingHouse.bind(roomTypeController));
-staffRouter.delete("/boardinghouse/roomtype/:roomTypeId", roomTypeController.softDeleteRoomType.bind(roomTypeController));
+staffRouter.put("/boardinghouse/roomtype/:roomTypeId/", upload.single("roomType"), roomTypeController.updateRoomTypeToBoardingHouse.bind(roomTypeController));
+staffRouter.delete("/boardinghouse/roomtype/:roomTypeId/", roomTypeController.softDeleteRoomType.bind(roomTypeController));
 
 staffRouter.get("/tasks", taskController.getManagedTasks.bind(taskController));
 staffRouter.post("/tasks", taskController.createManagedTask.bind(taskController));

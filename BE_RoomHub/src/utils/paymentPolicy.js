@@ -34,34 +34,84 @@ export const buildRentDeadlines = (from = new Date()) => {
   };
 };
 
-export const syncRoomAvailabilityWithReservations = async (roomId) => {
+export const getRoomCapacityState = async (roomId, options = {}) => {
+  const { excludeDepositId = null } = options;
+
   const room = await Room.findById(roomId)
     .populate({
       path: "boardingHouseId",
-      populate: { path: "boardingHouseType", select: "codeName" },
+      populate: {
+        path: "boardingHouseType",
+        select: "codeName",
+      },
     })
-    .populate({ path: "roomTypeId", select: "peopleNumber" });
+    .populate({
+      path: "roomTypeId",
+      select: "peopleNumber",
+    });
 
   if (!room) return null;
 
-  const activeReservations = await DepositRoom.countDocuments({
+  const typeCode = room.boardingHouseId?.boardingHouseType?.codeName || "";
+  const isDormitory = typeCode === "nha_tro_kien_truc_xa";
+  const capacity = isDormitory
+    ? Math.max(1, Number(room.roomTypeId?.peopleNumber || 1))
+    : 1;
+
+  const holdFilter = {
     roomId: room._id,
     status: "accepted",
     paymentDeadline: { $gt: new Date() },
-  });
+  };
 
-  const renterCount = Array.isArray(room.rentBy) ? room.rentBy.length : 0;
-  const occupiedOrReserved = renterCount + activeReservations;
-  const typeCode = room.boardingHouseId?.boardingHouseType?.codeName;
-  const capacity = Number(room.roomTypeId?.peopleNumber || 1);
-
-  if (typeCode === "nha_tro_kien_truc_xa") {
-    room.isAvailable = occupiedOrReserved < capacity;
-  } else {
-    room.isAvailable = occupiedOrReserved === 0;
+  if (excludeDepositId) {
+    holdFilter._id = { $ne: excludeDepositId };
   }
 
-  room.manuallySet = true;
+  const activeHolds = await DepositRoom.find(holdFilter)
+    .select("accountId")
+    .lean();
+
+  const occupiedAccountIds = new Set(
+    (Array.isArray(room.rentBy) ? room.rentBy : []).map((id) => id.toString())
+  );
+
+  // Không đếm trùng nếu cùng một tài khoản đã ở trong phòng nhưng còn giữ một
+  // yêu cầu accepted cũ.
+  const reservedAccountIds = new Set(
+    activeHolds
+      .map((item) => item.accountId?.toString())
+      .filter((id) => id && !occupiedAccountIds.has(id))
+  );
+
+  const occupiedCount = occupiedAccountIds.size;
+  const reservedCount = reservedAccountIds.size;
+  const usedSlots = occupiedCount + reservedCount;
+  const availableSlots = Math.max(0, capacity - usedSlots);
+
+  return {
+    room,
+    typeCode,
+    isDormitory,
+    capacity,
+    occupiedCount,
+    reservedCount,
+    usedSlots,
+    availableSlots,
+    isAvailable: availableSlots > 0,
+  };
+};
+
+export const syncRoomAvailabilityWithReservations = async (roomId) => {
+  const state = await getRoomCapacityState(roomId);
+  if (!state) return null;
+
+  const { room, isAvailable } = state;
+
+  room.isAvailable = isAvailable;
+  // Đây là trạng thái hệ thống tự tính.
+  room.manuallySet = false;
+
   await room.save();
 
   if (room.boardingHouseId?._id) {

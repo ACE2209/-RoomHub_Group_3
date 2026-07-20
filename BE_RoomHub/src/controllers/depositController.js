@@ -10,6 +10,7 @@ import paginate from "../utils/pagination.js";
 import { updateBoardingHouseRoomCounts } from "../utils/updateBoardingHouseRoomCounts.js";
 import {
   buildDepositPaymentDeadline,
+  getRoomCapacityState,
   syncRoomAvailabilityWithReservations,
 } from "../utils/paymentPolicy.js";
 class DepositController {
@@ -247,9 +248,6 @@ class DepositController {
       }
 
       const boardingHouseName = boardingHouse?.name || "Không có tên nhà trọ";
-      const boardingHouseTypeCode =
-        boardingHouse?.boardingHouseType?.codeName || "";
-
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
@@ -335,42 +333,37 @@ class DepositController {
         });
       }
 
-      if (boardingHouseTypeCode === "nha_tro_kien_truc_xa") {
-        const currentAcceptedCount = await DepositRoom.countDocuments({
-          roomId: deposit.roomId._id,
-          _id: { $ne: deposit._id },
-          $or: [
-            { status: "confirmed" },
-            { status: "accepted", paymentDeadline: { $gt: new Date() } },
-          ],
+      // Cả phòng đơn và ký túc xá đều phải kiểm tra số chỗ thực tế.
+      // Phòng thường luôn có capacity = 1; ký túc xá lấy peopleNumber.
+      const capacityState = await getRoomCapacityState(deposit.roomId._id, {
+        excludeDepositId: deposit._id,
+      });
+
+      if (!capacityState || capacityState.availableSlots <= 0) {
+        deposit.status = "rejected";
+        deposit.reasonForCancel = capacityState?.isDormitory
+          ? "Phòng ký túc xá đã đủ số lượng người."
+          : "Phòng đã có người giữ chỗ hoặc đang thuê.";
+        await deposit.save();
+
+        const emailSent = await sendEmailSafe(
+          recipientAccount.email,
+          "Yêu cầu đặt cọc đã bị từ chối",
+          `
+            <p>Xin chào <strong>${recipientAccount.fullname}</strong>,</p>
+            <p>Phòng <strong>${deposit.roomId.roomNumber}</strong>
+            tại nhà trọ <strong>${boardingHouseName}</strong> hiện đã hết chỗ.</p>
+          `,
+        );
+
+        return res.status(200).json({
+          message: "Phòng đã hết chỗ, đơn đã bị từ chối.",
+          success: true,
+          error: false,
+          status: "rejected",
+          depositId: deposit._id,
+          emailSent,
         });
-
-        const limit = Number(deposit.roomId.roomTypeId?.peopleNumber || 0);
-
-        if (currentAcceptedCount >= limit) {
-          deposit.status = "rejected";
-          deposit.reasonForCancel = "Phòng ký túc xá đã đủ số lượng người.";
-          await deposit.save();
-
-          const emailSent = await sendEmailSafe(
-            recipientAccount.email,
-            "Yêu cầu đặt cọc đã bị từ chối",
-            `
-              <p>Xin chào <strong>${recipientAccount.fullname}</strong>,</p>
-              <p>Phòng <strong>${deposit.roomId.roomNumber}</strong>
-              tại nhà trọ <strong>${boardingHouseName}</strong> đã đủ người.</p>
-            `,
-          );
-
-          return res.status(200).json({
-            message: "Phòng đã đủ người, đơn đã bị từ chối.",
-            success: true,
-            error: false,
-            status: "rejected",
-            depositId: deposit._id,
-            emailSent,
-          });
-        }
       }
 
       deposit.status = "accepted";
@@ -464,10 +457,16 @@ class DepositController {
         });
       }
 
-      const room = await Room.findById(roomId).populate({
-        path: "roomTypeId",
-        select: "typeName price peopleNumber roomSize",
-      });
+      const room = await Room.findById(roomId)
+        .populate({
+          path: "roomTypeId",
+          select: "typeName price peopleNumber roomSize",
+        })
+        .populate({
+          path: "boardingHouseId",
+          select: "boardingHouseType",
+          populate: { path: "boardingHouseType", select: "codeName" },
+        });
 
       if (!room) {
         return res.status(404).json({
@@ -476,10 +475,13 @@ class DepositController {
         });
       }
 
-      if (!room.isAvailable) {
+      const capacityState = await getRoomCapacityState(room._id);
+
+      if (!capacityState || capacityState.availableSlots <= 0) {
+        await syncRoomAvailabilityWithReservations(room._id);
         return res.status(400).json({
           success: false,
-          message: "This room is not available",
+          message: "This room is full or currently held for payment",
         });
       }
 
@@ -523,18 +525,6 @@ class DepositController {
         return res.status(400).json({
           success: false,
           message: "You already have a deposit request for this room",
-        });
-      }
-
-      const roomHasAcceptedDeposit = await DepositRoom.findOne({
-        roomId,
-        status: { $in: ["accepted", "confirmed"] },
-      });
-
-      if (roomHasAcceptedDeposit) {
-        return res.status(400).json({
-          success: false,
-          message: "This room already has an accepted or confirmed deposit",
         });
       }
 
