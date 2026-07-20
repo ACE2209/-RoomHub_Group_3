@@ -4,6 +4,7 @@ import {
   deleteReport,
   filterBoardingHouseReports,
   getBoardingHouseReports,
+  sendReportReplyByEmail,
 } from "../../api/report";
 
 export default function BoardingHouseReportManagementPage() {
@@ -15,6 +16,12 @@ export default function BoardingHouseReportManagementPage() {
     endDate: "",
   });
   const [isFiltered, setIsFiltered] = useState(false);
+  const [replyTarget, setReplyTarget] = useState(null);
+  const [replyForm, setReplyForm] = useState({
+    status: "pending",
+    detailReport: "",
+  });
+  const [sending, setSending] = useState(false);
 
   const fetchReports = useCallback(async () => {
     try {
@@ -97,6 +104,80 @@ export default function BoardingHouseReportManagementPage() {
     } catch (error) {
       console.error("Error deleting report:", error);
       alert(error.message || "Failed to delete report");
+    }
+  };
+
+  const openReplyModal = (report) => {
+    setReplyTarget(report);
+    setReplyForm({
+      status: report.status || "pending",
+      detailReport: report.detailReport || "",
+    });
+  };
+
+  const closeReplyModal = () => {
+    if (sending) return;
+
+    setReplyTarget(null);
+    setReplyForm({
+      status: "pending",
+      detailReport: "",
+    });
+  };
+
+  const handleReplyChange = (event) => {
+    const { name, value } = event.target;
+
+    setReplyForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const refreshReports = async () => {
+    if (isFiltered) {
+      await handleApplyFilter();
+      return;
+    }
+
+    await fetchReports();
+  };
+
+  const handleSendReply = async (event) => {
+    event.preventDefault();
+
+    if (!replyTarget?._id) {
+      alert("Report ID not found");
+      return;
+    }
+
+    const detailReport = replyForm.detailReport.trim();
+
+    if (!detailReport) {
+      alert("Reply message is required");
+      return;
+    }
+
+    try {
+      setSending(true);
+
+      await sendReportReplyByEmail(replyTarget._id, {
+        status: replyForm.status,
+        detailReport,
+      });
+
+      alert("Reply email sent successfully");
+      setReplyTarget(null);
+      setReplyForm({
+        status: "pending",
+        detailReport: "",
+      });
+      await refreshReports();
+    } catch (error) {
+      console.error("Send boarding house report reply failed:", error);
+      alert(error.message || "Failed to send reply email");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -213,9 +294,14 @@ export default function BoardingHouseReportManagementPage() {
                   </td>
                   <td style={tdStyle}>{formatDateTime(report.createdAt)}</td>
                   <td style={tdStyle}>
-                    <button style={deleteBtnStyle} onClick={() => handleDelete(report._id)}>
-                      Delete
-                    </button>
+                    <div style={actionStyle}>
+                      <button style={replyBtnStyle} onClick={() => openReplyModal(report)}>
+                        Reply Email
+                      </button>
+                      <button style={deleteBtnStyle} onClick={() => handleDelete(report._id)}>
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -223,6 +309,80 @@ export default function BoardingHouseReportManagementPage() {
           </tbody>
         </table>
       </div>
+
+      {replyTarget && (
+        <div style={modalOverlayStyle} onClick={closeReplyModal}>
+          <div style={modalStyle} onClick={(event) => event.stopPropagation()}>
+            <div style={modalHeaderStyle}>
+              <div>
+                <h3 style={modalTitleStyle}>Reply Report By Email</h3>
+                <p style={modalSubtitleStyle}>
+                  {displayValue(replyTarget.reporter?.email, "Reporter email not found")}
+                </p>
+              </div>
+              <button type="button" style={closeBtnStyle} onClick={closeReplyModal}>
+                x
+              </button>
+            </div>
+
+            <div style={modalInfoStyle}>
+              <strong>{getBoardingHouseName(replyTarget)}</strong>
+              <span>{displayValue(replyTarget.reason)}</span>
+            </div>
+
+            <form style={replyFormStyle} onSubmit={handleSendReply}>
+              <div>
+                <label style={modalLabelStyle}>Status</label>
+                <select
+                  name="status"
+                  value={replyForm.status}
+                  onChange={handleReplyChange}
+                  style={modalInputStyle}
+                >
+                  {reportStatuses.map((status) => (
+                    <option key={status.value} value={status.value}>
+                      {status.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={modalLabelStyle}>Reply Message</label>
+                <textarea
+                  name="detailReport"
+                  value={replyForm.detailReport}
+                  onChange={handleReplyChange}
+                  placeholder="Enter the response that will be emailed to the reporter..."
+                  style={modalTextareaStyle}
+                />
+              </div>
+
+              <div style={modalActionStyle}>
+                <button
+                  type="button"
+                  style={cancelBtnStyle}
+                  onClick={closeReplyModal}
+                  disabled={sending}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    ...sendBtnStyle,
+                    opacity: sending ? 0.7 : 1,
+                    cursor: sending ? "not-allowed" : "pointer",
+                  }}
+                  disabled={sending}
+                >
+                  {sending ? "Sending..." : "Send Email & Update"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
@@ -263,6 +423,13 @@ const getAddress = (report) => {
 const formatDateTime = (value) => (
   value ? new Date(value).toLocaleString() : "N/A"
 );
+
+const reportStatuses = [
+  { value: "pending", label: "Pending" },
+  { value: "processing", label: "Processing" },
+  { value: "resolved", label: "Resolved" },
+  { value: "rejected", label: "Rejected" },
+];
 
 const pageHeaderStyle = {
   display: "flex",
@@ -418,4 +585,130 @@ const clearBtnStyle = {
 const deleteBtnStyle = {
   ...buttonStyle,
   background: "#ef4444",
+};
+
+const replyBtnStyle = {
+  ...buttonStyle,
+  background: "#2f80ed",
+};
+
+const actionStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const modalOverlayStyle = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(15, 23, 42, 0.45)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 20,
+  zIndex: 9999,
+};
+
+const modalStyle = {
+  width: "min(560px, 100%)",
+  background: "#ffffff",
+  borderRadius: 10,
+  padding: 22,
+  boxShadow: "0 20px 45px rgba(15, 23, 42, 0.25)",
+};
+
+const modalHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 14,
+  marginBottom: 16,
+};
+
+const modalTitleStyle = {
+  margin: 0,
+  color: "#27364a",
+  fontSize: 20,
+  fontWeight: 700,
+};
+
+const modalSubtitleStyle = {
+  margin: "6px 0 0",
+  color: "#667085",
+  fontSize: 13,
+  overflowWrap: "anywhere",
+};
+
+const closeBtnStyle = {
+  width: 34,
+  height: 34,
+  borderRadius: 6,
+  border: "1px solid #e5e7eb",
+  background: "#ffffff",
+  color: "#344054",
+  cursor: "pointer",
+  fontWeight: 700,
+};
+
+const modalInfoStyle = {
+  display: "grid",
+  gap: 5,
+  background: "#f8fafc",
+  borderRadius: 8,
+  padding: 12,
+  marginBottom: 16,
+  color: "#344054",
+};
+
+const replyFormStyle = {
+  display: "grid",
+  gap: 14,
+};
+
+const modalLabelStyle = {
+  display: "block",
+  marginBottom: 7,
+  color: "#27364a",
+  fontSize: 13,
+  fontWeight: 700,
+};
+
+const modalInputStyle = {
+  width: "100%",
+  height: 42,
+  border: "1px solid #d0d5dd",
+  borderRadius: 8,
+  padding: "0 12px",
+  color: "#344054",
+  fontSize: 14,
+  boxSizing: "border-box",
+  background: "#ffffff",
+};
+
+const modalTextareaStyle = {
+  ...modalInputStyle,
+  minHeight: 130,
+  height: "auto",
+  padding: 12,
+  resize: "vertical",
+  lineHeight: 1.5,
+};
+
+const modalActionStyle = {
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: 10,
+};
+
+const cancelBtnStyle = {
+  ...buttonStyle,
+  marginRight: 0,
+  background: "#e5e7eb",
+  color: "#374151",
+};
+
+const sendBtnStyle = {
+  ...buttonStyle,
+  marginRight: 0,
+  background: "#2f80ed",
 };

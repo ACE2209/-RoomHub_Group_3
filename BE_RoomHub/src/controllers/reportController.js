@@ -560,30 +560,60 @@ class reportController {
         ? updatedReport.processedBy.fullname
         : 'Admin';
 
-      await Report.updateMany(
-        {
-          targetId: report.targetId,
-          reportType: report.reportType,
-          reason: report.reason,
-          deleted: { $ne: true },
-        },
-        { $set: { status, detailReport, processedBy: report.processedBy } }
+      const mailUser =
+        process.env.MAIL_USER ||
+        process.env.GMAIL_USER ||
+        process.env.EMAIL_USER;
+      const mailPass =
+        process.env.MAIL_PASS ||
+        process.env.GMAIL_PASSWORD ||
+        process.env.EMAIL_PASS;
+
+      if (!mailUser || !mailPass) {
+        return res.status(500).json({
+          success: false,
+          message: 'Email service is not configured. Please set MAIL_USER and MAIL_PASS.',
+        });
+      }
+
+      const reportsWithEmail = relatedReports.filter(
+        (relatedReport) => relatedReport.reporter?.email
       );
 
+      if (reportsWithEmail.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Reporter email not found',
+        });
+      }
+
       const transporter = nodemailer.createTransport({
-        service: 'gmail',
+        service: process.env.MAIL_SERVICE || 'gmail',
         auth: {
-          user: process.env.GMAIL_USER || 'support@roomhub.com',
-          pass: process.env.GMAIL_PASSWORD || '',
+          user: mailUser,
+          pass: mailPass,
         },
       });
 
-      for (const relatedReport of relatedReports) {
-        const mailOptions = {
-          from: 'RoomHub Support <support@roomhub.com>',
-          to: relatedReport.reporter.email,
-          subject: `Report Response: #${relatedReport._id}`,
-          html: `
+      try {
+        await transporter.verify();
+      } catch (emailError) {
+        console.error('Error verifying email service:', emailError);
+        return res.status(500).json({
+          success: false,
+          message: 'Email service is not available. Please check MAIL_USER and MAIL_PASS.',
+        });
+      }
+
+      let emailsSent = 0;
+
+      try {
+        for (const relatedReport of reportsWithEmail) {
+          const mailOptions = {
+            from: `RoomHub Support <${mailUser}>`,
+            to: relatedReport.reporter.email,
+            subject: `Report Response: #${relatedReport._id}`,
+            html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <p>Dear ${relatedReport.reporter.fullname},</p>
               <p>Thank you for submitting a report about <strong>"${relatedReport.reason}"</strong> on RoomHub.</p>
@@ -612,22 +642,37 @@ class reportController {
                   <td style="padding: 10px; border: 1px solid #ddd;">${detailReport}</td>
                 </tr>
               </table>
-              <p>If you have any further questions or need additional support, please contact us at <a href="mailto:support@roomhub.com">support@roomhub.com</a>.</p>
+              <p>If you have any further questions or need additional support, please contact us at <a href="mailto:${mailUser}">${mailUser}</a>.</p>
               <p>Thank you,<br>RoomHub Support Team</p>
             </div>
           `,
-        };
+          };
 
-        try {
           await transporter.sendMail(mailOptions);
-        } catch (emailError) {
-          console.error('Error sending email:', emailError);
+          emailsSent += 1;
         }
+      } catch (emailError) {
+        console.error('Error sending email:', emailError);
+        return res.status(502).json({
+          success: false,
+          message: 'Failed to send report reply email. Please check SMTP credentials and reporter email.',
+        });
       }
+
+      await Report.updateMany(
+        {
+          targetId: report.targetId,
+          reportType: report.reportType,
+          reason: report.reason,
+          deleted: { $ne: true },
+        },
+        { $set: { status, detailReport, processedBy: report.processedBy } }
+      );
 
       return res.status(200).json({
         success: true,
         message: 'Report processed and emails sent successfully',
+        emailsSent,
       });
     } catch (error) {
       console.error('Error sending report reply:', error);

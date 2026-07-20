@@ -61,6 +61,22 @@ export const deleteReport = async (reportId) => {
   return parseJsonResponse(res);
 };
 
+export const sendReportReplyByEmail = async (reportId, data) => {
+  const res = await fetch(
+    `${API_URL}/dashboard/reports/${reportId}/send-email`,
+    {
+      method: "PUT",
+      headers: {
+        ...authHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    }
+  );
+
+  return parseJsonResponse(res);
+};
+
 // Filter multiple report reviews
 export const filterReports = async (params = {}) => {
   const query = new URLSearchParams(params).toString();
