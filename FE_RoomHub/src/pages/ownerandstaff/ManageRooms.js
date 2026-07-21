@@ -56,14 +56,37 @@ const hasAcceptedDeposit = (room) =>
 
 const renderRoomStatus = (room) => {
   if (hasAcceptedDeposit(room)) {
-    return <span style={{ color: "#b7791f", fontWeight: 700 }}>Đã đặt cọc</span>;
+    return (
+      <span style={{ color: "#b7791f", fontWeight: 700 }}>
+        Reserved
+      </span>
+    );
   }
 
-  if (room.isAvailable) {
-    return <span style={{ color: "#087443", fontWeight: 700 }}>Available</span>;
+  const capacity = room.roomTypeId?.peopleNumber || 1;
+  const tenantCount = room.rentBy?.length || 0;
+
+  if (tenantCount >= capacity) {
+    return (
+      <span style={{ color: "#b32f1f", fontWeight: 700 }}>
+        Occupied
+      </span>
+    );
   }
 
-  return <span style={{ color: "#b32f1f", fontWeight: 700 }}>Occupied</span>;
+  if (!room.isAvailable) {
+    return (
+      <span style={{ color: "#d97706", fontWeight: 700 }}>
+        Unavailable
+      </span>
+    );
+  }
+
+  return (
+    <span style={{ color: "#087443", fontWeight: 700 }}>
+      Available
+    </span>
+  );
 };
 
 const ManageRooms = () => {
