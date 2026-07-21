@@ -5,6 +5,7 @@ import {
   Col,
   Dropdown,
   Form,
+  Input,
   InputNumber,
   Modal,
   Row,
@@ -40,6 +41,16 @@ const formatCurrency = (value) =>
     currency: "VND",
   });
 
+const formatDate = (value) =>
+  value ? new Date(value).toLocaleDateString("vi-VN") : "";
+
+const formatBillingPeriod = (bill) => {
+  if (bill?.periodStart && bill?.periodEnd) {
+    return `${formatDate(bill.periodStart)} - ${formatDate(bill.periodEnd)}`;
+  }
+  return `${bill?.month || ""}/${bill?.year || ""}`;
+};
+
 const getTenantNames = (rentBy = []) => {
   if (!rentBy.length) {
     return "No tenants";
@@ -59,30 +70,8 @@ const getRoomTenantNames = (room) => {
     : getTenantNames(room?.rentBy || []);
 };
 
-const getCurrentPeriod = () => {
-  const date = new Date();
-  return {
-    month: date.getMonth() + 1,
-    year: date.getFullYear(),
-  };
-};
-
-// Chỉ hiển thị phòng có người thuê chính thức để tạo hóa đơn tháng.
-// Deposit "accepted" mới chỉ là giữ chỗ, chưa được tính là người thuê.
-const hasConfirmedTenant = (room) => {
-  const confirmedTenants = Array.isArray(room?.confirmedTenants)
-    ? room.confirmedTenants
-    : [];
-  const rentBy = Array.isArray(room?.rentBy) ? room.rentBy : [];
-
-  return (
-    room?.hasConfirmedDeposit === true ||
-    room?.depositStatus === "confirmed" ||
-    confirmedTenants.length > 0 ||
-    rentBy.length > 0 ||
-    Number(room?.occupiedCount || 0) > 0
-  );
-};
+const hasAcceptedDeposit = (room) =>
+  room?.hasAcceptedDeposit || room?.depositStatus === "accepted";
 
 const MONTHLY_RENT_STATUSES = ["Pending", "Done", "Cancel"];
 
@@ -173,11 +162,8 @@ const ManageMonthlyRents = () => {
       return message.warning("Please select a room first");
     }
 
-    const period = getCurrentPeriod();
-
     form.setFieldsValue({
-      month: period.month,
-      year: period.year,
+      billingDate: undefined,
       currentElectricityReading: selectedRoomData?.currentElectricityReading || 0,
       currentWaterReading: selectedRoomData?.currentWaterReading || 0,
     });
@@ -194,7 +180,12 @@ const ManageMonthlyRents = () => {
         throw new Error(res?.message || "Failed to calculate monthly rent");
       }
 
-      message.success("Monthly rent calculated successfully");
+      const bill = res?.data?.bill;
+      message.success(
+        bill?.cycleNumber
+          ? `Created bill for cycle ${bill.cycleNumber}: ${formatBillingPeriod(bill)}`
+          : "Monthly rent calculated successfully"
+      );
       setIsModalOpen(false);
       await loadBills({ roomId: selectedRoom });
     } catch (error) {
@@ -247,7 +238,12 @@ const ManageMonthlyRents = () => {
     },
     {
       title: "Period",
-      render: (_, record) => `${record.month}/${record.year}`,
+      render: (_, record) => (
+        <div>
+          <div>{formatBillingPeriod(record)}</div>
+          {record.cycleNumber ? <small>Cycle {record.cycleNumber}</small> : null}
+        </div>
+      ),
     },
     {
       title: "Total Amount",
@@ -370,26 +366,20 @@ const ManageMonthlyRents = () => {
           onCancel={() => setIsModalOpen(false)}
         >
           <Form form={form} layout="vertical">
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  name="month"
-                  label="Month"
-                  rules={[{ required: true, message: "Please enter month" }]}
-                >
-                  <InputNumber min={1} max={12} style={{ width: "100%" }} />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="year"
-                  label="Year"
-                  rules={[{ required: true, message: "Please enter year" }]}
-                >
-                  <InputNumber min={2024} style={{ width: "100%" }} />
-                </Form.Item>
-              </Col>
-            </Row>
+            <p>
+              Select the start date of the rental billing cycle. It must match the
+              tenant's contract cycle and remain within the rental period. Bills may
+              be prepared in advance.
+            </p>
+            <Form.Item
+              name="billingDate"
+              label="Billing cycle start date"
+              rules={[
+                { required: true, message: "Please select the billing date" },
+              ]}
+            >
+              <Input type="date" />
+            </Form.Item>
             <Form.Item
               name="currentElectricityReading"
               label="Current Electricity Reading"

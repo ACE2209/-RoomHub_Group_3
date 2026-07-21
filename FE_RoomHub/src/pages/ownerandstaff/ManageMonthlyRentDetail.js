@@ -195,7 +195,11 @@ const ManageMonthlyRentDetail = () => {
                   {getTenantNames(room?.rentBy || [])}
                 </Descriptions.Item>
                 <Descriptions.Item label="Period">
-                  {bill.month}/{bill.year}
+                  {bill.periodStart && bill.periodEnd
+                    ? `${new Date(bill.periodStart).toLocaleDateString("vi-VN")} - ${new Date(
+                        bill.periodEnd
+                      ).toLocaleDateString("vi-VN")}`
+                    : `${bill.month}/${bill.year}`}
                 </Descriptions.Item>
                 <Descriptions.Item label="Status">
                   <Tag color={getStatusColor(bill.status)}>

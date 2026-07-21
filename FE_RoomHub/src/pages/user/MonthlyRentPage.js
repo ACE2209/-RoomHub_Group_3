@@ -74,7 +74,14 @@ export default function MonthlyRentPage() {
               >
                 <h3>Room {bill.roomId?.roomNumber || "N/A"}</h3>
                 <p>Boarding house: {bill.roomId?.boardingHouseId?.name}</p>
-                <p>Month: {bill.month}/{bill.year}</p>
+                <p>
+                  Period:{" "}
+                  {bill.periodStart && bill.periodEnd
+                    ? `${new Date(bill.periodStart).toLocaleDateString("vi-VN")} - ${new Date(
+                        bill.periodEnd
+                      ).toLocaleDateString("vi-VN")}`
+                    : `${bill.month}/${bill.year}`}
+                </p>
                 <p>Amount: <b>{formatCurrency(bill.paymentAmount)}</b></p>
                 <p>Status: <b>{bill.status}</b></p>
 

@@ -9,6 +9,15 @@ import Header from "../layout/homepage/header";
 import Footer from "../layout/homepage/footer";
 import ProfileSidebar from "../profile/ProfileSidebar";
 
+const formatPeriod = (bill) => {
+  if (bill?.periodStart && bill?.periodEnd) {
+    return `${new Date(bill.periodStart).toLocaleDateString("vi-VN")} - ${new Date(
+      bill.periodEnd
+    ).toLocaleDateString("vi-VN")}`;
+  }
+  return `${bill?.month || ""}/${bill?.year || ""}`;
+};
+
 const formatCurrency = (value) =>
   Number(value || 0).toLocaleString("vi-VN", {
     style: "currency",
@@ -61,8 +70,7 @@ const MyMonthlyRentsPage = () => {
     },
     {
       title: "Period",
-      render: (_, record) =>
-        `${record.paymentBillId?.month || ""}/${record.paymentBillId?.year || ""}`,
+      render: (_, record) => formatPeriod(record.paymentBillId),
     },
     {
       title: "Due date",

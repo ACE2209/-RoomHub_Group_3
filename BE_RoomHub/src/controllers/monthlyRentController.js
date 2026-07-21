@@ -23,14 +23,81 @@ const RENT_DEPOSIT_STATUSES = ["confirmed"];
 
 const roundMoney = (value) => Math.round(Number(value || 0));
 
-const getPreviousPeriod = () => {
-  const now = new Date();
-  now.setMonth(now.getMonth() - 1);
+const startOfDay = (value) => {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
 
-  return {
-    month: now.getMonth() + 1,
-    year: now.getFullYear(),
-  };
+const endOfDay = (value) => {
+  const date = new Date(value);
+  date.setHours(23, 59, 59, 999);
+  return date;
+};
+
+const parseBillingDate = (value) => {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day, 0, 0, 0, 0);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+};
+
+const toDateKey = (value) => {
+  const date = startOfDay(value);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+};
+
+// Calculate every boundary from the original rental date so contracts that
+// start on the 29th-31st do not permanently drift after a shorter month.
+const addAnchoredMonths = (startDate, months) => {
+  const start = startOfDay(startDate);
+  const target = new Date(
+    start.getFullYear(),
+    start.getMonth() + months,
+    1,
+    0,
+    0,
+    0,
+    0
+  );
+  const lastDay = new Date(
+    target.getFullYear(),
+    target.getMonth() + 1,
+    0
+  ).getDate();
+  target.setDate(Math.min(start.getDate(), lastDay));
+  return target;
+};
+
+const getDepositCycleRange = (deposit, cycleNumber) => {
+  const periodStart = addAnchoredMonths(deposit.startDate, cycleNumber - 1);
+  const nextPeriodStart = addAnchoredMonths(deposit.startDate, cycleNumber);
+  const contractEnd = startOfDay(deposit.endDate);
+
+  if (periodStart >= contractEnd) {
+    return null;
+  }
+
+  const exclusiveEnd = nextPeriodStart < contractEnd ? nextPeriodStart : contractEnd;
+  const periodEnd = endOfDay(new Date(exclusiveEnd.getTime() - 1));
+
+  return { periodStart, periodEnd };
 };
 
 const getPeriodRange = (month, year) => {
@@ -48,9 +115,20 @@ const getBillRoomId = (bill) => bill?.roomId?._id || bill?.roomId;
 const getUserDepositFilterForBill = (userId, bill) => {
   const roomId = getBillRoomId(bill);
 
-  if (!userId || !roomId || !bill?.month || !bill?.year) {
+  if (!userId || !roomId) {
     return null;
   }
+
+  if (bill?.depositRoomId) {
+    return {
+      _id: bill.depositRoomId?._id || bill.depositRoomId,
+      accountId: userId,
+      roomId,
+      status: { $in: RENT_DEPOSIT_STATUSES },
+    };
+  }
+
+  if (!bill?.month || !bill?.year) return null;
 
   const { periodStart, periodEnd } = getPeriodRange(bill.month, bill.year);
 
@@ -66,9 +144,19 @@ const getUserDepositFilterForBill = (userId, bill) => {
 const isDepositMatchedWithBill = (deposit, bill) => {
   const roomId = getBillRoomId(bill);
 
-  if (!deposit || !roomId || !bill?.month || !bill?.year) {
+  if (!deposit || !roomId) {
     return false;
   }
+
+  if (bill?.depositRoomId) {
+    return (
+      deposit._id?.toString() ===
+        (bill.depositRoomId?._id || bill.depositRoomId).toString() &&
+      deposit.roomId?.toString() === roomId.toString()
+    );
+  }
+
+  if (!bill?.month || !bill?.year) return false;
 
   const { periodStart, periodEnd } = getPeriodRange(bill.month, bill.year);
 
@@ -253,7 +341,7 @@ class MonthlyRentController {
             },
           ],
         })
-        .sort({ year: -1, month: -1, createdAt: -1 });
+        .sort({ periodStart: -1, year: -1, month: -1, createdAt: -1 });
 
       const userId = req.user.userId;
       const managedBills = bills.filter((bill) => {
@@ -463,29 +551,11 @@ class MonthlyRentController {
     try {
       const { roomId } = req.params;
       const {
-        month,
-        year,
+        depositRoomId,
+        billingDate,
         currentElectricityReading,
         currentWaterReading,
       } = req.body;
-
-      const period = {
-        month: Number(month || getPreviousPeriod().month),
-        year: Number(year || getPreviousPeriod().year),
-      };
-
-      if (
-        !Number.isInteger(period.month) ||
-        period.month < 1 ||
-        period.month > 12 ||
-        !Number.isInteger(period.year) ||
-        period.year < 2000
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid billing period. Month must be 1-12 and year must be valid.",
-        });
-      }
 
       const room = await Room.findById(roomId)
         .populate("rentBy", "fullname email phoneNumber")
@@ -512,84 +582,98 @@ class MonthlyRentController {
         });
       }
 
-      const existingBill = await PaymentBill.findOne({
+      const depositFilter = {
         roomId,
-        month: period.month,
-        year: period.year,
-      });
+        status: { $in: RENT_DEPOSIT_STATUSES },
+      };
+      if (depositRoomId) depositFilter._id = depositRoomId;
 
+      const deposits = await DepositRoom.find(depositFilter)
+        .populate("accountId", "fullname email phoneNumber")
+        .sort({ startDate: 1 })
+        .lean();
+
+      if (!deposits.length) {
+        return res.status(400).json({
+          success: false,
+          message: "This room has no accepted or confirmed rental contract.",
+        });
+      }
+
+      const selectedBillingDate = parseBillingDate(billingDate);
+      if (!selectedBillingDate) {
+        return res.status(400).json({
+          success: false,
+          code: "INVALID_BILLING_DATE",
+          message: "Please select a valid billing date in YYYY-MM-DD format.",
+        });
+      }
+
+      const cycleCandidates = deposits.flatMap((item) =>
+        Array.from({ length: Number(item.rentalTime) }, (_, index) => {
+          const cycleNumber = index + 1;
+          return {
+            deposit: item,
+            cycleNumber,
+            range: getDepositCycleRange(item, cycleNumber),
+          };
+        }).filter((candidate) => candidate.range)
+      );
+      const selectedDateKey = toDateKey(selectedBillingDate);
+      const selectedCycle = cycleCandidates.find(
+        (candidate) => toDateKey(candidate.range.periodStart) === selectedDateKey
+      );
+
+      if (!selectedCycle) {
+        const validBillingDates = [
+          ...new Set(
+            cycleCandidates.map((candidate) =>
+              toDateKey(candidate.range.periodStart)
+            )
+          ),
+        ];
+        return res.status(400).json({
+          success: false,
+          code: "BILLING_DATE_NOT_ON_CONTRACT_CYCLE",
+          message: `The selected date is not a billing-cycle start date. Valid dates: ${validBillingDates.join(", ")}.`,
+          data: { validBillingDates },
+        });
+      }
+
+      const { deposit, cycleNumber, range: cycleRange } = selectedCycle;
+
+      if (!deposit.accountId) {
+        return res.status(400).json({
+          success: false,
+          message: "The rental contract has no tenant information.",
+        });
+      }
+
+      const { periodStart, periodEnd } = cycleRange;
+
+      const existingBill = await PaymentBill.findOne({
+        $or: [
+          { depositRoomId: deposit._id, cycleNumber },
+          {
+            roomId,
+            month: periodStart.getMonth() + 1,
+            year: periodStart.getFullYear(),
+          },
+        ],
+      });
       if (existingBill) {
         return res.status(409).json({
           success: false,
           code: "MONTHLY_RENT_BILL_EXISTS",
-          message: `Bill for ${period.month}/${period.year} already exists.`,
-          data: {
-            bill: existingBill,
-          },
+          message: `Bill for cycle ${cycleNumber} already exists.`,
+          data: { bill: existingBill },
         });
       }
 
-      const { periodStart, periodEnd } = getPeriodRange(
-        period.month,
-        period.year
-      );
-      const activeDeposits = await DepositRoom.find({
-        roomId,
-        status: { $in: RENT_DEPOSIT_STATUSES },
-        startDate: { $lte: periodEnd },
-        endDate: { $gte: periodStart },
-      })
-        .populate("accountId", "fullname email phoneNumber")
-        .lean();
-
-      if (!activeDeposits.length) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Cannot calculate monthly rent because this room has no confirmed tenant for this billing period.",
-          billingPeriod: {
-            month: period.month,
-            year: period.year,
-            startDate: periodStart,
-            endDate: periodEnd,
-          },
-        });
-      }
-
-      // rentBy has been populated above, so each item may be a Mongoose document
-      // instead of a raw ObjectId. Always compare using the tenant _id.
-      const renterIds = new Set(
-        (room.rentBy || [])
-          .map((tenant) => tenant?._id || tenant)
-          .filter(Boolean)
-          .map((tenantId) => tenantId.toString())
-      );
-
-      const acceptedTenants = [
-        ...new Map(
-          activeDeposits
-            .filter(
-              (deposit) =>
-                deposit.accountId &&
-                renterIds.has(deposit.accountId._id.toString())
-            )
-            .map((deposit) => [
-              deposit.accountId._id.toString(),
-              {
-                account: deposit.accountId,
-                depositRoomId: deposit._id,
-              },
-            ])
-        ).values(),
-      ];
-
-      if (!acceptedTenants.length) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Cannot calculate monthly rent because confirmed tenant information is missing.",
-        });
-      }
+      const period = {
+        month: periodStart.getMonth() + 1,
+        year: periodStart.getFullYear(),
+      };
 
       const previousElectricityReading = Number(room.previousElectricityReading || 0);
       const previousWaterReading = Number(room.previousWaterReading || 0);
@@ -638,26 +722,30 @@ class MonthlyRentController {
       const paymentAmount = roundMoney(
         roomPrice + electricalTotalAmount + waterTotalAmount + additionalFeeTotal
       );
-      const renterCount = acceptedTenants.length;
-      const baseShare = Math.floor(paymentAmount / renterCount);
-      const remainder = paymentAmount - baseShare * renterCount;
 
       const { dueDate, gracePeriodEnd } = buildRentDeadlines();
 
       const createdBill = await PaymentBill.create({
         roomId,
+        depositRoomId: deposit._id,
+        cycleNumber,
+        periodStart,
+        periodEnd,
+        roomPrice,
         paymentAmount,
         status: BILL_STATUS.PENDING,
         dueDate,
         gracePeriodEnd,
         additionalFee,
         electricalBill: {
+          unitPrice: roundMoney(boardingHouse.electricityPrice),
           oldNumber: previousElectricityReading,
           newNumber: electricityReading,
           quantityConsumed: electricityQuantity,
           totalAmount: electricalTotalAmount,
         },
         waterBill: {
+          unitPrice: roundMoney(boardingHouse.waterPrice),
           oldNumber: previousWaterReading,
           newNumber: waterReading,
           quantityConsumed: waterQuantity,
@@ -667,14 +755,14 @@ class MonthlyRentController {
         year: period.year,
       });
 
-      const newUserPayments = acceptedTenants.map((tenant, index) => ({
+      const newUserPayments = [{
         paymentBillId: createdBill._id,
-        depositRoomId: tenant.depositRoomId,
-        accountId: tenant.account._id,
-        paymentAmount: baseShare + (index === renterCount - 1 ? remainder : 0),
+        depositRoomId: deposit._id,
+        accountId: deposit.accountId._id,
+        paymentAmount,
         status: BILL_STATUS.PENDING,
         paymentMethod: "Unpaid",
-      }));
+      }];
 
       await UserPayment.insertMany(newUserPayments);
 
@@ -721,8 +809,9 @@ class MonthlyRentController {
             waterTotalAmount,
             additionalFeeTotal,
             paymentAmount,
-            perUserBaseAmount: baseShare,
-            renterCount,
+            cycleNumber,
+            periodStart,
+            periodEnd,
           },
         },
       });
@@ -731,7 +820,7 @@ class MonthlyRentController {
         return res.status(409).json({
           success: false,
           code: "MONTHLY_RENT_BILL_EXISTS",
-          message: "Bill for this month already exists.",
+          message: "Bill for this rental cycle already exists.",
         });
       }
 
@@ -943,4 +1032,5 @@ class MonthlyRentController {
   }
 }
 
+export { addAnchoredMonths, getDepositCycleRange, parseBillingDate, toDateKey };
 export default new MonthlyRentController();
