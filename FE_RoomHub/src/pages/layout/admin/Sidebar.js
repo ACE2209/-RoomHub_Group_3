@@ -120,6 +120,10 @@ export default function Sidebar() {
           </>
         )}
 
+        {!isAdmin && (
+          <NavLink to="/my-reports">My Reports</NavLink>
+        )}
+
         {!isAdmin && !canManageOwnBoardingHouses && (
           <NavLink to="/monthly-rents">My Monthly Rents</NavLink>
         )}

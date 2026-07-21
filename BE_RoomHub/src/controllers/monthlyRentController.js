@@ -3,16 +3,23 @@ import UserPayment from "../models/userPayment.js";
 import Room from "../models/room.js";
 import RoomAdditionalFees from "../models/roomAdditionalFees.js";
 import DepositRoom from "../models/depositRoom.js";
+import { buildRentDeadlines } from "../utils/paymentPolicy.js";
+import {
+  formatDateTimeVi,
+  formatVnd,
+  sendPaymentEmail,
+} from "../utils/paymentEmail.js";
 
 const BILL_STATUS = {
   PENDING: "Pending",
+  OVERDUE: "Overdue",
   DONE: "Done",
   CANCEL: "Cancel",
 };
 
 const LEGACY_PAID_STATUS = "Paid";
 const MANAGED_BILL_STATUSES = Object.values(BILL_STATUS);
-const RENT_DEPOSIT_STATUSES = ["accepted", "confirmed"];
+const RENT_DEPOSIT_STATUSES = ["confirmed"];
 
 const roundMoney = (value) => Math.round(Number(value || 0));
 
@@ -716,6 +723,8 @@ class MonthlyRentController {
         roomPrice + electricalTotalAmount + waterTotalAmount + additionalFeeTotal
       );
 
+      const { dueDate, gracePeriodEnd } = buildRentDeadlines();
+
       const createdBill = await PaymentBill.create({
         roomId,
         depositRoomId: deposit._id,
@@ -725,6 +734,8 @@ class MonthlyRentController {
         roomPrice,
         paymentAmount,
         status: BILL_STATUS.PENDING,
+        dueDate,
+        gracePeriodEnd,
         additionalFee,
         electricalBill: {
           unitPrice: roundMoney(boardingHouse.electricityPrice),
@@ -764,6 +775,27 @@ class MonthlyRentController {
       const userPayments = await UserPayment.find({
         paymentBillId: createdBill._id,
       }).populate("accountId", "fullname email phoneNumber");
+
+      const paymentUrl = `${process.env.CLIENT_URL || "http://localhost:3001"}/monthly-rents`;
+      await Promise.all(
+        userPayments.map((userPayment) =>
+          sendPaymentEmail({
+            to: userPayment.accountId?.email,
+            subject: `Hóa đơn tiền thuê tháng ${period.month}/${period.year}`,
+            html: `
+              <p>Xin chào <strong>${userPayment.accountId?.fullname || "bạn"}</strong>,</p>
+              <p>Hóa đơn tiền thuê phòng <strong>${room.roomNumber}</strong> tháng
+              <strong>${period.month}/${period.year}</strong> đã được tạo.</p>
+              <p>Tổng hóa đơn phòng: <strong>${formatVnd(paymentAmount)}</strong></p>
+              <p>Số người đang được chia: <strong>${renterCount}</strong></p>
+              <p>Số tiền bạn cần thanh toán: <strong>${formatVnd(userPayment.paymentAmount)}</strong></p>
+              <p>Hạn thanh toán: <strong>${formatDateTimeVi(dueDate)}</strong></p>
+              <p>Thời gian gia hạn đến: <strong>${formatDateTimeVi(gracePeriodEnd)}</strong></p>
+              <p><a href="${paymentUrl}">Mở trang thanh toán tiền thuê</a></p>
+            `,
+          })
+        )
+      );
 
       return res.status(201).json({
         success: true,

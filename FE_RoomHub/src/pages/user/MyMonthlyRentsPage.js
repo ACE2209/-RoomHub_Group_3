@@ -26,7 +26,8 @@ const formatCurrency = (value) =>
 
 const getStatusColor = (status) => {
   if (status === "Done" || status === "Paid") return "green";
-  if (status === "Cancel") return "red";
+  if (status === "Cancel" || status === "Expired") return "red";
+  if (status === "Overdue") return "volcano";
   return "gold";
 };
 
@@ -70,6 +71,13 @@ const MyMonthlyRentsPage = () => {
     {
       title: "Period",
       render: (_, record) => formatPeriod(record.paymentBillId),
+    },
+    {
+      title: "Due date",
+      render: (_, record) => {
+        const dueDate = record.paymentBillId?.dueDate;
+        return dueDate ? new Date(dueDate).toLocaleString("vi-VN") : "N/A";
+      },
     },
     {
       title: "Amount",

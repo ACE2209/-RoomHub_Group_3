@@ -4,7 +4,6 @@ import mongoose from "mongoose";
 import nodemailer from "nodemailer";
 import BoardingHouse from "../models/boardingHouse.js";
 import { Account, Staff } from "../models/account.js";
-import { generateToken } from "../utils/functions.js";
 
 class StaffManagementController {
   getOwnerId(req) {
@@ -22,7 +21,16 @@ class StaffManagementController {
   }
 
   createTemporaryPassword() {
-    return crypto.randomBytes(24).toString("hex");
+    const adjectives = ["Bright", "Calm", "Fresh", "Happy", "Kind", "Smart"];
+    const nouns = ["Desk", "Home", "Key", "Room", "Team", "Wave"];
+    const symbols = ["@", "#", "$", "!"];
+
+    const adjective = adjectives[crypto.randomInt(adjectives.length)];
+    const noun = nouns[crypto.randomInt(nouns.length)];
+    const number = crypto.randomInt(1000, 10000);
+    const symbol = symbols[crypto.randomInt(symbols.length)];
+
+    return `${adjective}${noun}${symbol}${number}`;
   }
 
   getMailAuth() {
@@ -39,11 +47,10 @@ class StaffManagementController {
     };
   }
 
-  getInvitationLink(staff) {
-    const resetToken = generateToken({ userId: staff._id }, "1h");
+  getLoginLink() {
     const clientUrl = (process.env.CLIENT_URL || "http://localhost:3001").replace(/\/$/, "");
 
-    return `${clientUrl}/reset-password/${resetToken}`;
+    return `${clientUrl}/login`;
   }
 
   escapeHtml(value = "") {
@@ -56,9 +63,9 @@ class StaffManagementController {
     }[char]));
   }
 
-  async sendStaffInvitationEmail(staff, ownerId) {
+  async sendStaffInvitationEmail(staff, ownerId, temporaryPassword) {
     const { user, pass } = this.getMailAuth();
-    const invitationLink = this.getInvitationLink(staff);
+    const loginLink = this.getLoginLink();
     const assignedBoardingHouses = await BoardingHouse.find({
       ownerId,
       staffId: staff._id,
@@ -81,27 +88,29 @@ class StaffManagementController {
     await transporter.sendMail({
       from: `RoomHub <${user}>`,
       to: staff.email,
-      subject: "RoomHub staff account invitation",
+      subject: "Your RoomHub staff account is ready",
       html: `
         <p>Hello ${this.escapeHtml(staff.fullname)},</p>
-        <p>You have been added as a staff member on RoomHub.</p>
+        <p>Your RoomHub staff account has been created.</p>
         <p><strong>Username:</strong> ${this.escapeHtml(staff.username)}</p>
+        <p><strong>Temporary password:</strong> ${this.escapeHtml(temporaryPassword)}</p>
         <p><strong>Assigned boarding houses:</strong></p>
         <ul>${boardingHouseItems}</ul>
-        <p>Please set your password using the link below:</p>
-        <p><a href="${invitationLink}" style="color: #2a7ae4; text-decoration: none;">Set your password</a></p>
-        <p>This link is valid for 1 hour. If you were not expecting this invitation, please ignore this email.</p>
+        <p>Please sign in using the temporary password above:</p>
+        <p><a href="${loginLink}" style="color: #2a7ae4; text-decoration: none;">Go to RoomHub Login</a></p>
+        <p>For your security, please change this password after signing in. If you forget it or want to reset it later, use <strong>Forgot Password</strong> on the login page.</p>
+        <p>If you were not expecting this account, please ignore this email.</p>
         <p>Best regards,<br/>RoomHub Team</p>
       `,
     });
   }
 
-  async trySendStaffInvitationEmail(staff, ownerId) {
+  async trySendStaffInvitationEmail(staff, ownerId, temporaryPassword) {
     try {
-      await this.sendStaffInvitationEmail(staff, ownerId);
+      await this.sendStaffInvitationEmail(staff, ownerId, temporaryPassword);
       return { sent: true, error: null };
     } catch (error) {
-      console.error("Staff invitation email failed:", error.message);
+      console.error("Staff account email failed:", error.message);
       return { sent: false, error: error.message };
     }
   }
@@ -339,7 +348,11 @@ class StaffManagementController {
 
       let invitationResult = { sent: false, error: null };
       if (shouldSendInvite) {
-        invitationResult = await this.trySendStaffInvitationEmail(staff, ownerId);
+        invitationResult = await this.trySendStaffInvitationEmail(
+          staff,
+          ownerId,
+          accountPassword
+        );
         staff.invitationEmailSent = invitationResult.sent;
         staff.invitationEmailSentAt = invitationResult.sent ? new Date() : null;
         staff.invitationEmailError = invitationResult.error;
@@ -356,7 +369,7 @@ class StaffManagementController {
         success: true,
         message:
           shouldSendInvite && !invitationResult.sent
-            ? "Staff created, but invitation email was not sent"
+            ? "Staff created, but account email was not sent"
             : "Staff created successfully",
         invitationEmailSent: invitationResult.sent,
         invitationEmailError: invitationResult.error,
@@ -398,7 +411,21 @@ class StaffManagementController {
         return res.status(404).json({ success: false, message: "Staff not found" });
       }
 
-      const invitationResult = await this.trySendStaffInvitationEmail(staff, ownerId);
+      const previousPassword = staff.password;
+      const temporaryPassword = this.createTemporaryPassword();
+      staff.password = await bcrypt.hash(temporaryPassword, 10);
+      await staff.save();
+
+      const invitationResult = await this.trySendStaffInvitationEmail(
+        staff,
+        ownerId,
+        temporaryPassword
+      );
+
+      if (!invitationResult.sent) {
+        staff.password = previousPassword;
+      }
+
       staff.invitationEmailSent = invitationResult.sent;
       staff.invitationEmailSentAt = invitationResult.sent ? new Date() : null;
       staff.invitationEmailError = invitationResult.error;
@@ -413,8 +440,8 @@ class StaffManagementController {
       return res.status(200).json({
         success: invitationResult.sent,
         message: invitationResult.sent
-          ? "Invitation email sent successfully"
-          : "Invitation email was not sent",
+          ? "Account email sent successfully"
+          : "Account email was not sent",
         invitationEmailSent: invitationResult.sent,
         invitationEmailError: invitationResult.error,
         data,
@@ -422,7 +449,7 @@ class StaffManagementController {
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: "Failed to send invitation email",
+        message: "Failed to send account email",
         error: error.message,
       });
     }

@@ -127,7 +127,7 @@ const ManageMonthlyRents = () => {
         page: 1,
         limit: 100,
       });
-      setRooms((res.data || []).filter(hasAcceptedDeposit));
+      setRooms((res.data || []).filter(hasConfirmedTenant));
     } catch (error) {
       message.error(error.message || "Failed to load rooms");
     }

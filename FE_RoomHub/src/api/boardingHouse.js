@@ -19,7 +19,7 @@ const getRolePrefix = () => {
   if (role === "owner") return "/owner";
   if (role === "staff") return "/staff";
 
-  return "/owner";
+  throw new Error("You do not have permission to manage boarding houses");
 };
 
 export const getBoardingHouses = async ({ page = 1, limit = 10 } = {}) => {

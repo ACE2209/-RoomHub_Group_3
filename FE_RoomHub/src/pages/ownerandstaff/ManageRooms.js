@@ -56,14 +56,37 @@ const hasAcceptedDeposit = (room) =>
 
 const renderRoomStatus = (room) => {
   if (hasAcceptedDeposit(room)) {
-    return <span style={{ color: "#b7791f", fontWeight: 700 }}>Đã đặt cọc</span>;
+    return (
+      <span style={{ color: "#b7791f", fontWeight: 700 }}>
+        Reserved
+      </span>
+    );
   }
 
-  if (room.isAvailable) {
-    return <span style={{ color: "#087443", fontWeight: 700 }}>Available</span>;
+  const capacity = room.roomTypeId?.peopleNumber || 1;
+  const tenantCount = room.rentBy?.length || 0;
+
+  if (tenantCount >= capacity) {
+    return (
+      <span style={{ color: "#b32f1f", fontWeight: 700 }}>
+        Occupied
+      </span>
+    );
   }
 
-  return <span style={{ color: "#b32f1f", fontWeight: 700 }}>Occupied</span>;
+  if (!room.isAvailable) {
+    return (
+      <span style={{ color: "#d97706", fontWeight: 700 }}>
+        Unavailable
+      </span>
+    );
+  }
+
+  return (
+    <span style={{ color: "#087443", fontWeight: 700 }}>
+      Available
+    </span>
+  );
 };
 
 const ManageRooms = () => {
@@ -81,6 +104,7 @@ const ManageRooms = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
   const [fileList, setFileList] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -184,8 +208,14 @@ const ManageRooms = () => {
   };
 
   const handleSubmit = async () => {
+    if (submitting) {
+      return; // prevent double submit while a request is already in flight
+    }
+
     try {
       const values = await form.validateFields();
+
+      setSubmitting(true);
 
       const formData = new FormData();
 
@@ -224,6 +254,8 @@ const ManageRooms = () => {
     } catch (err) {
       console.error("❌ Error:", err);
       message.error(err.message || "An error occurred");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -364,9 +396,14 @@ const ManageRooms = () => {
           open={isModalOpen}
           width={700}
           title={editingRoom ? "Update Room" : "Create Room"}
-          onCancel={() => setIsModalOpen(false)}
+          onCancel={() => !submitting && setIsModalOpen(false)}
           onOk={handleSubmit}
           okText={editingRoom ? "Update" : "Create"}
+          confirmLoading={submitting}
+          okButtonProps={{ disabled: submitting }}
+          cancelButtonProps={{ disabled: submitting }}
+          maskClosable={!submitting}
+          closable={!submitting}
           className="manage-rooms__modal"
         >
           <Form form={form} layout="vertical">

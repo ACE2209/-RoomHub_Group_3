@@ -264,9 +264,6 @@ class DepositController {
       }
 
       const boardingHouseName = boardingHouse?.name || "Không có tên nhà trọ";
-      const boardingHouseTypeCode =
-        boardingHouse?.boardingHouseType?.codeName || "";
-
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
@@ -352,90 +349,80 @@ class DepositController {
         });
       }
 
-      if (boardingHouseTypeCode === "nha_tro_kien_truc_xa") {
-        const currentAcceptedCount = await DepositRoom.countDocuments({
-          roomId: deposit.roomId._id,
-          status: "accepted",
+      // Cả phòng đơn và ký túc xá đều phải kiểm tra số chỗ thực tế.
+      // Phòng thường luôn có capacity = 1; ký túc xá lấy peopleNumber.
+      const capacityState = await getRoomCapacityState(deposit.roomId._id, {
+        excludeDepositId: deposit._id,
+      });
+
+      if (!capacityState || capacityState.availableSlots <= 0) {
+        deposit.status = "rejected";
+        deposit.reasonForCancel = capacityState?.isDormitory
+          ? "Phòng ký túc xá đã đủ số lượng người."
+          : "Phòng đã có người giữ chỗ hoặc đang thuê.";
+        await deposit.save();
+
+        const emailSent = await sendEmailSafe(
+          recipientAccount.email,
+          "Yêu cầu đặt cọc đã bị từ chối",
+          `
+            <p>Xin chào <strong>${recipientAccount.fullname}</strong>,</p>
+            <p>Phòng <strong>${deposit.roomId.roomNumber}</strong>
+            tại nhà trọ <strong>${boardingHouseName}</strong> hiện đã hết chỗ.</p>
+          `,
+        );
+
+        return res.status(200).json({
+          message: "Phòng đã hết chỗ, đơn đã bị từ chối.",
+          success: true,
+          error: false,
+          status: "rejected",
+          depositId: deposit._id,
+          emailSent,
         });
-
-        const limit = Number(deposit.roomId.roomTypeId?.peopleNumber || 0);
-
-        if (currentAcceptedCount >= limit) {
-          deposit.status = "rejected";
-          deposit.reasonForCancel = "Phòng ký túc xá đã đủ số lượng người.";
-          await deposit.save();
-
-          const emailSent = await sendEmailSafe(
-            recipientAccount.email,
-            "Yêu cầu đặt cọc đã bị từ chối",
-            `
-              <p>Xin chào <strong>${recipientAccount.fullname}</strong>,</p>
-              <p>Phòng <strong>${deposit.roomId.roomNumber}</strong>
-              tại nhà trọ <strong>${boardingHouseName}</strong> đã đủ người.</p>
-            `,
-          );
-
-          return res.status(200).json({
-            message: "Phòng đã đủ người, đơn đã bị từ chối.",
-            success: true,
-            error: false,
-            status: "rejected",
-            depositId: deposit._id,
-            emailSent,
-          });
-        }
       }
 
       deposit.status = "accepted";
+      deposit.paymentDeadline = buildDepositPaymentDeadline();
+      deposit.expiredAt = undefined;
       await deposit.save();
 
-      await Room.updateOne(
-        { _id: deposit.roomId._id },
-        { $set: { isAvailable: false } },
-      );
+      await syncRoomAvailabilityWithReservations(deposit.roomId._id);
 
-      if (boardingHouse?._id) {
-        await updateBoardingHouseRoomCounts(boardingHouse._id);
-      }
+      const paymentUrl = `${process.env.CLIENT_URL || "http://localhost:3001"}/my-deposits`;
+      const formattedDeadline = moment(deposit.paymentDeadline).format(
+        "HH:mm [ngày] DD/MM/YYYY",
+      );
 
       const emailSent = await sendEmailSafe(
         recipientAccount.email,
         "Đặt cọc phòng trọ đã được chấp nhận",
         `
           <p>Xin chào <strong>${recipientAccount.fullname}</strong>,</p>
-          <p>Khoản đặt cọc của bạn cho phòng <strong>${deposit.roomId.roomNumber}</strong>
+          <p>Yêu cầu đặt cọc của bạn cho phòng <strong>${deposit.roomId.roomNumber}</strong>
           tại nhà trọ <strong>${boardingHouseName}</strong> đã được chấp nhận.</p>
-          <p>Vui lòng thanh toán tiền cọc để hoàn tất giữ phòng.</p>
+          <p><strong>Số tiền cần thanh toán:</strong>
+            ${Number(deposit.amount).toLocaleString("vi-VN")} VNĐ
+          </p>
+          <p><strong>Hạn thanh toán:</strong> ${formattedDeadline}</p>
+          <p>Bạn có <strong>1 ngày</strong> để thanh toán tiền cọc.
+          Sau thời hạn trên, yêu cầu sẽ tự động hết hạn và phòng sẽ được mở lại.</p>
+          <p>
+            <a href="${paymentUrl}"
+              style="display:inline-block;padding:12px 20px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">
+              Thanh toán tiền cọc
+            </a>
+          </p>
         `,
       );
 
-      const otherPendingDeposits = await DepositRoom.find({
+      // Không từ chối các yêu cầu khác ở bước Accept.
+      // Chỉ khi thanh toán cọc thành công hệ thống mới chốt phòng và xử lý các yêu cầu còn lại.
+      const otherPendingDeposits = await DepositRoom.countDocuments({
         _id: { $ne: depositId },
         roomId: deposit.roomId._id,
         status: "pending",
-      }).populate({
-        path: "accountId",
-        select: "fullname email",
       });
-
-      for (const item of otherPendingDeposits) {
-        const itemRecipientAccount = await getRecipientAccount(item.accountId);
-
-        item.status = "rejected";
-        item.reasonForCancel = "Phòng đã được đặt cọc bởi người khác.";
-        await item.save();
-
-        await sendEmailSafe(
-          itemRecipientAccount?.email,
-          "Yêu cầu đặt cọc đã bị từ chối",
-          `
-              <p>Xin chào <strong>${itemRecipientAccount?.fullname || "bạn"}</strong>,</p>
-              <p>Phòng <strong>${deposit.roomId.roomNumber}</strong>
-              tại nhà trọ <strong>${boardingHouseName}</strong>
-              đã được người khác đặt cọc trước.</p>
-            `,
-        );
-      }
 
       return res.status(200).json({
         message: "Đã chấp nhận khoản đặt cọc.",
@@ -443,7 +430,8 @@ class DepositController {
         error: false,
         status: "accepted",
         depositId: deposit._id,
-        rejectedOtherDeposits: otherPendingDeposits.length,
+        pendingOtherDeposits: otherPendingDeposits,
+        paymentDeadline: deposit.paymentDeadline,
         emailSent,
       });
     } catch (error) {
@@ -485,10 +473,16 @@ class DepositController {
         });
       }
 
-      const room = await Room.findById(roomId).populate({
-        path: "roomTypeId",
-        select: "typeName price peopleNumber roomSize",
-      });
+      const room = await Room.findById(roomId)
+        .populate({
+          path: "roomTypeId",
+          select: "typeName price peopleNumber roomSize",
+        })
+        .populate({
+          path: "boardingHouseId",
+          select: "boardingHouseType",
+          populate: { path: "boardingHouseType", select: "codeName" },
+        });
 
       if (!room) {
         return res.status(404).json({
@@ -497,10 +491,13 @@ class DepositController {
         });
       }
 
-      if (!room.isAvailable) {
+      const capacityState = await getRoomCapacityState(room._id);
+
+      if (!capacityState || capacityState.availableSlots <= 0) {
+        await syncRoomAvailabilityWithReservations(room._id);
         return res.status(400).json({
           success: false,
-          message: "This room is not available",
+          message: "This room is full or currently held for payment",
         });
       }
 
@@ -543,18 +540,6 @@ class DepositController {
         return res.status(400).json({
           success: false,
           message: "You already have a deposit request for this room",
-        });
-      }
-
-      const roomHasAcceptedDeposit = await DepositRoom.findOne({
-        roomId,
-        status: { $in: ["accepted", "confirmed"] },
-      });
-
-      if (roomHasAcceptedDeposit) {
-        return res.status(400).json({
-          success: false,
-          message: "This room already has an accepted or confirmed deposit",
         });
       }
 
@@ -661,13 +646,13 @@ class DepositController {
 
       const status = String(depositRoom.status || "").toLowerCase();
 
-      const deletableStatuses = ["rejected", "accepted", "confirmed"];
+      const deletableStatuses = ["pending", "rejected", "expired", "cancelled"];
 
       if (!deletableStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
           message:
-            "Only rejected, accepted, or confirmed deposits can be deleted",
+            "Only pending, rejected, expired, or cancelled deposits can be deleted",
         });
       }
 

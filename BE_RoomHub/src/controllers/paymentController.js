@@ -6,6 +6,10 @@ import DepositRoom from "../models/depositRoom.js";
 import PaymentBill from "../models/paymentBill.js";
 import UserPayment from "../models/userPayment.js";
 import RefundRequest from "../models/refundRequest.js";
+import {
+  getRoomCapacityState,
+  syncRoomAvailabilityWithReservations,
+} from "../utils/paymentPolicy.js";
 
 const sortObject = (obj) => {
   const sorted = {};
@@ -35,8 +39,7 @@ const getClientReturnUrl = ({ status, type, provider, message }) => {
 
 const getServerBaseUrl = () =>
   process.env.SERVER_URL ||
-  `http://${process.env.APP_HOST || "localhost"}:${
-    process.env.APP_PORT || process.env.PORT || 3000
+  `http://${process.env.APP_HOST || "localhost"}:${process.env.APP_PORT || process.env.PORT || 3000
   }`;
 
 const getZaloPayRedirectUrl = () =>
@@ -50,6 +53,42 @@ const normalizeMethod = (method) => {
   if (value === "zalopay") return "ZaloPay";
 
   return null;
+};
+
+
+const escapeRegExp = (value) =>
+  String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const findUserPaymentForZaloPay = async (appTransId, rawInfo = "") => {
+  if (appTransId) {
+    const paymentByOrderId = await UserPayment.findOne({
+      orderId: {
+        $regex: `^${escapeRegExp(appTransId)}$`,
+        $options: "i",
+      },
+    });
+
+    if (paymentByOrderId) return paymentByOrderId;
+  }
+
+  const rentMatch = String(rawInfo || "").match(
+    /RENT_([0-9a-fA-F]{24})/i
+  );
+
+  if (!rentMatch?.[1]) return null;
+
+  const referencedId = rentMatch[1];
+
+  // Luồng monthly-rent mới gửi RENT_<userPaymentId>.
+  const paymentById = await UserPayment.findById(referencedId);
+  if (paymentById) return paymentById;
+
+  // Luồng payment-bill cũ gửi RENT_<paymentBillId>.
+  return UserPayment.findOne({
+    paymentBillId: referencedId,
+    paymentMethod: "ZaloPay",
+    status: { $in: ["Pending", "Failed"] },
+  }).sort({ updatedAt: -1, createdAt: -1 });
 };
 
 const validateAmount = (amount) => {
@@ -194,8 +233,8 @@ const buildZaloPayUrl = async ({ orderId, amount, orderInfo }) => {
   if (Number(response.data?.returncode) !== 1) {
     throw new Error(
       response.data?.returnmessage ||
-        response.data?.subreturnmessage ||
-        "Create ZaloPay order failed"
+      response.data?.subreturnmessage ||
+      "Create ZaloPay order failed"
     );
   }
 
@@ -231,9 +270,8 @@ const verifyZaloPayRedirect = (query) => {
 
   if (!appid || !apptransid || !checksum) return false;
 
-  const checksumData = `${appid}|${apptransid}|${pmcid || ""}|${
-    bankcode || ""
-  }|${amount || ""}|${discountamount || ""}|${status || ""}`;
+  const checksumData = `${appid}|${apptransid}|${pmcid || ""}|${bankcode || ""
+    }|${amount || ""}|${discountamount || ""}|${status || ""}`;
 
   const checkSum = crypto
     .createHmac("sha256", process.env.ZALOPAY_KEY2)
@@ -284,22 +322,91 @@ const completePayment = async (payment, rawData) => {
     throw new Error("Payment is not pending");
   }
 
-  if (payment.depositRoomId) {
-    const deposit = await DepositRoom.findById(payment.depositRoomId).populate(
-      "roomId"
-    );
+  if (payment.depositRoomId && !payment.paymentBillId) {
+    const deposit = await DepositRoom.findById(payment.depositRoomId).populate({
+      path: "roomId",
+      populate: [
+        { path: "roomTypeId", select: "peopleNumber" },
+        {
+          path: "boardingHouseId",
+          select: "boardingHouseType name",
+          populate: { path: "boardingHouseType", select: "codeName" },
+        },
+      ],
+    });
 
     if (!deposit) throw new Error("Deposit not found");
-
-    if (deposit.status !== "accepted") {
-      throw new Error("Deposit must be accepted before payment");
-    }
 
     if (!deposit.roomId) {
       throw new Error("Room not found");
     }
 
+    const alreadyConfirmed = deposit.status === "confirmed";
+    const alreadyInRoom = Array.isArray(deposit.roomId.rentBy) &&
+      deposit.roomId.rentBy.some(
+        (id) => id.toString() === deposit.accountId.toString()
+      );
+
+    // Callback có thể đã xác nhận deposit nhưng chưa kịp cập nhật UserPayment.
+    // Cho phép chạy lại an toàn để hoàn tất trạng thái giao dịch.
+    if (alreadyConfirmed && alreadyInRoom) {
+      payment.status = completedStatus;
+      payment.transactionNo =
+        rawData.vnp_TransactionNo ||
+        rawData.transId ||
+        rawData.zp_trans_id ||
+        rawData.zptransid ||
+        payment.transactionNo ||
+        "";
+      await payment.save();
+      const currentState = await getRoomCapacityState(deposit.roomId._id);
+      if (currentState && currentState.availableSlots === 0) {
+        await DepositRoom.updateMany(
+          {
+            _id: { $ne: deposit._id },
+            roomId: deposit.roomId._id,
+            status: { $in: ["pending", "accepted"] },
+          },
+          {
+            $set: {
+              status: "rejected",
+              reasonForCancel: currentState.isDormitory
+                ? "Phòng ký túc xá đã đủ số lượng người."
+                : "Phòng đã được người khác thanh toán cọc thành công.",
+            },
+          }
+        );
+      }
+      await syncRoomAvailabilityWithReservations(deposit.roomId._id);
+      return payment;
+    }
+
+    if (deposit.status !== "accepted") {
+      throw new Error("Deposit must be accepted before payment");
+    }
+
+    if (deposit.paymentDeadline && deposit.paymentDeadline <= new Date()) {
+      deposit.status = "expired";
+      deposit.expiredAt = new Date();
+      await deposit.save();
+      await syncRoomAvailabilityWithReservations(deposit.roomId._id);
+      throw new Error("Deposit payment deadline has expired");
+    }
+
+    const capacityState = await getRoomCapacityState(deposit.roomId._id, {
+      excludeDepositId: deposit._id,
+    });
+
+    if (!capacityState || capacityState.availableSlots <= 0) {
+      deposit.status = "rejected";
+      deposit.reasonForCancel = "Phòng đã hết chỗ trước khi giao dịch được xác nhận.";
+      await deposit.save();
+      await syncRoomAvailabilityWithReservations(deposit.roomId._id);
+      throw new Error("Room capacity is no longer available");
+    }
+
     deposit.status = "confirmed";
+    deposit.confirmedAt = new Date();
 
     if (!Array.isArray(deposit.roomId.rentBy)) {
       deposit.roomId.rentBy = [];
@@ -313,6 +420,32 @@ const completePayment = async (payment, rawData) => {
 
     await deposit.roomId.save();
     await deposit.save();
+
+    await syncRoomAvailabilityWithReservations(deposit.roomId._id);
+
+    const isDormitory = capacityState.isDormitory;
+    const capacity = capacityState.capacity;
+    const occupiedCount = deposit.roomId.rentBy.length;
+
+    // Phòng thường đóng ngay sau khi có một người cọc thành công.
+    // Ký túc xá chỉ đóng những yêu cầu dư khi đã đủ sức chứa.
+    if (!isDormitory || occupiedCount >= capacity) {
+      await DepositRoom.updateMany(
+        {
+          _id: { $ne: deposit._id },
+          roomId: deposit.roomId._id,
+          status: { $in: ["pending", "accepted"] },
+        },
+        {
+          $set: {
+            status: "rejected",
+            reasonForCancel: isDormitory
+              ? "Phòng ký túc xá đã đủ số lượng người."
+              : "Phòng đã được người khác thanh toán cọc thành công.",
+          },
+        }
+      );
+    }
   }
 
   if (payment.paymentBillId) {
@@ -395,6 +528,9 @@ const completeRefundPayment = async (refundRequestId, rawData = {}) => {
   await deposit.save();
   await refundRequest.save();
 
+  // Tính lại trạng thái phòng sau khi hoàn tiền và xóa người thuê.
+  await syncRoomAvailabilityWithReservations(room._id);
+
   return refundRequest;
 };
 
@@ -420,16 +556,23 @@ class PaymentController {
     const paymentUrl =
       paymentMethod === "VNPay"
         ? buildVNPayUrl({
-            req,
-            orderId,
-            amount,
-            orderInfo,
-          })
+          req,
+          orderId,
+          amount,
+          orderInfo,
+        })
         : await buildZaloPayUrl({
-            orderId,
-            amount,
-            orderInfo,
-          });
+          orderId,
+          amount,
+          orderInfo,
+        });
+
+    // Lưu định danh giao dịch trước khi chuyển Owner/Staff sang cổng thanh toán.
+    // Callback/redirect sẽ dùng paymentOrderId để tìm đúng RefundRequest.
+    refundRequest.paymentOrderId = orderId;
+    refundRequest.paymentMethod = paymentMethod;
+    refundRequest.paymentOrderInfo = orderInfo;
+    await refundRequest.save();
 
     return {
       paymentUrl,
@@ -473,6 +616,18 @@ class PaymentController {
         return res.status(400).json({
           success: false,
           message: "Owner must accept deposit before payment",
+        });
+      }
+
+      if (!deposit.paymentDeadline || deposit.paymentDeadline <= new Date()) {
+        deposit.status = "expired";
+        deposit.expiredAt = new Date();
+        deposit.reasonForCancel = "Quá hạn thanh toán tiền cọc.";
+        await deposit.save();
+        await syncRoomAvailabilityWithReservations(deposit.roomId);
+        return res.status(400).json({
+          success: false,
+          message: "Deposit payment deadline has expired",
         });
       }
 
@@ -529,16 +684,16 @@ class PaymentController {
       const paymentUrl =
         paymentMethod === "VNPay"
           ? buildVNPayUrl({
-              req,
-              orderId,
-              amount: deposit.amount,
-              orderInfo,
-            })
+            req,
+            orderId,
+            amount: deposit.amount,
+            orderInfo,
+          })
           : await buildZaloPayUrl({
-              orderId,
-              amount: deposit.amount,
-              orderInfo,
-            });
+            orderId,
+            amount: deposit.amount,
+            orderInfo,
+          });
 
       return res.status(200).json({
         success: true,
@@ -619,10 +774,17 @@ class PaymentController {
         });
       }
 
-      if (String(bill.status).toLowerCase() === "paid") {
+      if (["paid", "done"].includes(String(bill.status).toLowerCase())) {
         return res.status(400).json({
           success: false,
           message: "Bill already paid",
+        });
+      }
+
+      if (bill.gracePeriodEnd && bill.gracePeriodEnd <= new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: "Rent payment grace period has expired and the room was released",
         });
       }
 
@@ -679,16 +841,16 @@ class PaymentController {
       const paymentUrl =
         paymentMethod === "VNPay"
           ? buildVNPayUrl({
-              req,
-              orderId,
-              amount: bill.paymentAmount,
-              orderInfo,
-            })
+            req,
+            orderId,
+            amount: bill.paymentAmount,
+            orderInfo,
+          })
           : await buildZaloPayUrl({
-              orderId,
-              amount: bill.paymentAmount,
-              orderInfo,
-            });
+            orderId,
+            amount: bill.paymentAmount,
+            orderInfo,
+          });
 
       return res.status(200).json({
         success: true,
@@ -784,16 +946,16 @@ class PaymentController {
       const paymentUrl =
         paymentMethod === "VNPay"
           ? buildVNPayUrl({
-              req,
-              orderId,
-              amount: userPayment.paymentAmount,
-              orderInfo,
-            })
+            req,
+            orderId,
+            amount: userPayment.paymentAmount,
+            orderInfo,
+          })
           : await buildZaloPayUrl({
-              orderId,
-              amount: userPayment.paymentAmount,
-              orderInfo,
-            });
+            orderId,
+            amount: userPayment.paymentAmount,
+            orderInfo,
+          });
 
       return res.status(200).json({
         success: true,
@@ -876,7 +1038,7 @@ class PaymentController {
         return res.redirect(
           getClientReturnUrl({
             status: "failed",
-            type: payment.depositRoomId ? "deposit" : "rent",
+            type: payment.paymentBillId ? "rent" : "deposit",
             provider: "vnpay",
             message: "VNPay payment failed",
           })
@@ -888,7 +1050,7 @@ class PaymentController {
       return res.redirect(
         getClientReturnUrl({
           status: "success",
-          type: payment.depositRoomId ? "deposit" : "rent",
+          type: payment.paymentBillId ? "rent" : "deposit",
           provider: "vnpay",
           message: "Payment successful",
         })
@@ -920,16 +1082,56 @@ class PaymentController {
     try {
       console.log("ZaloPay redirect query:", req.query);
 
-      if (!verifyZaloPayRedirect(req.query)) {
+      const appTransId = req.query.apptransid || req.query.app_trans_id;
+
+      if (!appTransId) {
         return redirectToClient(
           "failed",
           "unknown",
-          "Invalid ZaloPay redirect checksum"
+          "Missing ZaloPay transaction id"
         );
       }
 
-      const appTransId = req.query.apptransid;
-      const zaloPayStatus = await queryZaloPayStatus(appTransId);
+      // Redirect chạy trên trình duyệt chỉ dùng để điều hướng. Một số phiên bản
+      // ZaloPay sandbox trả bộ tham số checksum khác nhau, vì vậy không được
+      // kết luận thanh toán thất bại chỉ từ checksum redirect. Kết quả thật
+      // được xác minh lại bằng API getstatusbyapptransid và callback có MAC.
+      if (!verifyZaloPayRedirect(req.query)) {
+        console.warn(
+          "ZaloPay redirect checksum mismatch; verifying transaction with ZaloPay API instead."
+        );
+      }
+
+      // Callback có thể đến trước redirect. Nếu DB đã hoàn tất thì trả thành
+      // công ngay, không phụ thuộc việc API trạng thái tạm thời lỗi.
+      const localRefund = await RefundRequest.findOne({
+        paymentOrderId: appTransId,
+      }).select("_id status");
+      const localPayment = await findUserPaymentForZaloPay(appTransId);
+
+      if (localRefund?.status === "accepted") {
+        return redirectToClient("success", "refund", "Refund payment successful");
+      }
+
+      if (localPayment && ["Paid", "Done"].includes(localPayment.status)) {
+        return redirectToClient(
+          "success",
+          localPayment.paymentBillId ? "rent" : "deposit",
+          "Payment successful"
+        );
+      }
+
+      let zaloPayStatus;
+      try {
+        zaloPayStatus = await queryZaloPayStatus(appTransId);
+      } catch (statusError) {
+        console.error("Cannot query ZaloPay status:", statusError.message);
+        return redirectToClient(
+          "pending",
+          localPayment?.paymentBillId ? "rent" : localPayment ? "deposit" : "unknown",
+          "Payment is being verified. Please refresh your payment list shortly."
+        );
+      }
 
       console.log("ZaloPay status response:", zaloPayStatus);
 
@@ -941,18 +1143,22 @@ class PaymentController {
       const orderInfo = String(zaloPayStatus.order_info || "");
       const rawInfo = `${description} ${orderInfo}`;
 
-      const refundMatch = rawInfo.match(/REFUND_([0-9a-fA-F]{24})/);
+      const refundByOrderId = localRefund || await RefundRequest.findOne({
+        paymentOrderId: appTransId,
+      }).select("_id status");
 
-      if (refundMatch) {
-        const refundRequestId = refundMatch[1];
+      const refundMatch = rawInfo.match(/REFUND_([0-9a-fA-F]{24})/);
+      const refundRequestId = refundByOrderId?._id?.toString() || refundMatch?.[1];
+
+      if (refundRequestId) {
 
         if (returnCode !== 1) {
           return redirectToClient(
             "failed",
             "refund",
             zaloPayStatus.returnmessage ||
-              zaloPayStatus.return_message ||
-              "ZaloPay refund payment failed"
+            zaloPayStatus.return_message ||
+            "ZaloPay refund payment failed"
           );
         }
 
@@ -968,21 +1174,23 @@ class PaymentController {
         );
       }
 
-      const payment = await UserPayment.findOne({
-        orderId: appTransId,
-      });
+      const payment = localPayment || await findUserPaymentForZaloPay(appTransId, rawInfo);
 
       if (!payment) {
-        return redirectToClient("failed", "unknown", "Payment not found");
+        return redirectToClient(
+          "failed",
+          "unknown",
+          "Payment transaction not found"
+        );
       }
 
-      const type = payment.depositRoomId ? "deposit" : "rent";
+      const type = payment.paymentBillId ? "rent" : "deposit";
 
       if (["Paid", "Done"].includes(payment.status)) {
         return redirectToClient("success", type, "Payment already completed");
       }
 
-      if (payment.status !== "Pending") {
+      if (!["Pending", "Failed"].includes(payment.status)) {
         return redirectToClient(
           "failed",
           type,
@@ -1008,8 +1216,8 @@ class PaymentController {
           "pending",
           type,
           zaloPayStatus.returnmessage ||
-            zaloPayStatus.return_message ||
-            "ZaloPay payment is still processing, please check again later"
+          zaloPayStatus.return_message ||
+          "ZaloPay payment is still processing, please check again later"
         );
       }
 
@@ -1027,8 +1235,8 @@ class PaymentController {
         "failed",
         type,
         zaloPayStatus.returnmessage ||
-          zaloPayStatus.return_message ||
-          "ZaloPay payment failed"
+        zaloPayStatus.return_message ||
+        "ZaloPay payment failed"
       );
     } catch (error) {
       console.error("ZaloPay redirect error:", error);
@@ -1059,10 +1267,15 @@ class PaymentController {
       const orderInfo = String(data.order_info || "");
       const rawInfo = `${description} ${orderInfo}`;
 
-      const refundMatch = rawInfo.match(/REFUND_([0-9a-fA-F]{24})/);
+      const refundByOrderId = localRefund || await RefundRequest.findOne({
+        paymentOrderId: appTransId,
+      }).select("_id status");
 
-      if (refundMatch) {
-        await completeRefundPayment(refundMatch[1], {
+      const refundMatch = rawInfo.match(/REFUND_([0-9a-fA-F]{24})/);
+      const refundRequestId = refundByOrderId?._id?.toString() || refundMatch?.[1];
+
+      if (refundRequestId) {
+        await completeRefundPayment(refundRequestId, {
           ...data,
           zp_trans_id: data.zptransid || data.zp_trans_id,
         });
@@ -1073,14 +1286,12 @@ class PaymentController {
         });
       }
 
-      const payment = await UserPayment.findOne({
-        orderId: appTransId,
-      });
+      const payment = await findUserPaymentForZaloPay(appTransId, rawInfo);
 
       if (!payment) {
         return res.json({
           returncode: -1,
-          returnmessage: "Payment not found",
+          returnmessage: "Rent payment transaction not found",
         });
       }
 
@@ -1101,5 +1312,11 @@ class PaymentController {
     }
   }
 }
+
+export {
+  completePayment,
+  findUserPaymentForZaloPay,
+  queryZaloPayStatus,
+};
 
 export default new PaymentController();

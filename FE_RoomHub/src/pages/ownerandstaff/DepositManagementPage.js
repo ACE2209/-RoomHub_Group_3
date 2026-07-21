@@ -677,7 +677,9 @@ function StatusBadge({ status }) {
 }
 
 const canDeleteDeposit = (status) =>
-  ["rejected", "accepted", "confirmed"].includes(String(status || "").toLowerCase());
+  ["pending", "rejected", "expired", "cancelled"].includes(
+    String(status || "").toLowerCase()
+  );
 
 const formatMoney = (value) =>
   new Intl.NumberFormat("vi-VN", {

@@ -9,41 +9,87 @@ import BoardingHouse from "../models/boardingHouse.js";
 
 const attachAcceptedDepositStatus = async (rooms) => {
   const roomIds = rooms.map((room) => room._id).filter(Boolean);
+  if (!roomIds.length) return rooms;
 
-  if (!roomIds.length) {
-    return rooms;
-  }
-
-  const acceptedDeposits = await DepositRoom.find({
+  const now = new Date();
+  const activeDeposits = await DepositRoom.find({
     roomId: { $in: roomIds },
-    status: { $in: ["accepted", "confirmed"] },
+    $or: [
+      { status: "confirmed" },
+      { status: "accepted", paymentDeadline: { $gt: now } },
+    ],
   })
-    .select("roomId accountId")
+    .select("roomId accountId status")
     .populate("accountId", "fullname username email")
     .lean();
 
-  const acceptedTenantsByRoom = new Map();
-
-  acceptedDeposits.forEach((deposit) => {
-    const roomId = deposit.roomId.toString();
-    const currentTenants = acceptedTenantsByRoom.get(roomId) || [];
-
+  const byRoom = new Map();
+  for (const deposit of activeDeposits) {
+    const key = deposit.roomId.toString();
+    const entry = byRoom.get(key) || { confirmed: [], reserved: [] };
     if (deposit.accountId) {
-      currentTenants.push(deposit.accountId);
+      if (deposit.status === "confirmed") entry.confirmed.push(deposit.accountId);
+      else entry.reserved.push(deposit.accountId);
     }
+    byRoom.set(key, entry);
+  }
 
-    acceptedTenantsByRoom.set(roomId, currentTenants);
-  });
-
-  return rooms.map((room) => {
-    const acceptedTenants = acceptedTenantsByRoom.get(room._id.toString()) || [];
-    const hasAcceptedDeposit = acceptedTenants.length > 0;
+  return rooms.map((rawRoom) => {
+    const room = rawRoom.toObject ? rawRoom.toObject() : rawRoom;
+    const entry = byRoom.get(room._id.toString()) || { confirmed: [], reserved: [] };
+    const typeCode = room.boardingHouseId?.boardingHouseType?.codeName;
+    const isDormitory = typeCode === "nha_tro_kien_truc_xa";
+    const capacity = isDormitory
+      ? Math.max(1, Number(room.roomTypeId?.peopleNumber || 1))
+      : 1;
+    const occupiedIds = new Set(
+      (Array.isArray(room.rentBy) ? room.rentBy : entry.confirmed)
+        .map((account) => (account?._id || account)?.toString())
+        .filter(Boolean)
+    );
+    const reservedIds = new Set(
+      entry.reserved
+        .map((account) => (account?._id || account)?.toString())
+        .filter((id) => id && !occupiedIds.has(id))
+    );
+    const occupiedCount = occupiedIds.size;
+    const reservedCount = reservedIds.size;
+    const availableSlots = Math.max(0, capacity - occupiedCount - reservedCount);
+    const isFull = isDormitory
+      ? availableSlots === 0
+      : occupiedCount + reservedCount > 0;
 
     return {
       ...room,
-      hasAcceptedDeposit,
-      depositStatus: hasAcceptedDeposit ? "accepted" : null,
-      acceptedTenants,
+      isDormitory,
+      capacity,
+      occupiedCount,
+      reservedCount,
+      availableSlots,
+      isFull,
+      occupancyStatus:
+        occupiedCount > 0
+          ? "occupied"
+          : reservedCount > 0
+            ? "reserved"
+            : "available",
+      // Trạng thái hiển thị luôn theo người đang ở + chỗ accepted còn hạn.
+      // Không để cờ chỉnh tay làm phòng đầy vẫn xuất hiện là còn trống.
+isAvailable: room.manuallySet
+  ? room.isAvailable && !isFull
+  : !isFull,      // Deposit confirmed mới là người thuê chính thức.
+      hasConfirmedDeposit: occupiedCount > 0 || entry.confirmed.length > 0,
+      hasAcceptedDeposit: reservedCount > 0,
+      depositStatus:
+        occupiedCount > 0 || entry.confirmed.length > 0
+          ? "confirmed"
+          : reservedCount > 0
+            ? "accepted"
+            : null,
+      confirmedTenants: entry.confirmed,
+      reservedTenants: entry.reserved,
+      // Giữ field cũ để không làm hỏng các màn hình đang sử dụng.
+      acceptedTenants: [...entry.confirmed, ...entry.reserved],
     };
   });
 };
@@ -58,23 +104,25 @@ class RoomController {
         return res.status(400).json({ message: "Missing required parameters" });
       }
 
-      const depositRoomIds = await DepositRoom.find({
-        status: { $in: ["accepted", "confirmed"] },
-      }).distinct("roomId");
-
       const filter = {
         roomTypeId: new mongoose.Types.ObjectId(roomTypeId),
-        isAvailable: true,
-        _id: { $nin: depositRoomIds },
       };
 
       if (boardingHouseId) {
         filter.boardingHouseId = new mongoose.Types.ObjectId(boardingHouseId);
       }
 
-      const availableRooms = await Room.find(filter);
+      const rooms = await Room.find(filter)
+        .populate("roomTypeId")
+        .populate("rentBy", "fullname email")
+        .populate({
+          path: "boardingHouseId",
+          select: "name boardingHouseType",
+          populate: { path: "boardingHouseType", select: "codeName" },
+        });
 
-      res.status(200).json(availableRooms);
+      const enrichedRooms = await attachAcceptedDepositStatus(rooms);
+      res.status(200).json(enrichedRooms.filter((room) => room.isAvailable));
     } catch (error) {
       res.status(500).json({ message: "Server error", error });
     }
@@ -98,7 +146,7 @@ class RoomController {
       }).distinct("roomId");
 
       const validDeposits = await DepositRoom.find({
-        status: { $in: ["accepted", "confirmed"] },
+        status: "confirmed",
         startDate: { $lte: now },
         endDate: { $gte: now },
       }).select("roomId");
@@ -137,7 +185,10 @@ class RoomController {
         sortField: "createdAt",
         sortOrder: "desc",
         filter,
-        populate: [{ path: "roomTypeId" }, { path: "rentBy" }],
+        populate: [{ path: "roomTypeId" },
+          { path: "rentBy" },
+          { path: "boardingHouseId", populate: { path: "boardingHouseType", select: "codeName" } },
+        ],
         includeTotalData: true,
       };
 
@@ -191,7 +242,8 @@ class RoomController {
           },
           {
             path: "boardingHouseId",
-            select: "name",
+            select: "name boardingHouseType",
+            populate: { path: "boardingHouseType", select: "codeName" },
           },
         ],
 
@@ -257,14 +309,15 @@ class RoomController {
         publicId: file.filename,
       }));
 
-      const roomDocs = rooms.map((room) => ({
-        roomNumber: room.roomNumber,
-        boardingHouseId: room.boardingHouseId,
-        description: room.description,
-        roomTypeId: room.roomTypeId,
-        isAvailable: true,
-        images: room.images || uploadedImages,
-      }));
+const roomDocs = rooms.map((room) => ({
+  roomNumber: room.roomNumber,
+  boardingHouseId: room.boardingHouseId,
+  description: room.description,
+  roomTypeId: room.roomTypeId,
+  isAvailable: true,
+  manuallySet: false,
+  images: room.images || uploadedImages,
+}));
 
       // Save all rooms
       const savedRooms = await Room.insertMany(roomDocs);
@@ -405,7 +458,10 @@ class RoomController {
 
       const room = await Room.findById(roomId)
         .populate("roomTypeId")
-        .populate("boardingHouseId")
+        .populate({
+          path: "boardingHouseId",
+          populate: { path: "boardingHouseType", select: "codeName" },
+        })
         .populate("rentBy");
 
       if (!room) {
@@ -414,16 +470,8 @@ class RoomController {
         });
       }
 
-      const acceptedDeposit = await DepositRoom.exists({
-        roomId,
-        status: { $in: ["accepted", "confirmed"] },
-      });
-
-      return res.status(200).json({
-        ...room.toObject(),
-        hasAcceptedDeposit: Boolean(acceptedDeposit),
-        depositStatus: acceptedDeposit ? "accepted" : null,
-      });
+      const [enrichedRoom] = await attachAcceptedDepositStatus([room]);
+      return res.status(200).json(enrichedRoom);
     } catch (error) {
       return res.status(500).json({
         message: "Server error",
