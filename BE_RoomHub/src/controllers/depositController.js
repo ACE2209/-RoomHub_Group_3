@@ -8,6 +8,27 @@ import PaymentBill from "../models/paymentBill.js";
 import UserPayment from "../models/userPayment.js";
 import paginate from "../utils/pagination.js";
 import { updateBoardingHouseRoomCounts } from "../utils/updateBoardingHouseRoomCounts.js";
+
+const addRentalMonths = (startDate, months) => {
+  const start = new Date(startDate);
+  const end = new Date(
+    start.getFullYear(),
+    start.getMonth() + months,
+    1,
+    start.getHours(),
+    start.getMinutes(),
+    start.getSeconds(),
+    start.getMilliseconds()
+  );
+  const lastDay = new Date(
+    end.getFullYear(),
+    end.getMonth() + 1,
+    0
+  ).getDate();
+  end.setDate(Math.min(start.getDate(), lastDay));
+  return end;
+};
+
 class DepositController {
   async getDepositsByOwnerOrStaff(req, res) {
     try {
@@ -510,8 +531,7 @@ class DepositController {
         });
       }
 
-      const end = new Date(start);
-      end.setMonth(end.getMonth() + rentalTimeNumber);
+      const end = addRentalMonths(start, rentalTimeNumber);
 
       const existedSameRoom = await DepositRoom.findOne({
         accountId,
