@@ -263,17 +263,18 @@ const handlePay = async () => {
                 />
               </Card>
 
-              {payment.status === "Pending" && (
-                <Space className="monthly-rent-detail__actions">
-                  <Button
-                    type="primary"
-                    size="large"
-                    className="monthly-rent-detail__pay-btn"
-                    onClick={() => setIsModalOpen(true)}
-                  >
-                    Pay Rent
-                  </Button>
-                </Space>
+{["Pending", "Failed", "Overdue"].includes(payment.status) && (
+  <Space className="monthly-rent-detail__actions">
+    <Button
+      type="primary"
+      size="large"
+      className="monthly-rent-detail__pay-btn"
+      onClick={() => setIsModalOpen(true)}
+    >
+      Pay Rent
+    </Button>
+  </Space>
+)}
               )}
             </>
           )}
