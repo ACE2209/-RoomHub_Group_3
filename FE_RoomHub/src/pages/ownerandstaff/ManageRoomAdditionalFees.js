@@ -35,11 +35,9 @@ import "./ManageRoomAdditionalFees.css";
 
 const { Option, OptGroup } = Select;
 
-// Giá trị đặc biệt đại diện cho lựa chọn "Khác" (tự nhập tên phí).
 const CUSTOM_FEE_VALUE = "Khác";
 
-// Danh mục mặc định (dự phòng khi chưa gọi được API BE) - phải khớp với
-// ROOM_ADDITIONAL_FEE_NAME_OPTIONS ở BE để trải nghiệm nhất quán.
+
 const DEFAULT_FEE_NAME_OPTIONS = [
     {
         group: "Phí dịch vụ",
@@ -107,8 +105,6 @@ const ManageRoomAdditionalFees = () => {
     const [isCustomFeeName, setIsCustomFeeName] = useState(false);
     const [form] = Form.useForm();
 
-    // Tập hợp toàn bộ value có sẵn trong danh mục, dùng để xác định khi Edit
-    // một fee cũ xem tên đó có nằm trong danh mục hay là tên tự nhập.
     const knownFeeNameValues = useMemo(() => {
         const values = new Set();
         feeNameOptions.forEach((group) => {
@@ -130,7 +126,6 @@ const ManageRoomAdditionalFees = () => {
                 setFeeNameOptions(res.data);
             }
         } catch (err) {
-            // Giữ danh mục mặc định nếu API chưa sẵn sàng, không chặn người dùng
             console.warn("Failed to load fee name options, using defaults:", err);
         }
     };
@@ -239,9 +234,6 @@ const ManageRoomAdditionalFees = () => {
 
     const openEditModal = (record) => {
         setEditingFee(record);
-
-        // Nếu tên phí hiện tại nằm trong danh mục có sẵn -> chọn đúng option đó.
-        // Nếu không (tên tự nhập từ trước) -> chuyển sang chế độ "Khác".
         const matchesKnownOption = knownFeeNameValues.has(record.feeName);
 
         setIsCustomFeeName(!matchesKnownOption);
@@ -301,7 +293,6 @@ const ManageRoomAdditionalFees = () => {
             }
         } catch (err) {
             if (err?.errorFields) {
-                // Lỗi validate của Form, không cần message riêng (AntD đã hiển thị)
                 return;
             }
             console.error("Error:", err);
@@ -476,7 +467,7 @@ const ManageRoomAdditionalFees = () => {
                         <Form.Item
                             name="feeNameOption"
                             label="Fee Name"
-                            extra="Tên phí phải là duy nhất trong cùng một phòng theo tháng/năm (BR-32)."
+                            extra="Tên phí phải là duy nhất trong cùng một phòng theo tháng/năm."
                             rules={[{ required: true, message: "Please select a fee name" }]}
                         >
                             <Select
