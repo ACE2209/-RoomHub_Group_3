@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AdminLayout from "../../layout/admin/AdminLayout";
-import { getReportDetail } from "../../../api/report";
+import {
+  getReportDetail,
+  sendReportReplyByEmail,
+} from "../../../api/report";
 
 const statusColors = {
   pending: { background: "#fffaeb", color: "#b54708", borderColor: "#fedf89" },
@@ -15,24 +18,77 @@ export default function ReportDetailPage() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [replyForm, setReplyForm] = useState({
+    status: "pending",
+    detailReport: "",
+  });
+  const [sending, setSending] = useState(false);
+
+  const fetchDetail = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const res = await getReportDetail(reportId);
+      const nextReport = res?.data || (res?._id ? res : null);
+
+      setReport(nextReport);
+      setReplyForm({
+        status: nextReport?.status || "pending",
+        detailReport: nextReport?.detailReport || "",
+      });
+    } catch (err) {
+      setReport(null);
+      setError(err.message || "Unable to load review report detail");
+    } finally {
+      setLoading(false);
+    }
+  }, [reportId]);
 
   useEffect(() => {
-    const fetchDetail = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        const res = await getReportDetail(reportId);
-        setReport(res?.data || (res?._id ? res : null));
-      } catch (err) {
-        setReport(null);
-        setError(err.message || "Unable to load review report detail");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (reportId) fetchDetail();
-  }, [reportId]);
+  }, [fetchDetail, reportId]);
+
+  const handleReplyChange = (event) => {
+    const { name, value } = event.target;
+
+    setReplyForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  const handleSendReply = async (event) => {
+    event.preventDefault();
+
+    if (!report?._id) {
+      alert("Report ID not found");
+      return;
+    }
+
+    const detailReport = replyForm.detailReport.trim();
+
+    if (!detailReport) {
+      alert("Reply message is required");
+      return;
+    }
+
+    try {
+      setSending(true);
+
+      await sendReportReplyByEmail(report._id, {
+        status: replyForm.status,
+        detailReport,
+      });
+
+      alert("Reply email sent successfully");
+      await fetchDetail();
+    } catch (err) {
+      console.error("Send report reply email failed:", err);
+      alert(err.message || "Unable to send reply email");
+    } finally {
+      setSending(false);
+    }
+  };
 
   const review = report?.target;
   const boardingHouse = review?.boardingHouseId;
@@ -81,6 +137,49 @@ export default function ReportDetailPage() {
 
             <Block title="Admin Response">
               <p style={textBoxStyle}>{report.detailReport || "No response yet"}</p>
+            </Block>
+
+            <Block title="Reply By Email">
+              <form style={replyFormStyle} onSubmit={handleSendReply}>
+                <div>
+                  <label style={formLabelStyle}>Status</label>
+                  <select
+                    name="status"
+                    value={replyForm.status}
+                    onChange={handleReplyChange}
+                    style={formControlStyle}
+                  >
+                    {reportStatuses.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={formLabelStyle}>Reply Message</label>
+                  <textarea
+                    name="detailReport"
+                    value={replyForm.detailReport}
+                    onChange={handleReplyChange}
+                    placeholder="Enter the response that will be emailed to the reporter..."
+                    style={textareaStyle}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={sending}
+                  style={{
+                    ...sendBtnStyle,
+                    opacity: sending ? 0.7 : 1,
+                    cursor: sending ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {sending ? "Sending..." : "Send Email & Update"}
+                </button>
+              </form>
             </Block>
 
             <ImageGallery title="Report Evidence" images={report.images} />
@@ -148,6 +247,12 @@ function ImageGallery({ title, images = [] }) {
 }
 const formatDate = (value) => value ? new Date(value).toLocaleString("en-GB") : "N/A";
 const formatAddress = (address) => [address?.detail, address?.ward?.name, address?.district?.name, address?.province?.name].filter(Boolean).join(", ") || "No address";
+const reportStatuses = [
+  { value: "pending", label: "Pending" },
+  { value: "processing", label: "Processing" },
+  { value: "resolved", label: "Resolved" },
+  { value: "rejected", label: "Rejected" },
+];
 
 const topStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginBottom: 24, flexWrap: "wrap" };
 const titleStyle = { fontSize: 28, fontWeight: 700, color: "#27364a", margin: 0 };
@@ -171,3 +276,8 @@ const imageListStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fill
 const imageStyle = { width: "100%", aspectRatio: "1 / 1", objectFit: "cover", borderRadius: 8, border: "1px solid #e5e7eb" };
 const badgeStyle = { display: "inline-flex", border: "1px solid", borderRadius: 999, padding: "4px 9px", fontSize: 12, fontWeight: 700, textTransform: "capitalize" };
 const emptyTargetStyle = { background: "#fffaeb", color: "#b54708", border: "1px solid #fedf89", borderRadius: 8, padding: 14 };
+const replyFormStyle = { display: "grid", gap: 14, background: "#f8fafc", borderRadius: 8, padding: 14 };
+const formLabelStyle = { display: "block", marginBottom: 7, color: "#27364a", fontSize: 13, fontWeight: 700 };
+const formControlStyle = { width: "100%", height: 42, border: "1px solid #d0d5dd", borderRadius: 8, padding: "0 12px", color: "#344054", fontSize: 14, boxSizing: "border-box", background: "white" };
+const textareaStyle = { ...formControlStyle, minHeight: 120, height: "auto", padding: 12, resize: "vertical", lineHeight: 1.5 };
+const sendBtnStyle = { justifySelf: "flex-end", background: "#2f80ed", color: "white", border: "none", borderRadius: 6, padding: "10px 16px", fontWeight: 700 };
