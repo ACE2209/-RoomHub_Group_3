@@ -3,7 +3,11 @@ import UserPayment from "../models/userPayment.js";
 import Room from "../models/room.js";
 import RoomAdditionalFees from "../models/roomAdditionalFees.js";
 import DepositRoom from "../models/depositRoom.js";
-import { buildRentDeadlines } from "../utils/paymentPolicy.js";
+import {
+  buildRentDeadlines,
+  MAX_UNPAID_RENT_MONTHS,
+  RENT_ARREARS_WARNING_MONTHS,
+} from "../utils/paymentPolicy.js";
 import {
   formatDateTimeVi,
   formatVnd,
@@ -19,7 +23,8 @@ const BILL_STATUS = {
 
 const LEGACY_PAID_STATUS = "Paid";
 const MANAGED_BILL_STATUSES = Object.values(BILL_STATUS);
-const RENT_DEPOSIT_STATUSES = ["confirmed"];
+const ACTIVE_RENT_DEPOSIT_STATUSES = ["confirmed"];
+const VISIBLE_RENT_DEPOSIT_STATUSES = ["confirmed", "terminated"];
 
 const roundMoney = (value) => Math.round(Number(value || 0));
 
@@ -124,7 +129,7 @@ const getUserDepositFilterForBill = (userId, bill) => {
       _id: bill.depositRoomId?._id || bill.depositRoomId,
       accountId: userId,
       roomId,
-      status: { $in: RENT_DEPOSIT_STATUSES },
+      status: { $in: VISIBLE_RENT_DEPOSIT_STATUSES },
     };
   }
 
@@ -135,7 +140,7 @@ const getUserDepositFilterForBill = (userId, bill) => {
   return {
     accountId: userId,
     roomId,
-    status: { $in: RENT_DEPOSIT_STATUSES },
+    status: { $in: VISIBLE_RENT_DEPOSIT_STATUSES },
     startDate: { $lte: periodEnd },
     endDate: { $gte: periodStart },
   };
@@ -172,7 +177,7 @@ const hasRentedRoomForBill = async (userId, bill, depositRoomId = null) => {
     const deposit = await DepositRoom.findOne({
       _id: depositRoomId,
       accountId: userId,
-      status: { $in: RENT_DEPOSIT_STATUSES },
+      status: { $in: VISIBLE_RENT_DEPOSIT_STATUSES },
     }).lean();
 
     if (isDepositMatchedWithBill(deposit, bill)) {
@@ -183,6 +188,88 @@ const hasRentedRoomForBill = async (userId, bill, depositRoomId = null) => {
   const depositFilter = getUserDepositFilterForBill(userId, bill);
 
   return depositFilter ? Boolean(await DepositRoom.exists(depositFilter)) : false;
+};
+
+const getArrearsLevel = (unpaidMonths) => {
+  if (unpaidMonths >= MAX_UNPAID_RENT_MONTHS) return "critical";
+  if (unpaidMonths >= RENT_ARREARS_WARNING_MONTHS) return "warning";
+  return "normal";
+};
+
+const getUnpaidBillCountForDeposit = (depositRoomId) =>
+  PaymentBill.countDocuments({
+    depositRoomId,
+    status: { $in: [BILL_STATUS.PENDING, BILL_STATUS.OVERDUE] },
+  });
+
+const buildCycleCandidates = (deposits) =>
+  deposits
+    .flatMap((deposit) =>
+      Array.from({ length: Number(deposit.rentalTime || 0) }, (_, index) => {
+        const cycleNumber = index + 1;
+        const range = getDepositCycleRange(deposit, cycleNumber);
+
+        return range
+          ? {
+              deposit,
+              cycleNumber,
+              range,
+            }
+          : null;
+      }).filter(Boolean)
+    )
+    .sort((left, right) => {
+      const byDate =
+        new Date(left.range.periodStart).getTime() -
+        new Date(right.range.periodStart).getTime();
+
+      if (byDate !== 0) return byDate;
+
+      return String(left.deposit._id).localeCompare(String(right.deposit._id));
+    });
+
+const findNextUnbilledCycle = async (roomId, deposits, now = new Date()) => {
+  const candidates = buildCycleCandidates(deposits);
+  const existingBills = await PaymentBill.find({
+    roomId,
+    $or: [
+      { depositRoomId: { $in: deposits.map((deposit) => deposit._id) } },
+      { month: { $exists: true }, year: { $exists: true } },
+    ],
+  })
+    .select("depositRoomId cycleNumber month year")
+    .lean();
+
+  const existingDepositCycles = new Set(
+    existingBills
+      .filter((bill) => bill.depositRoomId && bill.cycleNumber)
+      .map((bill) => `${bill.depositRoomId}:${bill.cycleNumber}`)
+  );
+  const existingRoomMonths = new Set(
+    existingBills
+      .filter((bill) => bill.month && bill.year)
+      .map((bill) => `${bill.year}-${bill.month}`)
+  );
+
+  const unbilledCandidates = candidates.filter((candidate) => {
+    const depositCycleKey = `${candidate.deposit._id}:${candidate.cycleNumber}`;
+    const roomMonthKey = `${candidate.range.periodStart.getFullYear()}-${
+      candidate.range.periodStart.getMonth() + 1
+    }`;
+
+    return (
+      !existingDepositCycles.has(depositCycleKey) &&
+      !existingRoomMonths.has(roomMonthKey)
+    );
+  });
+
+  // Cho phép owner/staff lập trước kỳ thuê để demo hoặc chuẩn bị hóa đơn.
+  // Kỳ được chọn vẫn luôn là kỳ chưa lập sớm nhất, neo theo startDate của deposit.
+  return {
+    candidate: unbilledCandidates[0] || null,
+    nextFutureCandidate: null,
+    hasAnyUnbilledCycle: unbilledCandidates.length > 0,
+  };
 };
 
 class MonthlyRentController {
@@ -376,10 +463,45 @@ class MonthlyRentController {
 
         return result;
       }, {});
-      const managedBillsWithTenants = managedBills.map((bill) => ({
-        ...bill.toObject(),
-        tenants: tenantMap[bill._id.toString()] || [],
-      }));
+      const managedRoomIds = [
+        ...new Set(
+          managedBills
+            .map((bill) => bill.roomId?._id?.toString())
+            .filter(Boolean)
+        ),
+      ];
+      const unresolvedBills = managedRoomIds.length
+        ? await PaymentBill.find({
+            roomId: { $in: managedRoomIds },
+            status: { $in: [BILL_STATUS.PENDING, BILL_STATUS.OVERDUE] },
+          })
+            .select("roomId")
+            .lean()
+        : [];
+      const unpaidMonthsByRoom = unresolvedBills.reduce((result, bill) => {
+        const billRoomId = bill.roomId?.toString();
+        if (billRoomId) {
+          result[billRoomId] = (result[billRoomId] || 0) + 1;
+        }
+        return result;
+      }, {});
+
+      const managedBillsWithTenants = managedBills.map((bill) => {
+        const billRoomId = bill.roomId?._id?.toString();
+        const unpaidMonths = unpaidMonthsByRoom[billRoomId] || 0;
+
+        return {
+          ...bill.toObject(),
+          tenants: tenantMap[bill._id.toString()] || [],
+          arrears: {
+            unpaidMonths,
+            warningMonths: RENT_ARREARS_WARNING_MONTHS,
+            maxUnpaidMonths: MAX_UNPAID_RENT_MONTHS,
+            level: getArrearsLevel(unpaidMonths),
+            newBillsBlocked: unpaidMonths >= MAX_UNPAID_RENT_MONTHS,
+          },
+        };
+      });
 
       return res.status(200).json({
         success: true,
@@ -463,7 +585,7 @@ class MonthlyRentController {
       if (!MANAGED_BILL_STATUSES.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: "Status must be Pending, Done, or Cancel.",
+          message: "Status must be Pending, Overdue, Done, or Cancel.",
         });
       }
 
@@ -495,7 +617,13 @@ class MonthlyRentController {
         });
       }
 
+      const paidAt = status === BILL_STATUS.DONE ? new Date() : null;
+
       bill.status = status;
+      bill.closedAt = status === BILL_STATUS.DONE ? paidAt : null;
+      if (status === BILL_STATUS.OVERDUE && !bill.overdueAt) {
+        bill.overdueAt = new Date();
+      }
       await bill.save();
 
       await UserPayment.updateMany(
@@ -504,6 +632,7 @@ class MonthlyRentController {
           $set: {
             status,
             paymentMethod: status === BILL_STATUS.DONE ? "Cash" : "Unpaid",
+            paidAt,
           },
         }
       );
@@ -547,12 +676,105 @@ class MonthlyRentController {
     }
   }
 
+  async getNextRentCyclePreview(req, res) {
+    try {
+      const { roomId } = req.params;
+      const room = await Room.findById(roomId)
+        .populate("roomTypeId", "typeName price peopleNumber")
+        .populate(
+          "boardingHouseId",
+          "name electricityPrice waterPrice ownerId staffId"
+        );
+
+      if (!room) {
+        return res.status(404).json({ success: false, message: "Room not found" });
+      }
+
+      const boardingHouse = room.boardingHouseId;
+      const userId = req.user.userId;
+      if (
+        boardingHouse?.ownerId?.toString() !== userId &&
+        boardingHouse?.staffId?.toString() !== userId
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have permission to view this rent cycle.",
+        });
+      }
+
+      const deposits = await DepositRoom.find({
+        roomId,
+        status: { $in: ACTIVE_RENT_DEPOSIT_STATUSES },
+      })
+        .populate("accountId", "fullname email phoneNumber")
+        .sort({ startDate: 1, createdAt: 1 })
+        .lean();
+
+      if (!deposits.length) {
+        const expiredDeposit = await DepositRoom.findOne({
+          roomId,
+          status: "expired",
+        }).sort({ endDate: -1 });
+
+        if (expiredDeposit) {
+          return res.status(409).json({
+            success: false,
+            code: "RENTAL_CONTRACT_EXPIRED",
+            message: "The rental period has ended. Approve a renewal before creating another rent bill.",
+            data: { endDate: expiredDeposit.endDate, depositRoomId: expiredDeposit._id },
+          });
+        }
+
+        return res.status(400).json({
+          success: false,
+          code: "NO_CONFIRMED_RENTAL",
+          message: "This room has no confirmed deposit with a move-in date.",
+        });
+      }
+
+      const cycleResult = await findNextUnbilledCycle(roomId, deposits);
+      if (!cycleResult.candidate) {
+        return res.status(409).json({
+          success: false,
+          code: "ALL_RENT_CYCLES_BILLED",
+          message: "All rent cycles in the confirmed deposit have been billed.",
+        });
+      }
+
+      const { deposit, cycleNumber, range } = cycleResult.candidate;
+      const unpaidMonths = await getUnpaidBillCountForDeposit(deposit._id);
+
+      return res.json({
+        success: true,
+        data: {
+          depositRoomId: deposit._id,
+          tenant: deposit.accountId,
+          cycleNumber,
+          periodStart: range.periodStart,
+          periodEnd: range.periodEnd,
+          moveInDate: deposit.startDate,
+          canCalculateNow: unpaidMonths < MAX_UNPAID_RENT_MONTHS,
+          arrears: {
+            unpaidMonths,
+            warningMonths: RENT_ARREARS_WARNING_MONTHS,
+            maxUnpaidMonths: MAX_UNPAID_RENT_MONTHS,
+          },
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
+      });
+    }
+  }
+
   async calculateMonthlyRent(req, res) {
     try {
       const { roomId } = req.params;
       const {
         depositRoomId,
-        billingDate,
         currentElectricityReading,
         currentWaterReading,
       } = req.body;
@@ -560,7 +782,10 @@ class MonthlyRentController {
       const room = await Room.findById(roomId)
         .populate("rentBy", "fullname email phoneNumber")
         .populate("roomTypeId", "typeName price peopleNumber")
-        .populate("boardingHouseId", "name electricityPrice waterPrice ownerId staffId");
+        .populate(
+          "boardingHouseId",
+          "name electricityPrice waterPrice ownerId staffId"
+        );
 
       if (!room) {
         return res.status(404).json({
@@ -571,6 +796,15 @@ class MonthlyRentController {
 
       const boardingHouse = room.boardingHouseId;
       const userId = req.user.userId;
+
+      if (!room.roomTypeId) {
+        return res.status(409).json({
+          success: false,
+          code: "ROOM_TYPE_MISSING",
+          message:
+            "This room's room type no longer exists. Restore the deleted room type or assign the room to another room type before calculating rent.",
+        });
+      }
 
       if (
         boardingHouse?.ownerId?.toString() !== userId &&
@@ -584,63 +818,50 @@ class MonthlyRentController {
 
       const depositFilter = {
         roomId,
-        status: { $in: RENT_DEPOSIT_STATUSES },
+        status: { $in: ACTIVE_RENT_DEPOSIT_STATUSES },
       };
       if (depositRoomId) depositFilter._id = depositRoomId;
 
       const deposits = await DepositRoom.find(depositFilter)
         .populate("accountId", "fullname email phoneNumber")
-        .sort({ startDate: 1 })
+        .sort({ startDate: 1, createdAt: 1 })
         .lean();
 
       if (!deposits.length) {
+        const expiredDeposit = await DepositRoom.findOne({
+          roomId,
+          status: "expired",
+        }).sort({ endDate: -1 });
+
+        if (expiredDeposit) {
+          return res.status(409).json({
+            success: false,
+            code: "RENTAL_CONTRACT_EXPIRED",
+            message: "The rental period has ended. Approve a renewal before creating another rent bill.",
+            data: { endDate: expiredDeposit.endDate, depositRoomId: expiredDeposit._id },
+          });
+        }
+
         return res.status(400).json({
           success: false,
-          message: "This room has no accepted or confirmed rental contract.",
+          code: "NO_CONFIRMED_RENTAL",
+          message: "This room has no confirmed tenant deposit.",
         });
       }
 
-      const selectedBillingDate = parseBillingDate(billingDate);
-      if (!selectedBillingDate) {
-        return res.status(400).json({
+      // Không bắt owner/staff chọn ngày thủ công. Hệ thống luôn lấy kỳ chưa lập
+      // hóa đơn sớm nhất, tính từ đúng ngày người thuê bắt đầu ở.
+      const cycleResult = await findNextUnbilledCycle(roomId, deposits);
+
+      if (!cycleResult.candidate) {
+        return res.status(409).json({
           success: false,
-          code: "INVALID_BILLING_DATE",
-          message: "Please select a valid billing date in YYYY-MM-DD format.",
+          code: "ALL_RENT_CYCLES_BILLED",
+          message: "All rent cycles in the confirmed deposit have been billed.",
         });
       }
 
-      const cycleCandidates = deposits.flatMap((item) =>
-        Array.from({ length: Number(item.rentalTime) }, (_, index) => {
-          const cycleNumber = index + 1;
-          return {
-            deposit: item,
-            cycleNumber,
-            range: getDepositCycleRange(item, cycleNumber),
-          };
-        }).filter((candidate) => candidate.range)
-      );
-      const selectedDateKey = toDateKey(selectedBillingDate);
-      const selectedCycle = cycleCandidates.find(
-        (candidate) => toDateKey(candidate.range.periodStart) === selectedDateKey
-      );
-
-      if (!selectedCycle) {
-        const validBillingDates = [
-          ...new Set(
-            cycleCandidates.map((candidate) =>
-              toDateKey(candidate.range.periodStart)
-            )
-          ),
-        ];
-        return res.status(400).json({
-          success: false,
-          code: "BILLING_DATE_NOT_ON_CONTRACT_CYCLE",
-          message: `The selected date is not a billing-cycle start date. Valid dates: ${validBillingDates.join(", ")}.`,
-          data: { validBillingDates },
-        });
-      }
-
-      const { deposit, cycleNumber, range: cycleRange } = selectedCycle;
+      const { deposit, cycleNumber, range: cycleRange } = cycleResult.candidate;
 
       if (!deposit.accountId) {
         return res.status(400).json({
@@ -649,18 +870,35 @@ class MonthlyRentController {
         });
       }
 
-      const { periodStart, periodEnd } = cycleRange;
+      const unpaidMonthsBefore = await getUnpaidBillCountForDeposit(deposit._id);
 
+      if (unpaidMonthsBefore >= MAX_UNPAID_RENT_MONTHS) {
+        return res.status(409).json({
+          success: false,
+          code: "RENT_ARREARS_LIMIT_REACHED",
+          message: `This tenant already has ${unpaidMonthsBefore} unpaid rent months. New bills are blocked. Collect the debt or terminate the rental contract.`,
+          data: {
+            unpaidMonths: unpaidMonthsBefore,
+            warningMonths: RENT_ARREARS_WARNING_MONTHS,
+            maxUnpaidMonths: MAX_UNPAID_RENT_MONTHS,
+          },
+        });
+      }
+
+      const { periodStart, periodEnd } = cycleRange;
+      const period = {
+        month: periodStart.getMonth() + 1,
+        year: periodStart.getFullYear(),
+      };
+
+      // Kiểm tra lần cuối để chống double-click / hai request chạy đồng thời.
       const existingBill = await PaymentBill.findOne({
         $or: [
           { depositRoomId: deposit._id, cycleNumber },
-          {
-            roomId,
-            month: periodStart.getMonth() + 1,
-            year: periodStart.getFullYear(),
-          },
+          { roomId, month: period.month, year: period.year },
         ],
       });
+
       if (existingBill) {
         return res.status(409).json({
           success: false,
@@ -670,29 +908,44 @@ class MonthlyRentController {
         });
       }
 
-      const period = {
-        month: periodStart.getMonth() + 1,
-        year: periodStart.getFullYear(),
-      };
-
-      const previousElectricityReading = Number(room.previousElectricityReading || 0);
+      const previousElectricityReading = Number(
+        room.previousElectricityReading || 0
+      );
       const previousWaterReading = Number(room.previousWaterReading || 0);
       const electricityReading = Number(
         currentElectricityReading ?? room.currentElectricityReading ?? 0
       );
-      const waterReading = Number(currentWaterReading ?? room.currentWaterReading ?? 0);
+      const waterReading = Number(
+        currentWaterReading ?? room.currentWaterReading ?? 0
+      );
+
+      if (!Number.isFinite(electricityReading) || electricityReading < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Current electricity reading is invalid.",
+        });
+      }
+
+      if (!Number.isFinite(waterReading) || waterReading < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Current water reading is invalid.",
+        });
+      }
 
       if (electricityReading < previousElectricityReading) {
         return res.status(400).json({
           success: false,
-          message: "Current electricity reading must be greater than or equal to previous reading.",
+          message:
+            "Current electricity reading must be greater than or equal to previous reading.",
         });
       }
 
       if (waterReading < previousWaterReading) {
         return res.status(400).json({
           success: false,
-          message: "Current water reading must be greater than or equal to previous reading.",
+          message:
+            "Current water reading must be greater than or equal to previous reading.",
         });
       }
 
@@ -707,7 +960,8 @@ class MonthlyRentController {
         feeAmount: roundMoney(fee.feeAmount),
       }));
 
-      const electricityQuantity = electricityReading - previousElectricityReading;
+      const electricityQuantity =
+        electricityReading - previousElectricityReading;
       const waterQuantity = waterReading - previousWaterReading;
       const electricalTotalAmount = roundMoney(
         electricityQuantity * Number(boardingHouse.electricityPrice || 0)
@@ -716,14 +970,25 @@ class MonthlyRentController {
         waterQuantity * Number(boardingHouse.waterPrice || 0)
       );
       const additionalFeeTotal = roundMoney(
-        additionalFee.reduce((sum, fee) => sum + Number(fee.feeAmount || 0), 0)
+        additionalFee.reduce(
+          (sum, fee) => sum + Number(fee.feeAmount || 0),
+          0
+        )
       );
       const roomPrice = roundMoney(room.roomTypeId?.price);
       const paymentAmount = roundMoney(
-        roomPrice + electricalTotalAmount + waterTotalAmount + additionalFeeTotal
+        roomPrice +
+          electricalTotalAmount +
+          waterTotalAmount +
+          additionalFeeTotal
       );
 
-      const { dueDate, gracePeriodEnd } = buildRentDeadlines();
+      // Hạn thanh toán bám theo ngày bắt đầu kỳ thuê, không bám theo ngày owner
+      // bấm nút. Vì vậy hóa đơn bị lập trễ sẽ được nhận diện đúng là quá hạn.
+      const { dueDate, gracePeriodEnd } = buildRentDeadlines(periodStart);
+      const now = new Date();
+      const initialStatus =
+        dueDate < now ? BILL_STATUS.OVERDUE : BILL_STATUS.PENDING;
 
       const createdBill = await PaymentBill.create({
         roomId,
@@ -733,9 +998,10 @@ class MonthlyRentController {
         periodEnd,
         roomPrice,
         paymentAmount,
-        status: BILL_STATUS.PENDING,
+        status: initialStatus,
         dueDate,
         gracePeriodEnd,
+        overdueAt: initialStatus === BILL_STATUS.OVERDUE ? now : null,
         additionalFee,
         electricalBill: {
           unitPrice: roundMoney(boardingHouse.electricityPrice),
@@ -755,16 +1021,15 @@ class MonthlyRentController {
         year: period.year,
       });
 
-      const newUserPayments = [{
+      const tenantId = deposit.accountId?._id || deposit.accountId;
+      await UserPayment.create({
         paymentBillId: createdBill._id,
         depositRoomId: deposit._id,
-        accountId: deposit.accountId._id,
+        accountId: tenantId,
         paymentAmount,
-        status: BILL_STATUS.PENDING,
+        status: initialStatus,
         paymentMethod: "Unpaid",
-      }];
-
-      await UserPayment.insertMany(newUserPayments);
+      });
 
       room.previousElectricityReading = electricityReading;
       room.previousWaterReading = waterReading;
@@ -776,21 +1041,39 @@ class MonthlyRentController {
         paymentBillId: createdBill._id,
       }).populate("accountId", "fullname email phoneNumber");
 
-      const paymentUrl = `${process.env.CLIENT_URL || "http://localhost:3001"}/monthly-rents`;
+      const unpaidMonths = unpaidMonthsBefore + 1;
+      const arrearsLevel = getArrearsLevel(unpaidMonths);
+      const paymentUrl = `${
+        process.env.CLIENT_URL || "http://localhost:3001"
+      }/monthly-rents`;
+
       await Promise.all(
         userPayments.map((userPayment) =>
           sendPaymentEmail({
             to: userPayment.accountId?.email,
-            subject: `Hóa đơn tiền thuê tháng ${period.month}/${period.year}`,
+            subject: `Hóa đơn tiền thuê kỳ ${formatDateTimeVi(
+              periodStart
+            )}`,
             html: `
-              <p>Xin chào <strong>${userPayment.accountId?.fullname || "bạn"}</strong>,</p>
-              <p>Hóa đơn tiền thuê phòng <strong>${room.roomNumber}</strong> tháng
-              <strong>${period.month}/${period.year}</strong> đã được tạo.</p>
-              <p>Tổng hóa đơn phòng: <strong>${formatVnd(paymentAmount)}</strong></p>
-              <p>Số người đang được chia: <strong>${renterCount}</strong></p>
-              <p>Số tiền bạn cần thanh toán: <strong>${formatVnd(userPayment.paymentAmount)}</strong></p>
-              <p>Hạn thanh toán: <strong>${formatDateTimeVi(dueDate)}</strong></p>
-              <p>Thời gian gia hạn đến: <strong>${formatDateTimeVi(gracePeriodEnd)}</strong></p>
+              <p>Xin chào <strong>${
+                userPayment.accountId?.fullname || "bạn"
+              }</strong>,</p>
+              <p>Hóa đơn tiền thuê phòng <strong>${
+                room.roomNumber
+              }</strong> cho kỳ
+              <strong>${formatDateTimeVi(periodStart)} - ${formatDateTimeVi(
+                periodEnd
+              )}</strong> đã được tạo tự động theo ngày bắt đầu ở.</p>
+              <p>Số tiền cần thanh toán: <strong>${formatVnd(
+                userPayment.paymentAmount
+              )}</strong></p>
+              <p>Hạn thanh toán: <strong>${formatDateTimeVi(
+                dueDate
+              )}</strong></p>
+              <p>Thời gian gia hạn đến: <strong>${formatDateTimeVi(
+                gracePeriodEnd
+              )}</strong></p>
+              <p>Số kỳ hiện chưa thanh toán: <strong>${unpaidMonths}/${MAX_UNPAID_RENT_MONTHS}</strong></p>
               <p><a href="${paymentUrl}">Mở trang thanh toán tiền thuê</a></p>
             `,
           })
@@ -799,7 +1082,7 @@ class MonthlyRentController {
 
       return res.status(201).json({
         success: true,
-        message: "Monthly rent calculated successfully",
+        message: "Next rent cycle calculated successfully",
         data: {
           bill: createdBill,
           userPayments,
@@ -812,6 +1095,13 @@ class MonthlyRentController {
             cycleNumber,
             periodStart,
             periodEnd,
+          },
+          arrears: {
+            unpaidMonths,
+            warningMonths: RENT_ARREARS_WARNING_MONTHS,
+            maxUnpaidMonths: MAX_UNPAID_RENT_MONTHS,
+            level: arrearsLevel,
+            newBillsBlocked: unpaidMonths >= MAX_UNPAID_RENT_MONTHS,
           },
         },
       });
@@ -986,12 +1276,13 @@ class MonthlyRentController {
 
       userPayment.status = BILL_STATUS.DONE;
       userPayment.paymentMethod = paymentMethod;
+      userPayment.paidAt = new Date();
       await userPayment.save();
 
       const billId = userPayment.paymentBillId?._id || userPayment.paymentBillId;
       const pendingPayment = await UserPayment.exists({
         paymentBillId: billId,
-        status: { $nin: [BILL_STATUS.DONE, LEGACY_PAID_STATUS] },
+        status: { $in: [BILL_STATUS.PENDING, BILL_STATUS.OVERDUE] },
       });
 
       if (!pendingPayment) {

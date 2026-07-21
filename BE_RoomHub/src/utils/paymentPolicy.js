@@ -14,6 +14,19 @@ export const DEPOSIT_PAYMENT_MINUTES = toPositiveInt(
 
 export const RENT_DUE_DAYS = toPositiveInt(process.env.RENT_DUE_DAYS, 5);
 export const RENT_GRACE_DAYS = toPositiveInt(process.env.RENT_GRACE_DAYS, 7);
+
+// Chính sách công nợ tiền thuê:
+// - Từ 4 kỳ chưa thanh toán: cảnh báo nghiêm trọng.
+// - Đủ 5 kỳ chưa thanh toán và kỳ thứ 5 đã hết gia hạn: chấm dứt thuê.
+export const MAX_UNPAID_RENT_MONTHS = toPositiveInt(
+  process.env.MAX_UNPAID_RENT_MONTHS,
+  5
+);
+export const RENT_ARREARS_WARNING_MONTHS = Math.min(
+  toPositiveInt(process.env.RENT_ARREARS_WARNING_MONTHS, 4),
+  Math.max(1, MAX_UNPAID_RENT_MONTHS - 1)
+);
+
 export const AUTO_RELEASE_OVERDUE_RENT =
   String(process.env.AUTO_RELEASE_OVERDUE_RENT ?? "true").toLowerCase() === "true";
 

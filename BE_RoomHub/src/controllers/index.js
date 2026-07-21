@@ -1,5 +1,5 @@
 import authController from "./authController.js";
-import accountController from "./accountController.js";
+import accountController from "./AccountController.js";
 import reportController from "./reportController.js";
 
 import favoriteController from "./favoriteController.js";

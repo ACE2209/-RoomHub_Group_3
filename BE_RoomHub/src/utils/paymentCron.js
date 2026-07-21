@@ -6,6 +6,8 @@ import Room from "../models/room.js";
 import { Account } from "../models/account.js";
 import {
   AUTO_RELEASE_OVERDUE_RENT,
+  MAX_UNPAID_RENT_MONTHS,
+  RENT_ARREARS_WARNING_MONTHS,
   syncRoomAvailabilityWithReservations,
 } from "./paymentPolicy.js";
 import { updateBoardingHouseRoomCounts } from "./updateBoardingHouseRoomCounts.js";
@@ -81,6 +83,36 @@ export const processExpiredPayments = async () => {
           zaloError.message
         );
       }
+    }
+
+    // Hết thời hạn thuê: dừng tạo rent mới nhưng KHÔNG tự giải phóng phòng.
+    // Người thuê vẫn có thể thanh toán hóa đơn cũ và gửi yêu cầu gia hạn.
+    const endedContracts = await DepositRoom.find({
+      status: "confirmed",
+      endDate: { $lt: now },
+    }).select("_id roomId accountId endDate");
+
+    for (const deposit of endedContracts) {
+      await DepositRoom.updateOne(
+        { _id: deposit._id, status: "confirmed" },
+        {
+          $set: {
+            status: "expired",
+            expiredAt: now,
+            reasonForCancel: "Thời hạn thuê đã kết thúc. Chờ gia hạn hoặc xác nhận trả phòng.",
+          },
+        }
+      );
+
+      const account = await Account.findById(deposit.accountId).select("fullname email");
+      const room = await Room.findById(deposit.roomId).select("roomNumber");
+      await sendEmailSafe(
+        account?.email,
+        "Thời hạn thuê phòng đã kết thúc",
+        `<p>Xin chào <strong>${account?.fullname || "bạn"}</strong>,</p>
+         <p>Thời hạn thuê phòng <strong>${room?.roomNumber || ""}</strong> đã kết thúc.</p>
+         <p>Hệ thống đã dừng tạo kỳ tiền thuê mới. Bạn vẫn có thể thanh toán hóa đơn cũ và gửi yêu cầu gia hạn.</p>`
+      );
     }
 
     const expiredDeposits = await DepositRoom.find({
@@ -197,69 +229,135 @@ export const processExpiredPayments = async () => {
     );
 
     if (AUTO_RELEASE_OVERDUE_RENT) {
-      const overduePayments = await UserPayment.find({
-        status: "Overdue",
-        paymentBillId: { $ne: null },
-      }).populate("paymentBillId");
+      // Không còn đuổi người thuê ngay sau 1 kỳ quá hạn. Hệ thống cảnh báo từ
+      // kỳ thứ 4 và chỉ chấm dứt thuê khi đủ 5 kỳ chưa thanh toán, đồng thời
+      // kỳ thứ 5 đã hết thời gian gia hạn.
+      const unresolvedBills = await PaymentBill.find({
+        status: { $in: ["Pending", "Overdue"] },
+        depositRoomId: { $ne: null },
+      })
+        .sort({ periodStart: 1, createdAt: 1 })
+        .lean();
 
-      for (const payment of overduePayments) {
-        const bill = payment.paymentBillId;
-        if (!bill?.gracePeriodEnd || bill.gracePeriodEnd > now) continue;
+      const billsByDeposit = unresolvedBills.reduce((result, bill) => {
+        const depositId = bill.depositRoomId?.toString();
+        if (!depositId) return result;
 
-        const room = await Room.findById(bill.roomId);
+        if (!result[depositId]) result[depositId] = [];
+        result[depositId].push(bill);
+        return result;
+      }, {});
+
+      for (const [depositId, bills] of Object.entries(billsByDeposit)) {
+        const deposit = await DepositRoom.findOne({
+          _id: depositId,
+          status: "confirmed",
+        }).populate("accountId", "fullname email");
+
+        if (!deposit) continue;
+
+        const unpaidMonths = bills.length;
+        const room = await Room.findById(deposit.roomId);
         if (!room) continue;
 
+        if (unpaidMonths >= RENT_ARREARS_WARNING_MONTHS) {
+          const warningMarker = `RENT_ARREARS_WARNING_${unpaidMonths}`;
+          const markerPayment = await UserPayment.findOne({
+            depositRoomId: deposit._id,
+            paymentBillId: { $in: bills.map((bill) => bill._id) },
+          }).sort({ createdAt: -1 });
+
+          if (
+            markerPayment &&
+            !String(markerPayment.orderInfo || "").includes(warningMarker)
+          ) {
+            const sent = await sendEmailSafe(
+              deposit.accountId?.email,
+              unpaidMonths >= MAX_UNPAID_RENT_MONTHS
+                ? "Cảnh báo cuối: công nợ tiền thuê đã đạt giới hạn"
+                : "Cảnh báo công nợ tiền thuê",
+              `
+                <p>Xin chào <strong>${
+                  deposit.accountId?.fullname || "bạn"
+                }</strong>,</p>
+                <p>Bạn đang có <strong>${unpaidMonths}/${MAX_UNPAID_RENT_MONTHS}</strong>
+                kỳ tiền thuê chưa thanh toán tại phòng <strong>${
+                  room.roomNumber || ""
+                }</strong>.</p>
+                <p>Từ ${RENT_ARREARS_WARNING_MONTHS} kỳ hệ thống sẽ cảnh báo.
+                Khi đủ ${MAX_UNPAID_RENT_MONTHS} kỳ và kỳ thứ ${MAX_UNPAID_RENT_MONTHS}
+                hết thời gian gia hạn, hợp đồng sẽ bị chấm dứt và chỗ ở được mở lại.</p>
+                <p>Các khoản nợ vẫn được giữ lại và vẫn có thể thanh toán sau khi hợp đồng bị chấm dứt.</p>
+                <p><a href="${
+                  process.env.CLIENT_URL || "http://localhost:3001"
+                }/monthly-rents">Mở trang thanh toán</a></p>
+              `
+            );
+
+            if (sent) {
+              markerPayment.orderInfo = `${
+                markerPayment.orderInfo || ""
+              } ${warningMarker}`.trim();
+              await markerPayment.save();
+            }
+          }
+        }
+
+        if (unpaidMonths < MAX_UNPAID_RENT_MONTHS) continue;
+
+        const thresholdBill = bills[MAX_UNPAID_RENT_MONTHS - 1];
+        if (
+          !thresholdBill?.gracePeriodEnd ||
+          new Date(thresholdBill.gracePeriodEnd) > now
+        ) {
+          continue;
+        }
+
         room.rentBy = (room.rentBy || []).filter(
-          (id) => id.toString() !== payment.accountId.toString()
+          (id) => id.toString() !== deposit.accountId?._id?.toString()
         );
         await room.save();
 
-        payment.status = "Cancel";
-        payment.orderInfo = `${payment.orderInfo || ""} AUTO_RELEASE_OVERDUE_RENT`.trim();
-        await payment.save();
+        deposit.status = "terminated";
+        deposit.terminatedAt = now;
+        deposit.reasonForCancel = `Chấm dứt thuê do còn ${unpaidMonths} kỳ tiền thuê chưa thanh toán.`;
+        await deposit.save();
 
-        await DepositRoom.updateOne(
-          {
-            _id: payment.depositRoomId,
-            accountId: payment.accountId,
-            roomId: bill.roomId,
-            status: "confirmed",
-          },
-          {
-            $set: {
-              status: "terminated",
-              terminatedAt: now,
-              reasonForCancel: "Chấm dứt thuê do quá hạn tiền thuê.",
-            },
-          }
-        );
-
-        const account = await Account.findById(payment.accountId).select("fullname email");
+        // Không chuyển các khoản nợ sang Cancel. Chúng vẫn là Overdue để người
+        // thuê có thể thanh toán sau khi đã bị chấm dứt hợp đồng.
         await sendEmailSafe(
-          account?.email,
-          "Hợp đồng thuê đã bị chấm dứt",
+          deposit.accountId?.email,
+          "Hợp đồng thuê đã bị chấm dứt do nợ tiền thuê",
           `
-            <p>Xin chào <strong>${account?.fullname || "bạn"}</strong>,</p>
-            <p>Hợp đồng thuê phòng <strong>${room.roomNumber || ""}</strong> đã bị chấm dứt
-            do khoản tiền thuê quá hạn không được thanh toán trong thời gian gia hạn.</p>
-            <p>Chỉ tài khoản của bạn được xóa khỏi phòng; các người thuê khác không bị ảnh hưởng.</p>
+            <p>Xin chào <strong>${
+              deposit.accountId?.fullname || "bạn"
+            }</strong>,</p>
+            <p>Hợp đồng thuê phòng <strong>${room.roomNumber || ""}</strong>
+            đã bị chấm dứt vì có <strong>${unpaidMonths}</strong> kỳ tiền thuê
+            chưa thanh toán và kỳ thứ ${MAX_UNPAID_RENT_MONTHS} đã hết thời gian gia hạn.</p>
+            <p>Tài khoản của bạn đã được xóa khỏi danh sách người đang ở để phòng có thể nhận người mới.</p>
+            <p>Các hóa đơn còn nợ không bị xóa; bạn vẫn có thể vào trang tiền thuê để thanh toán.</p>
           `
         );
 
-        await syncRoomAvailabilityWithReservations(bill.roomId);
+        await syncRoomAvailabilityWithReservations(room._id);
       }
+    }
 
-      const overdueBills = await PaymentBill.find({ status: "Overdue" });
-      for (const bill of overdueBills) {
-        const unresolved = await UserPayment.exists({
-          paymentBillId: bill._id,
-          status: { $in: ["Pending", "Overdue", "Failed"] },
-        });
-        if (!unresolved) {
-          bill.status = "Done";
-          bill.closedAt = now;
-          await bill.save();
-        }
+    // Tự sửa dữ liệu cũ: bill Overdue chỉ được đóng khi đã có ít nhất một
+    // giao dịch thanh toán thành công. Các lần thử Failed không được xem là nợ
+    // mới và cũng không được xem là đã thanh toán.
+    const overdueBills = await PaymentBill.find({ status: "Overdue" });
+    for (const bill of overdueBills) {
+      const successfulPayment = await UserPayment.exists({
+        paymentBillId: bill._id,
+        status: { $in: ["Paid", "Done"] },
+      });
+
+      if (successfulPayment) {
+        bill.status = "Done";
+        bill.closedAt = now;
+        await bill.save();
       }
     }
   } catch (error) {

@@ -451,6 +451,36 @@ class RoomTypeController {
           .json({ message: 'Room Type has already been deleted.' });
       }
 
+      // Không được xóa loại phòng khi vẫn còn Room tham chiếu tới nó.
+      // Nếu soft-delete RoomType trước, populate roomTypeId của các Room sẽ trả về null
+      // và làm hỏng luồng đặt cọc/tính tiền thuê.
+      const roomsUsingType = await Room.find({ roomTypeId })
+        .select('_id roomNumber rentBy')
+        .lean();
+
+      if (roomsUsingType.length > 0) {
+        const occupiedRooms = roomsUsingType.filter(
+          (room) => Array.isArray(room.rentBy) && room.rentBy.length > 0
+        );
+
+        return res.status(409).json({
+          success: false,
+          message:
+            occupiedRooms.length > 0
+              ? `Cannot delete this room type because ${roomsUsingType.length} room(s) are using it and ${occupiedRooms.length} room(s) currently have tenants.`
+              : `Cannot delete this room type because ${roomsUsingType.length} room(s) are still using it. Reassign or delete those rooms first.`,
+          data: {
+            roomCount: roomsUsingType.length,
+            occupiedRoomCount: occupiedRooms.length,
+            rooms: roomsUsingType.map((room) => ({
+              roomId: room._id,
+              roomNumber: room.roomNumber,
+              tenantCount: Array.isArray(room.rentBy) ? room.rentBy.length : 0,
+            })),
+          },
+        });
+      }
+
       // ✅ Cập nhật trạng thái `deleted` thành `true`
       roomType.deleted = true;
       roomType.deletedAt = new Date(); // Ghi lại thời gian xóa

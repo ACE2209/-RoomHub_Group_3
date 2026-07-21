@@ -8,6 +8,11 @@ import PaymentBill from "../models/paymentBill.js";
 import UserPayment from "../models/userPayment.js";
 import paginate from "../utils/pagination.js";
 import { updateBoardingHouseRoomCounts } from "../utils/updateBoardingHouseRoomCounts.js";
+import {
+  buildDepositPaymentDeadline,
+  getRoomCapacityState,
+  syncRoomAvailabilityWithReservations,
+} from "../utils/paymentPolicy.js";
 
 const addRentalMonths = (startDate, months) => {
   const start = new Date(startDate);
@@ -480,7 +485,7 @@ class DepositController {
         })
         .populate({
           path: "boardingHouseId",
-          select: "boardingHouseType",
+          select: "boardingHouseType ownerId staffId",
           populate: { path: "boardingHouseType", select: "codeName" },
         });
 
@@ -488,6 +493,27 @@ class DepositController {
         return res.status(404).json({
           success: false,
           message: "Room not found",
+        });
+      }
+
+      const requesterRole = String(req.user.role || "").toLowerCase();
+      if (requesterRole === "admin") {
+        return res.status(403).json({
+          success: false,
+          message: "Administrators cannot create room deposit requests.",
+        });
+      }
+
+      const boardingHouse = room.boardingHouseId;
+      const managesThisHouse =
+        boardingHouse?.ownerId?.toString() === accountId ||
+        boardingHouse?.staffId?.toString() === accountId;
+
+      if (["owner", "staff"].includes(requesterRole) && managesThisHouse) {
+        return res.status(403).json({
+          success: false,
+          code: "MANAGER_CANNOT_BOOK_OWN_HOUSE",
+          message: "Owner/staff cannot book a room in a boarding house they manage.",
         });
       }
 

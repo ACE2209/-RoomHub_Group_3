@@ -9,6 +9,7 @@ import {
 } from "react-toastify";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { loginAPI } from "../../api/auth";
+import { getRoleHomePath } from "../../utils/roleNavigation";
 
 const Login = () => {
     const navigate = useNavigate();
@@ -79,9 +80,11 @@ const Login = () => {
                 "Login successful"
             );
 
+            const destination = getRoleHomePath(data.user?.role);
+
             setTimeout(() => {
-                navigate("/");
-            }, 1000);
+                navigate(destination, { replace: true });
+            }, 700);
         } catch (error) {
             toast.error(
                 error.response?.data

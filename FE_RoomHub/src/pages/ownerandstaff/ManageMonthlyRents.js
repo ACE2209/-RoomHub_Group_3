@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Button,
   Card,
   Col,
   Dropdown,
   Form,
-  Input,
   InputNumber,
   Modal,
   Row,
@@ -27,6 +27,7 @@ import { getOwnBoardingHouses } from "../../api/boardingHouse";
 import { getRoomsByBoardingHouse } from "../../api/room";
 import {
   calculateMonthlyRent,
+  getNextMonthlyRentCycle,
   getManagedMonthlyRents,
   updateManagedMonthlyRentStatus,
 } from "../../api/monthlyRentAPI";
@@ -70,14 +71,25 @@ const getRoomTenantNames = (room) => {
     : getTenantNames(room?.rentBy || []);
 };
 
-const hasAcceptedDeposit = (room) =>
-  room?.hasAcceptedDeposit || room?.depositStatus === "accepted";
+// Chỉ cho phép tính tiền thuê cho phòng đã có người thuê chính thức.
+// Không dùng accepted deposit vì accepted mới chỉ là giữ chỗ chờ thanh toán.
+const hasConfirmedTenant = (room) =>
+  Boolean(
+    room?.hasConfirmedDeposit ||
+      room?.depositStatus === "confirmed" ||
+      (Array.isArray(room?.confirmedTenants) && room.confirmedTenants.length > 0) ||
+      (Array.isArray(room?.rentBy) && room.rentBy.length > 0)
+  );
 
-const MONTHLY_RENT_STATUSES = ["Pending", "Done", "Cancel"];
+const MONTHLY_RENT_STATUSES = ["Pending", "Overdue", "Done", "Cancel"];
+const UNPAID_BILL_STATUSES = ["Pending", "Overdue", "Failed"];
+const DEFAULT_ARREARS_WARNING_MONTHS = 4;
+const DEFAULT_MAX_UNPAID_MONTHS = 5;
 
 const getStatusColor = (status) => {
   if (status === "Done" || status === "Paid") return "green";
-  if (status === "Cancel") return "red";
+  if (status === "Overdue") return "volcano";
+  if (status === "Cancel" || status === "Failed") return "red";
   return "gold";
 };
 
@@ -104,8 +116,24 @@ const ManageMonthlyRents = () => {
   const [selectedBoardingHouse, setSelectedBoardingHouse] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [cyclePreview, setCyclePreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const selectedRoomData = rooms.find((item) => item._id === selectedRoom);
+  const selectedRoomBills = bills.filter(
+    (bill) => (bill.roomId?._id || bill.roomId) === selectedRoom
+  );
+  const arrearsFromApi = selectedRoomBills.find((bill) => bill.arrears)?.arrears;
+  const unpaidRentMonths =
+    arrearsFromApi?.unpaidMonths ??
+    selectedRoomBills.filter((bill) =>
+      UNPAID_BILL_STATUSES.includes(bill.status)
+    ).length;
+  const warningMonths =
+    arrearsFromApi?.warningMonths || DEFAULT_ARREARS_WARNING_MONTHS;
+  const maxUnpaidMonths =
+    arrearsFromApi?.maxUnpaidMonths || DEFAULT_MAX_UNPAID_MONTHS;
+  const hasCriticalArrears = unpaidRentMonths >= maxUnpaidMonths;
 
   useEffect(() => {
     loadBoardingHouses();
@@ -157,33 +185,53 @@ const ManageMonthlyRents = () => {
     await loadBills({ roomId: value });
   };
 
-  const openCalculateModal = () => {
+  const openCalculateModal = async () => {
     if (!selectedRoom) {
       return message.warning("Please select a room first");
     }
 
     form.setFieldsValue({
-      billingDate: undefined,
       currentElectricityReading: selectedRoomData?.currentElectricityReading || 0,
       currentWaterReading: selectedRoomData?.currentWaterReading || 0,
     });
+    setCyclePreview(null);
     setIsModalOpen(true);
+
+    try {
+      setPreviewLoading(true);
+      const res = await getNextMonthlyRentCycle(selectedRoom);
+      if (!res?.success) throw new Error(res?.message || "Failed to load rent cycle");
+      setCyclePreview(res.data);
+    } catch (error) {
+      message.error(error.message || "Failed to load rent cycle");
+      setIsModalOpen(false);
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   const handleCalculate = async () => {
     try {
       const values = await form.validateFields();
       setSubmitting(true);
-      const res = await calculateMonthlyRent(selectedRoom, values);
+      const res = await calculateMonthlyRent(selectedRoom, {
+        ...values,
+        depositRoomId: cyclePreview?.depositRoomId,
+      });
 
       if (!res?.success) {
         throw new Error(res?.message || "Failed to calculate monthly rent");
       }
 
       const bill = res?.data?.bill;
+      const arrears = res?.data?.arrears;
       message.success(
         bill?.cycleNumber
-          ? `Created bill for cycle ${bill.cycleNumber}: ${formatBillingPeriod(bill)}`
+          ? `Created the next rent cycle ${bill.cycleNumber}: ${formatBillingPeriod(
+              bill
+            )}. Unpaid: ${arrears?.unpaidMonths || 0}/${
+              arrears?.maxUnpaidMonths || DEFAULT_MAX_UNPAID_MONTHS
+            }.`
           : "Monthly rent calculated successfully"
       );
       setIsModalOpen(false);
@@ -340,12 +388,31 @@ const ManageMonthlyRents = () => {
                   type="primary"
                   icon={<CalculatorOutlined />}
                   onClick={openCalculateModal}
+                  disabled={!selectedRoom || hasCriticalArrears}
                 >
-                  Calculate Rent
+                  Calculate Next Rent
                 </Button>
               </Space>
             </Col>
           </Row>
+
+          {selectedRoom && unpaidRentMonths >= warningMonths ? (
+            <Alert
+              showIcon
+              type={hasCriticalArrears ? "error" : "warning"}
+              className="manage-monthly-rents__arrears-alert"
+              message={
+                hasCriticalArrears
+                  ? `Rent arrears limit reached: ${unpaidRentMonths}/${maxUnpaidMonths} unpaid months`
+                  : `Rent arrears warning: ${unpaidRentMonths}/${maxUnpaidMonths} unpaid months`
+              }
+              description={
+                hasCriticalArrears
+                  ? `New rent bills are blocked. After the ${maxUnpaidMonths}th bill passes its grace period, the rental contract is terminated automatically, but the debt remains payable.`
+                  : `The tenant is close to the ${maxUnpaidMonths}-month limit. Collect the unpaid rent before creating more bills.`
+              }
+            />
+          ) : null}
 
           <Table
             rowKey="_id"
@@ -361,25 +428,33 @@ const ManageMonthlyRents = () => {
           title="Calculate Monthly Rent"
           className="manage-monthly-rents__modal"
           okText="Calculate"
-          confirmLoading={submitting}
+          confirmLoading={submitting || previewLoading}
+          okButtonProps={{ disabled: previewLoading || !cyclePreview }}
           onOk={handleCalculate}
           onCancel={() => setIsModalOpen(false)}
         >
           <Form form={form} layout="vertical">
-            <p>
-              Select the start date of the rental billing cycle. It must match the
-              tenant's contract cycle and remain within the rental period. Bills may
-              be prepared in advance.
-            </p>
-            <Form.Item
-              name="billingDate"
-              label="Billing cycle start date"
-              rules={[
-                { required: true, message: "Please select the billing date" },
-              ]}
-            >
-              <Input type="date" />
-            </Form.Item>
+            <Alert
+              showIcon
+              type="info"
+              message={
+                previewLoading
+                  ? "Loading the next rent period..."
+                  : cyclePreview
+                  ? `Rent cycle ${cyclePreview.cycleNumber}: ${formatDate(
+                      cyclePreview.periodStart
+                    )} - ${formatDate(cyclePreview.periodEnd)}`
+                  : "The next rent period could not be loaded"
+              }
+              description={
+                cyclePreview
+                  ? `Move-in date: ${formatDate(
+                      cyclePreview.moveInDate
+                    )}. You may calculate this bill immediately for the demo; the next cycles continue monthly from this date.`
+                  : "The period is calculated from the confirmed deposit's move-in date."
+              }
+              style={{ marginBottom: 16 }}
+            />
             <Form.Item
               name="currentElectricityReading"
               label="Current Electricity Reading"

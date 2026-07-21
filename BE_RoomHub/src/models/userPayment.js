@@ -46,6 +46,12 @@ enum: ["Unpaid", "Cash", "Bank Transfer", "Momo", "MoMo", "VNPay", "ZaloPay"],
       type: String,
       default: "",
     },
+    // Thời điểm giao dịch thực sự hoàn tất. Revenue chỉ lấy theo field này
+    // (có fallback updatedAt cho dữ liệu cũ), không lấy ngày tạo giao dịch Pending.
+    paidAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

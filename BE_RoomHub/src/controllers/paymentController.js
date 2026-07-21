@@ -316,7 +316,13 @@ const completePayment = async (payment, rawData) => {
 
   const completedStatus = payment.paymentBillId ? "Done" : "Paid";
 
-  if (["Paid", "Done"].includes(payment.status)) return payment;
+  if (["Paid", "Done"].includes(payment.status)) {
+    if (!payment.paidAt) {
+      payment.paidAt = payment.updatedAt || new Date();
+      await payment.save();
+    }
+    return payment;
+  }
 
   if (!["Pending", "Failed"].includes(payment.status)) {
     throw new Error("Payment is not pending");
@@ -351,6 +357,7 @@ const completePayment = async (payment, rawData) => {
     // Cho phép chạy lại an toàn để hoàn tất trạng thái giao dịch.
     if (alreadyConfirmed && alreadyInRoom) {
       payment.status = completedStatus;
+      payment.paidAt = payment.paidAt || new Date();
       payment.transactionNo =
         rawData.vnp_TransactionNo ||
         rawData.transId ||
@@ -456,7 +463,7 @@ const completePayment = async (payment, rawData) => {
     const pendingOtherPayments = await UserPayment.exists({
       paymentBillId: bill._id,
       _id: { $ne: payment._id },
-      status: { $nin: ["Paid", "Done"] },
+      status: { $in: ["Pending", "Overdue"] },
     });
 
     if (!pendingOtherPayments) {
@@ -466,6 +473,7 @@ const completePayment = async (payment, rawData) => {
   }
 
   payment.status = completedStatus;
+  payment.paidAt = payment.paidAt || new Date();
   payment.transactionNo =
     rawData.vnp_TransactionNo ||
     rawData.transId ||
@@ -716,10 +724,16 @@ class PaymentController {
     try {
       const accountId = req.user.userId;
 
-      const bills = await PaymentBill.find()
+      const assignedBillIds = await UserPayment.distinct("paymentBillId", {
+        accountId,
+        paymentBillId: { $ne: null },
+      });
+
+      const bills = await PaymentBill.find({
+        _id: { $in: assignedBillIds },
+      })
         .populate({
           path: "roomId",
-          match: { rentBy: accountId },
           populate: [
             { path: "boardingHouseId", select: "name address" },
             { path: "roomTypeId", select: "typeName price" },
@@ -763,11 +777,17 @@ class PaymentController {
         });
       }
 
-      const isRenter = bill.roomId.rentBy
+      const isCurrentRenter = bill.roomId.rentBy
         .map((id) => id.toString())
         .includes(accountId);
+      const hasAssignedRentPayment = await UserPayment.exists({
+        paymentBillId: bill._id,
+        accountId,
+      });
 
-      if (!isRenter) {
+      // Người đã bị chấm dứt hợp đồng vì nợ 5 tháng vẫn phải được phép thanh
+      // toán các hóa đơn cũ đã gán cho chính họ.
+      if (!isCurrentRenter && !hasAssignedRentPayment) {
         return res.status(403).json({
           success: false,
           message: "You do not have permission to pay this bill",
@@ -781,13 +801,6 @@ class PaymentController {
         });
       }
 
-      if (bill.gracePeriodEnd && bill.gracePeriodEnd <= new Date()) {
-        return res.status(400).json({
-          success: false,
-          message: "Rent payment grace period has expired and the room was released",
-        });
-      }
-
       if (!validateAmount(bill.paymentAmount)) {
         return res.status(400).json({
           success: false,
@@ -798,7 +811,7 @@ class PaymentController {
       const existedPaidPayment = await UserPayment.findOne({
         paymentBillId: bill._id,
         accountId,
-        status: "Paid",
+        status: { $in: ["Paid", "Done"] },
       });
 
       if (existedPaidPayment) {
@@ -938,6 +951,7 @@ class PaymentController {
 
       userPayment.status = "Pending";
       userPayment.paymentMethod = paymentMethod;
+      userPayment.paidAt = null;
       userPayment.orderId = orderId;
       userPayment.orderInfo = orderInfo;
       userPayment.transactionNo = "";
