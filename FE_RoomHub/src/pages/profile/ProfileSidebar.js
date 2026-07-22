@@ -9,9 +9,35 @@ import {
   FileText,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useRef, useState } from "react";
+import Swal from "sweetalert2";
+import { updateAvatar } from "../../api/accountAPI";
 
-const ProfileSidebar = ({ user }) => {
+const ProfileSidebar = ({ user, fetchProfile }) => {
   const location = useLocation();
+  const fileRef = useRef(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const isJpgOrPng = file.type === "image/jpeg" || file.type === "image/png";
+    if (!isJpgOrPng) { Swal.fire({ icon: "warning", title: "Only JPG/PNG allowed" }); return; }
+    if (file.size / 1024 / 1024 > 2) { Swal.fire({ icon: "warning", title: "Image must be < 2MB" }); return; }
+
+    setAvatarLoading(true);
+    const formData = new FormData();
+    formData.append("avatar", file);
+    try {
+      await updateAvatar(formData);
+      if (fetchProfile) await fetchProfile();
+      Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Avatar updated", showConfirmButton: false, timer: 1500 });
+    } catch (error) {
+      Swal.fire({ icon: "error", title: "Upload failed", text: error?.response?.data?.message });
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
 
   const isActive = (path) =>
     location.pathname === path ||

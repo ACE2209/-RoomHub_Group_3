@@ -209,21 +209,14 @@ class accountController {
         return res.status(404).json({ message: "Account not found" });
       }
 
-      if (!account.avatarImage) {
-        account.avatarImage = {
-          url: req.file.path,
-          publicId: req.file.filename,
-        };
-
-        await account.save();
-
-        return res.status(200).json({ message: "Avatar updated successfully" });
+      if (account.avatarImage && account.avatarImage.publicId) {
+        cloudinary.uploader.destroy(account.avatarImage.publicId);
       }
 
-      cloudinary.uploader.destroy(account.avatarImage.publicId);
-
-      account.avatarImage.url = req.file.path;
-      account.avatarImage.publicId = req.file.filename;
+      account.avatarImage = {
+        url: req.file.path,
+        publicId: req.file.filename,
+      };
 
       await account.save();
 

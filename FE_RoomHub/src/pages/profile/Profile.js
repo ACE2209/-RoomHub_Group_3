@@ -1,3 +1,4 @@
+//test
 import { useEffect, useState } from "react";
 import {
     getProfileAPI,
@@ -37,6 +38,7 @@ const Profile = () => {
     const [emailError, setEmailError] = useState("");
     const [verifyLoading, setVerifyLoading] = useState(false);
     const [sendLoading, setSendLoading] = useState(false);
+    const [phoneError, setPhoneError] = useState("");
 
     const [editOpen, setEditOpen] = useState(false);
 
@@ -92,6 +94,8 @@ const Profile = () => {
             form.phoneNumber !== (user.phoneNumber || "") ||
             form.gender !== (user.gender || "")
         );
+
+    const isValidPhone = (value) => /^0[1-9]\d{8,9}$/.test(value) && value.length >= 10 && value.length <= 11;
 
     const handleUpdate = async () => {
         if (!hasChange) {
@@ -340,6 +344,7 @@ const Profile = () => {
                         user={user}
                         active={active}
                         setActive={setActive}
+                        fetchProfile={fetchProfile}
                     />
 
                     <div
