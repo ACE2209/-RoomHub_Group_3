@@ -237,6 +237,7 @@ const Profile = () => {
                         user={user}
                         active={active}
                         setActive={setActive}
+                        fetchProfile={fetchProfile}
                     />
 
                     <div style={{

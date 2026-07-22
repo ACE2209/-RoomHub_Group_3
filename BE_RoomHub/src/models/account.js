@@ -54,6 +54,10 @@ const AccountSchema = new Schema({
     type: Date,
     default: null
   },
+  avatarImage: {
+    url: { type: String, default: null },
+    publicId: { type: String, default: null }
+  }
 }, accountOptions);
 
 // Tạo model Account gốc

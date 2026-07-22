@@ -6,11 +6,39 @@ import {
   Receipt,
   RotateCcw,
   CalendarPlus,
+  FileText,
+  Camera
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useRef, useState } from "react";
+import Swal from "sweetalert2";
+import { updateAvatar } from "../../api/accountAPI";
 
-const ProfileSidebar = ({ user }) => {
+const ProfileSidebar = ({ user, fetchProfile }) => {
   const location = useLocation();
+  const fileRef = useRef(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const isJpgOrPng = file.type === "image/jpeg" || file.type === "image/png";
+    if (!isJpgOrPng) { Swal.fire({ icon: "warning", title: "Only JPG/PNG allowed" }); return; }
+    if (file.size / 1024 / 1024 > 2) { Swal.fire({ icon: "warning", title: "Image must be < 2MB" }); return; }
+
+    setAvatarLoading(true);
+    const formData = new FormData();
+    formData.append("avatar", file);
+    try {
+      await updateAvatar(formData);
+      if (fetchProfile) await fetchProfile();
+      Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Avatar updated", showConfirmButton: false, timer: 1500 });
+    } catch (error) {
+      Swal.fire({ icon: "error", title: "Upload failed", text: error?.response?.data?.message });
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
 
   const isActive = (path) =>
     location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -30,6 +58,7 @@ const ProfileSidebar = ({ user }) => {
       }}
     >
       <div style={{ display: "flex", justifyContent: "center" }}>
+<<<<<<< Updated upstream
         <img
           src={
             user?.avatarImage?.url ||
@@ -44,6 +73,56 @@ const ProfileSidebar = ({ user }) => {
             border: "4px solid #ff6b00",
           }}
         />
+=======
+        <div style={{ position: "relative", width: 140, height: 140 }}>
+          <img
+            src={
+              user?.avatarImage?.url ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                user?.fullname || "User"
+              )}&background=ff6b00&color=fff&size=200`
+            }
+            alt={user?.fullname || "User"}
+            style={{
+              width: "140px",
+              height: "140px",
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: "4px solid #ff6b00",
+              display: "block",
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={avatarLoading}
+            style={{
+              position: "absolute",
+              bottom: 4,
+              right: 4,
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              background: "#ff6b00",
+              border: "2px solid #fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: avatarLoading ? "not-allowed" : "pointer",
+              opacity: avatarLoading ? 0.6 : 1,
+            }}
+          >
+            <Camera size={16} color="#fff" />
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png"
+            style={{ display: "none" }}
+            onChange={handleAvatarChange}
+          />
+        </div>
+>>>>>>> Stashed changes
       </div>
 
       <div style={{ textAlign: "center" }}>
