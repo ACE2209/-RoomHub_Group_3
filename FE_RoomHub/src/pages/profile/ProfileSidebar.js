@@ -58,22 +58,6 @@ const ProfileSidebar = ({ user, fetchProfile }) => {
       }}
     >
       <div style={{ display: "flex", justifyContent: "center" }}>
-<<<<<<< Updated upstream
-        <img
-          src={
-            user?.avatarImage?.url ||
-            `https://ui-avatars.com/api/?name=${user?.fullname || "User"}`
-          }
-          alt="avatar"
-          style={{
-            width: "140px",
-            height: "140px",
-            borderRadius: "50%",
-            objectFit: "cover",
-            border: "4px solid #ff6b00",
-          }}
-        />
-=======
         <div style={{ position: "relative", width: 140, height: 140 }}>
           <img
             src={
@@ -122,7 +106,6 @@ const ProfileSidebar = ({ user, fetchProfile }) => {
             onChange={handleAvatarChange}
           />
         </div>
->>>>>>> Stashed changes
       </div>
 
       <div style={{ textAlign: "center" }}>

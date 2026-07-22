@@ -30,6 +30,7 @@ const Profile = () => {
     const [emailError, setEmailError] = useState("");
     const [verifyLoading, setVerifyLoading] = useState(false);
     const [sendLoading, setSendLoading] = useState(false);
+    const [phoneError, setPhoneError] = useState("");
 
     const [editOpen, setEditOpen] = useState(false);
 
@@ -82,6 +83,8 @@ const Profile = () => {
             form.gender !== user.gender
         );
 
+    const isValidPhone = (value) => /^0[1-9]\d{8,9}$/.test(value) && value.length >= 10 && value.length <= 11;
+
     const handleUpdate = async () => {
         if (!hasChange) {
             setEditOpen(false);
@@ -97,6 +100,14 @@ const Profile = () => {
 
             return;
         }
+
+        if (!form.phoneNumber || !isValidPhone(form.phoneNumber)) {
+            const message = "Invalid phone number\nPhone number must start with 0, contain 10-11 digits, and the first digit after 0 cannot be 0.";
+            setPhoneError(message);
+            return;
+        }
+
+        setPhoneError("");
 
         try {
             await updateProfileAPI({
@@ -244,9 +255,34 @@ const Profile = () => {
                         background: "#fff",
                         borderRadius: "16px",
                         padding: "30px",
+                        border: "1px solid #eee",
+                        boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
                     }}>
-                        <h2>My Profile</h2>
-                        <div style={{ marginTop: 20 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                            <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 700, color: "#1f2937" }}>My Profile</h2>
+                            <button
+                                onClick={() => {
+                                    setPhoneError("");
+                                    setEditOpen(true);
+                                }}
+                                style={{
+                                    background: "#ff6b00",
+                                    color: "#fff",
+                                    padding: "10px 14px",
+                                    borderRadius: 10,
+                                    border: "none",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "8px",
+                                    fontWeight: 600,
+                                }}
+                            >
+                                <Edit size={16} /> Edit Profile
+                            </button>
+                        </div>
+                        <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 12 }}>
                             <Info icon={<User />} label="Username" value={user?.username} />
 
                             <Info
@@ -277,21 +313,7 @@ const Profile = () => {
                             <Info icon={<Shield />} label="Role" value={user?.role} />
                         </div>
 
-                        <button
-                            onClick={() => setEditOpen(true)}
-                            style={{
-                                marginTop: 20,
-                                width: "100%",
-                                background: "#ff6b00",
-                                color: "#fff",
-                                padding: 12,
-                                borderRadius: 10,
-                                border: "none",
-                                cursor: "pointer",
-                            }}
-                        >
-                            <Edit size={16} /> Edit Profile
-                        </button>
+
                     </div>
                 </div>
             </div>
@@ -451,8 +473,9 @@ const Profile = () => {
                         background: "#fff",
                         borderRadius: 16,
                         padding: 24,
+                        boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
                     }}>
-                        <h3>Edit Profile</h3>
+                        <h3 style={{ marginTop: 0, marginBottom: 16 }}>Edit Profile</h3>
 
                         <input
                             placeholder="Full name"
@@ -461,12 +484,25 @@ const Profile = () => {
                             style={inputStyle}
                         />
 
-                        <input
-                            placeholder="Phone number"
-                            value={form.phoneNumber}
-                            onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
-                            style={{ ...inputStyle, marginTop: 10 }}
-                        />
+                        <div style={{ marginTop: 10 }}>
+                            <input
+                                placeholder="Phone number"
+                                value={form.phoneNumber}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    setForm({ ...form, phoneNumber: value });
+                                    if (!value) {
+                                        setPhoneError("Invalid phone number\nPhone number is required");
+                                    } else {
+                                        setPhoneError(isValidPhone(value) ? "" : "Invalid phone number\nPhone number must start with 0, contain 10-11 digits, and the first digit after 0 cannot be 0.");
+                                    }
+                                }}
+                                style={{ ...inputStyle, marginTop: 0 }}
+                            />
+                            {phoneError && (
+                                <div style={{ color: "#dc2626", fontSize: 13, marginTop: 6, whiteSpace: "pre-line" }}>{phoneError}</div>
+                            )}
+                        </div>
 
                         <select
                             value={form.gender}
@@ -503,6 +539,7 @@ const Profile = () => {
                                     background: "#eee",
                                     border: "none",
                                     borderRadius: 10,
+                                    cursor: "pointer",
                                 }}
                             >
                                 Cancel

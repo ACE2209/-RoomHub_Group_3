@@ -1,174 +1,46 @@
-//test
-import "./Profile.css";
 import { useEffect, useState } from "react";
-import {
-  Form,
-  Input,
-  Radio,
-  Upload,
-  Button,
-  Card,
-  Divider,
-  Typography,
-} from "antd";
-import {
-  PlusOutlined,
-  LoadingOutlined,
-  EditOutlined,
-  UserOutlined,
-  PhoneOutlined,
-  MailOutlined,
-} from "@ant-design/icons";
 import { toast } from "react-toastify";
+import { Mail, Phone, User, Venus, Shield, Edit, Pencil } from "lucide-react";
 import { getUser } from "../../../api/authAPI";
 import { updateAccountFromProfile } from "../../../api/accountAPI";
 import ChangeEmailModal from "./ChangeEmailModal";
-import { useTheme } from "../../../context/themeContext";
-import { useTranslation } from "react-i18next";
-import { updateAvatar } from "../../../api/accountAPI";
-import { useNavigate } from "react-router-dom";
-
-const { Title, Text } = Typography;
-
-const getBase64 = (img, callback) => {
-  const reader = new FileReader();
-  reader.addEventListener("load", () => callback(reader.result));
-  reader.readAsDataURL(img);
-};
-
-const beforeUpload = (file) => {
-  const isJpgOrPng = file.type === "image/jpeg" || file.type === "image/png";
-  if (!isJpgOrPng) {
-    toast.error("You can only upload JPG/PNG file!");
-  }
-  const isLt2M = file.size / 1024 / 1024 < 2;
-  if (!isLt2M) {
-    toast.error("Image must smaller than 2MB!");
-  }
-  return isJpgOrPng && isLt2M;
-};
+import ProfileSidebar from "../../profile/ProfileSidebar";
 
 function Profile() {
-  const navigate = useNavigate();
-  const [form] = Form.useForm();
-  const [formEmail] = Form.useForm();
   const [profileLoading, setProfileLoading] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [imageUrl, setImageUrl] = useState(null);
-  const [imageError, setImageError] = useState(false);
-  const [username, setUsername] = useState("");
-  const [isOwner, setIsOwner] = useState(false);
-  const [accountBalance, setAccountBalance] = useState(0);
+  const [user, setUser] = useState(null);
   const [email, setEmail] = useState("");
-  const { darkMode } = useTheme();
-  const { t } = useTranslation("profile");
-
   const [changeEmailModalVisible, setChangeEmailModalVisible] = useState(false);
-
-  const handleAvatarChange = (info) => {
-    if (info.file.status === "uploading") {
-      setLoading(true);
-      return;
-    }
-    if (info.file.status === "done") {
-      getBase64(info.file.originFileObj, (url) => {
-        setLoading(false);
-        setImageUrl(url);
-        setImageError(false);
-      });
-    }
-  };
-
-  const handleImageError = () => {
-    setImageUrl(null);
-    setImageError(true);
-  };
-
-  const uploadButton = (
-    <button
-      style={{
-        border: 0,
-        background: "none",
-        color: darkMode ? "#f0f0f0" : "#333",
-      }}
-      type="button"
-    >
-      {loading ? <LoadingOutlined /> : <PlusOutlined />}
-      <div
-        style={{
-          marginTop: 8,
-        }}
-      >
-        {t("avatar.upload")}
-      </div>
-    </button>
-  );
-
-  const loadProfileForm = (data) => {
-    form.setFieldsValue({
-      username: data.username,
-      fullname: data.fullname,
-      phoneNumber: data.phoneNumber,
-      gender: data.gender,
-    });
-  };
+  const [phoneError, setPhoneError] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [form, setForm] = useState({
+    fullname: "",
+    phoneNumber: "",
+    gender: "",
+  });
 
   const getUserProfile = async () => {
     try {
       setProfileLoading(true);
       const res = await getUser();
-      setAccountBalance(res.accountBalance);
-
-      const avatarUrl = res?.avatarImage?.url;
-      if (avatarUrl) {
-        setImageUrl(avatarUrl);
-        setImageError(false);
-      } else {
-        setImageUrl(null);
-        setImageError(true);
+      setUser(res);
+      setEmail(res.email || "");
+      setForm({
+        fullname: res.fullname || "",
+        phoneNumber: res.phoneNumber || "",
+        gender: res.gender || "",
+      });
+    } catch (error) {
+      if (error?.response?.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+        return;
       }
-
-      setUsername(res.username);
-      setEmail(res.email);
-      setIsOwner(res.role === "owner");
-
-      loadProfileForm(res);
-      setProfileLoading(false);
-    } catch (error) {
-      setProfileLoading(false);
-      setImageUrl(null);
-      setImageError(true);
-    }
-  };
-
-  const onFinish = async (values) => {
-    try {
-      setLoading(true);
-      const res = await updateAccountFromProfile(values);
-      getUserProfile();
-      setLoading(false);
-      toast.success(t("actions.success"));
-    } catch (error) {
-      setLoading(false);
-      toast.error(error?.response?.data?.message);
-    }
-  };
-
-  const handleUpload = async ({ file, onSuccess, onError }) => {
-    setLoading(true);
-    const formData = new FormData();
-    formData.append("avatar", file);
-
-    try {
-      const res = await updateAvatar(formData);
-      toast.success("Upload avatar successfully!");
-      getUserProfile();
-      onSuccess();
-    } catch (error) {
-      toast.error("Upload avatar failed!");
-      onError(error);
+      toast.error(error?.response?.data?.message || "Failed to load profile");
     } finally {
-      setLoading(false);
+      setProfileLoading(false);
     }
   };
 
@@ -176,276 +48,270 @@ function Profile() {
     getUserProfile();
   }, []);
 
-  const cardStyle = {
-    background: darkMode ? "rgb(17 24 39)" : "#fff",
-    boxShadow: darkMode
-      ? "0 4px 12px rgba(0, 0, 0, 0.4)"
-      : "0 4px 12px rgba(0, 0, 0, 0.1)",
-    borderRadius: "12px",
-    border: darkMode ? "1px solid #333" : "1px solid #eaeaea",
-    transition: "all 0.3s ease",
+  const hasChange =
+    user &&
+    (form.fullname !== user.fullname ||
+      form.phoneNumber !== user.phoneNumber ||
+      form.gender !== user.gender);
+
+  const isValidPhone = (value) => /^0[1-9]\d{8,9}$/.test(value) && value.length >= 10 && value.length <= 11;
+
+  const handleUpdate = async () => {
+    if (!hasChange) {
+      setEditOpen(false);
+      toast.info("No changes detected");
+      return;
+    }
+
+    if (!form.phoneNumber || !isValidPhone(form.phoneNumber)) {
+      const message = "Invalid phone number\nPhone number must start with 0, contain 10-11 digits, and the first digit after 0 cannot be 0.";
+      setPhoneError(message);
+      toast.error(message);
+      return;
+    }
+
+    setPhoneError("");
+
+    try {
+      setLoading(true);
+      await updateAccountFromProfile({
+        fullname: form.fullname,
+        phoneNumber: form.phoneNumber,
+        gender: form.gender,
+      });
+      await getUserProfile();
+      setEditOpen(false);
+      toast.success("Profile updated successfully");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Update failed");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "12px",
+    borderRadius: "10px",
+    border: "1px solid #e5e7eb",
+    outline: "none",
+    fontSize: "14px",
+  };
+
+  if (profileLoading) {
+    return (
+      <div style={{ minHeight: "60vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div style={{ fontSize: 18, color: "#6b7280" }}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div
-      className={`txt transition-colors duration-300 ${
-        darkMode ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-800"
-      }`}
+      style={{
+        minHeight: "100vh",
+        background: "#f6f7f9",
+        padding: "40px 20px",
+      }}
     >
-      {profileLoading ? (
-        <div className="flex items-center justify-center p-8">
-          <LoadingOutlined style={{ fontSize: 32 }} />
-        </div>
-      ) : (
-        <div className="container py-8 px-4 mx-auto max-w-full lg:px-10 xl:px-24">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-3">
-              <Card
-                style={cardStyle}
-                className="overflow-hidden"
-                bodyStyle={{ padding: "24px" }}
-              >
-                <div className="flex flex-col items-center">
-                  <Upload
-                    name="avatar"
-                    listType="picture-circle"
-                    className="avatarUpload avatar-uploader mb-6"
-                    showUploadList={false}
-                    customRequest={handleUpload}
-                    beforeUpload={beforeUpload}
-                    onChange={handleAvatarChange}
-                    style={{ width: 135 }}
-                  >
-                    {imageUrl ? (
-                      <div className="relative aspect-square w-70 rounded-full overflow-hidden">
-                        <img
-                          src={imageUrl}
-                          alt="avatar"
-                          className="w-full h-full object-cover"
-                          onError={handleImageError}
-                        />
-                        <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300">
-                          <EditOutlined className="text-white text-4xl" />
-                        </div>
-                      </div>
-                    ) : (
-                      uploadButton
-                    )}
-                  </Upload>
+      <div
+        style={{
+          maxWidth: "1100px",
+          margin: "0 auto",
+          display: "grid",
+          gridTemplateColumns: "300px 1fr",
+          gap: "20px",
+        }}
+      >
+        <ProfileSidebar user={user} fetchProfile={getUserProfile} />
 
-                  <Title
-                    level={3}
-                    className={`m-0 text-center ${
-                      darkMode ? "text-gray-100" : "text-gray-800"
-                    }`}
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: "16px",
+            padding: "30px",
+            border: "1px solid #eee",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 700, color: "#1f2937" }}>My Profile</h2>
+            <button
+              onClick={() => {
+                setPhoneError("");
+                setEditOpen(true);
+              }}
+              style={{
+                background: "#ff6b00",
+                color: "#fff",
+                border: "none",
+                borderRadius: "10px",
+                padding: "10px 14px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                fontWeight: 600,
+              }}
+            >
+              <Edit size={16} /> Edit Profile
+            </button>
+          </div>
+
+          <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+            <Info icon={<User size={16} />} label="Username" value={user?.username} />
+
+            <Info
+              icon={<Mail size={16} />}
+              label="Email"
+              value={
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span>{email || "N/A"}</span>
+                  <button
+                    onClick={() => setChangeEmailModalVisible(true)}
+                    style={{
+                      background: "transparent",
+                      border: "1px solid #eee",
+                      borderRadius: 6,
+                      padding: "4px 6px",
+                      cursor: "pointer",
+                    }}
                   >
-                    <span className="text-gray-800 dark:text-white">
-                      @{username}
-                    </span>
-                  </Title>
+                    <Pencil size={14} />
+                  </button>
                 </div>
-              </Card>
-            </div>
-            <div className="lg:col-span-9">
-              <Card
-                style={cardStyle}
-                className="overflow-hidden"
-                bodyStyle={{ padding: "28px" }}
-              >
-                <div className="mb-8">
-                  <Title
-                    level={4}
-                    className={`mb-6 ${
-                      darkMode ? "text-gray-200" : "text-gray-700"
-                    }`}
-                  >
-                    <span className="text-gray-800 dark:text-white">
-                      {t("title")}
-                    </span>
-                  </Title>
-                  <Form form={formEmail} layout="vertical" className="mb-4">
-                    <Form.Item
-                      label={
-                        <span
-                          className={`text-2xl font-semibold ${
-                            darkMode ? "text-gray-200" : "text-gray-800"
-                          }`}
-                        >
-                          <MailOutlined className="mr-2" />
-                          {t("email.label")}
-                        </span>
-                      }
-                      name="email"
-                      initialValue={email}
-                    >
-                      <div className="flex items-end gap-4 flex-col md:flex-row">
-                        <Input
-                          size="large"
-                          placeholder={t("email.placeholder")}
-                          name="email"
-                          value={email}
-                          disabled
-                          style={{
-                            flexGrow: 1,
-                            color: darkMode ? "gray" : "",
-                          }}
-                        />
-                        <Button
-                          name="change-email"
-                          type="primary"
-                          size="large"
-                          onClick={() => setChangeEmailModalVisible(true)}
-                          loading={loading}
-                          icon={<EditOutlined />}
-                        >
-                          {t("actions.save")}
-                        </Button>
-                      </div>
-                    </Form.Item>
-                  </Form>
-                </div>
-                <Divider
-                  className={darkMode ? "border-gray-700" : "border-gray-200"}
-                />
-                <div>
-                  <Title
-                    level={4}
-                    className={`mb-6 ${
-                      darkMode ? "text-gray-200" : "text-gray-700"
-                    }`}
-                  >
-                    <span className="text-gray-800 dark:text-white">
-                      {t("description")}
-                    </span>
-                  </Title>
-                  <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={onFinish}
-                    className={darkMode ? "dark-form" : ""}
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Form.Item
-                        label={
-                          <span
-                            className={`text-2xl font-semibold ${
-                              darkMode ? "text-gray-200" : "text-gray-800"
-                            }`}
-                          >
-                            <UserOutlined className="mr-2" />
-                            {t("fullName.label")}
-                          </span>
-                        }
-                        name="fullname"
-                        rules={[
-                          {
-                            required: true,
-                            message: t("fullName.required"),
-                          },
-                        ]}
-                      >
-                        <Input
-                          size="large"
-                          placeholder={t("fullName.placeholder")}
-                          className={
-                            darkMode
-                              ? "bg-gray-800 border-gray-700 text-gray-300"
-                              : ""
-                          }
-                        />
-                      </Form.Item>
-                      <Form.Item
-                        label={
-                          <span
-                            className={`text-2xl font-semibold text-gray-800 dark:text-white `}
-                          >
-                            <PhoneOutlined className="mr-2" />
-                            {t("phone.label")}
-                          </span>
-                        }
-                        name="phoneNumber"
-                        rules={[
-                          {
-                            required: true,
-                            message: t("phone.required"),
-                          },
-                          {
-                            len: 10,
-                            message: t("phone.invalidFormat"),
-                          },
-                        ]}
-                      >
-                        <Input
-                          type="number"
-                          size="large"
-                          placeholder={t("phone.placeholder")}
-                          className={
-                            darkMode
-                              ? "bg-gray-800 border-gray-700 text-gray-300"
-                              : ""
-                          }
-                        />
-                      </Form.Item>
-                    </div>
-                    <Form.Item
-                      label={
-                        <span
-                          className={`text-2xl font-semibold ${
-                            darkMode ? "text-gray-200" : "text-gray-800"
-                          }`}
-                        >
-                          {t("gender.label")}
-                        </span>
-                      }
-                      name="gender"
-                    >
-                      <Radio.Group className={darkMode ? "text-gray-300" : ""}>
-                        <Radio
-                          value="male"
-                          className={darkMode ? "text-gray-300" : ""}
-                        >
-                          {t("gender.options.male")}
-                        </Radio>
-                        <Radio
-                          value="female"
-                          className={darkMode ? "text-gray-300" : ""}
-                        >
-                          {t("gender.options.female")}
-                        </Radio>
-                        <Radio
-                          value="other"
-                          className={darkMode ? "text-gray-300" : ""}
-                        >
-                          {t("gender.options.other")}
-                        </Radio>
-                      </Radio.Group>
-                    </Form.Item>
-                    <Form.Item className="mt-8">
-                      <Button
-                        type="primary"
-                        size="large"
-                        htmlType="submit"
-                        loading={loading}
-                        icon={<EditOutlined />}
-                        className="min-w-40"
-                      >
-                        {t("actions.save")}
-                      </Button>
-                    </Form.Item>
-                  </Form>
-                </div>
-              </Card>
-            </div>
+              }
+            />
+
+            <Info icon={<Phone size={16} />} label="Phone" value={user?.phoneNumber || "N/A"} />
+            <Info icon={<Venus size={16} />} label="Gender" value={user?.gender || "N/A"} />
+            <Info icon={<Shield size={16} />} label="Role" value={user?.role || "N/A"} />
           </div>
         </div>
-      )}
+      </div>
+
       <ChangeEmailModal
         isOpen={changeEmailModalVisible}
         setToggleModal={setChangeEmailModalVisible}
         email={email}
       />
+
+      {editOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              width: 420,
+              background: "#fff",
+              borderRadius: 16,
+              padding: 24,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+            }}
+          >
+            <h3 style={{ marginTop: 0, marginBottom: 16 }}>Edit Profile</h3>
+
+            <input
+              placeholder="Full name"
+              value={form.fullname}
+              onChange={(e) => setForm({ ...form, fullname: e.target.value })}
+              style={inputStyle}
+            />
+
+            <div style={{ marginTop: 10 }}>
+              <input
+                placeholder="Phone number"
+                value={form.phoneNumber}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setForm({ ...form, phoneNumber: value });
+                  if (!value) {
+                    setPhoneError("Invalid phone number\nPhone number is required");
+                  } else {
+                    setPhoneError(isValidPhone(value) ? "" : "Invalid phone number\nPhone number must start with 0, contain 10-11 digits, and the first digit after 0 cannot be 0.");
+                  }
+                }}
+                style={{ ...inputStyle, marginTop: 0 }}
+              />
+              {phoneError && (
+                <div style={{ color: "#dc2626", fontSize: 13, marginTop: 6, whiteSpace: "pre-line" }}>{phoneError}</div>
+              )}
+            </div>
+
+            <select
+              value={form.gender}
+              onChange={(e) => setForm({ ...form, gender: e.target.value })}
+              style={{ ...inputStyle, marginTop: 10 }}
+            >
+              <option value="">Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+
+            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+              <button
+                onClick={handleUpdate}
+                disabled={!hasChange || loading}
+                style={{
+                  flex: 1,
+                  background: hasChange && !loading ? "#ff6b00" : "#ccc",
+                  color: "#fff",
+                  padding: 12,
+                  borderRadius: 10,
+                  border: "none",
+                  cursor: hasChange && !loading ? "pointer" : "not-allowed",
+                }}
+              >
+                {loading ? "Saving..." : "Save"}
+              </button>
+
+              <button
+                onClick={() => setEditOpen(false)}
+                style={{
+                  flex: 1,
+                  background: "#eee",
+                  border: "none",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const Info = ({ icon, label, value }) => (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "12px 14px",
+      background: "#f8fafc",
+      borderRadius: 10,
+      border: "1px solid #eef2f7",
+      gap: 12,
+    }}
+  >
+    <span style={{ display: "flex", alignItems: "center", gap: 8, color: "#374151" }}>
+      {icon} {label}
+    </span>
+    <b style={{ color: "#111827", textAlign: "right" }}>{value || "N/A"}</b>
+  </div>
+);
 
 export default Profile;
