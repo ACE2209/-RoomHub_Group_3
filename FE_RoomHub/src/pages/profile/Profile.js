@@ -109,6 +109,19 @@ const Profile = () => {
             return;
         }
 
+        const phoneRegex = /^(0)[0-9]{9}$/;
+        const uniqueDigits = new Set(form.phoneNumber?.split('') || []).size;
+        const isConsecutive = form.phoneNumber === "0123456789" || form.phoneNumber === "0987654321";
+
+        if (form.phoneNumber && (!phoneRegex.test(form.phoneNumber) || uniqueDigits <= 2 || isConsecutive)) {
+            Swal.fire({
+                icon: "error",
+                title: "Invalid Phone Format",
+                text: "Please enter a real 10-digit phone number. Fake sequences are not allowed.",
+            });
+            return;
+        }
+
         try {
             await updateProfileAPI({
                 fullname: form.fullname,
@@ -140,7 +153,7 @@ const Profile = () => {
     };
 
     const handleSendOTP = async () => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         const trimmedEmail = newEmail.trim();
 
         if (!trimmedEmail) {
@@ -149,6 +162,11 @@ const Profile = () => {
         }
 
         if (!emailRegex.test(trimmedEmail)) {
+            Swal.fire({
+                icon: "error",
+                title: "Invalid Email Format",
+                text: "Please enter a valid email address (e.g. example@domain.com).",
+            });
             setEmailError("Please enter a valid email address");
             return;
         }
@@ -427,7 +445,7 @@ const Profile = () => {
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
-                        zIndex: 9999,
+                        zIndex: 1000,
                         padding: 20,
                     }}
                 >
@@ -628,7 +646,7 @@ const Profile = () => {
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
-                        zIndex: 9999,
+                        zIndex: 1000,
                         padding: 20,
                     }}
                 >
