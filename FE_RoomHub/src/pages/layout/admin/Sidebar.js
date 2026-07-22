@@ -1,10 +1,12 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import "./sidebar.css";
+import { getRoleHomePath, normalizeRole } from "../../../utils/roleNavigation";
 
 export default function Sidebar() {
   const user = JSON.parse(localStorage.getItem("user") || "null");
-  const role = user?.role;
+  const role = normalizeRole(user?.role);
+  const dashboardPath = getRoleHomePath(role);
 
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -40,13 +42,13 @@ export default function Sidebar() {
   };
 
   const handleNavigateToProfile = () => {
-    navigate(role === "admin" ? "/admin/profile" : "/profile");
+    navigate(role === "admin" ? "/admin/profile" : "/management/profile");
     setShowUserMenu(false);
   };
 
   return (
     <aside className="sidebar">
-      <Link to="/" className="logo">
+      <Link to={dashboardPath} className="logo">
         <img src="/image/logo.png" alt="RoomHub" />
       </Link>
 
@@ -120,9 +122,6 @@ export default function Sidebar() {
           </>
         )}
 
-        {!isAdmin && !canManageOwnBoardingHouses && (
-          <NavLink to="/monthly-rents">My Monthly Rents</NavLink>
-        )}
       </nav>
 
       <div className="sidebar-bottom">

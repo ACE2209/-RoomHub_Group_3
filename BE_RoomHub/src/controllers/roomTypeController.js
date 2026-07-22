@@ -21,9 +21,84 @@ class RoomTypeController {
       .some((id) => id.toString() === userId.toString());
   }
 
+  parseFacilities(value) {
+    if (!value || value === 'null' || value === '[]') {
+      return [];
+    }
+
+    let parsedFacilities = value;
+    if (typeof value === 'string') {
+      try {
+        parsedFacilities = JSON.parse(value);
+      } catch (error) {
+        const invalidFormatError = new Error('Invalid facilities format');
+        invalidFormatError.statusCode = 400;
+        throw invalidFormatError;
+      }
+    }
+
+    if (!Array.isArray(parsedFacilities)) {
+      const invalidTypeError = new Error('Facilities must be an array');
+      invalidTypeError.statusCode = 400;
+      throw invalidTypeError;
+    }
+
+    if (!parsedFacilities.length || parsedFacilities[0] === 'None') {
+      return [];
+    }
+
+    const hasInvalidFacilityId = parsedFacilities.some(
+      (facilityId) => !mongoose.Types.ObjectId.isValid(facilityId)
+    );
+
+    if (hasInvalidFacilityId) {
+      const invalidIdError = new Error('Invalid facility id');
+      invalidIdError.statusCode = 400;
+      throw invalidIdError;
+    }
+
+    return parsedFacilities;
+  }
+
+  parsePrice(value) {
+    const priceText = String(value ?? '').trim();
+
+    if (!/^[0-9.,]+$/.test(priceText)) {
+      const invalidPriceError = new Error('Price can only contain numbers, dots, and commas');
+      invalidPriceError.statusCode = 400;
+      throw invalidPriceError;
+    }
+
+    const normalizedPrice = priceText.replace(/[.,]/g, '');
+    const parsedPrice = Number(normalizedPrice);
+
+    if (!normalizedPrice || Number.isNaN(parsedPrice) || parsedPrice <= 0) {
+      const invalidPriceError = new Error('Price must be greater than 0');
+      invalidPriceError.statusCode = 400;
+      throw invalidPriceError;
+    }
+
+    return parsedPrice;
+  }
+
   async getRoomTypeByBhId(req, res, next) {
     try {
       const { id } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: 'Invalid boarding house id' });
+      }
+
+      const boardingHouse = await BoardingHouse.findById(id);
+      if (!boardingHouse) {
+        return res.status(404).json({ message: 'Boarding House not found' });
+      }
+
+      if (req.user && !this.canManageBoardingHouse(boardingHouse, req)) {
+        return res.status(403).json({
+          message: 'You do not have permission to view this boarding house room types.',
+        });
+      }
 
       // ✅ Bước 1: Filter theo boardingHouseId
       const filter = {
@@ -88,6 +163,22 @@ class RoomTypeController {
       const { id } = req.params; // ID của BoardingHouse
       let { typeName, facilities, price, roomSize, peopleNumber } = req.body;
 
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ message: 'Invalid boarding house id.' });
+      }
+
+      typeName = typeof typeName === 'string' ? typeName.trim() : '';
+      price = this.parsePrice(price);
+      peopleNumber = Number(peopleNumber || 0);
+
+      if (!typeName) {
+        return res.status(400).json({ message: 'Type Name is required.' });
+      }
+
+      if (Number.isNaN(peopleNumber) || peopleNumber < 0) {
+        return res.status(400).json({ message: 'Capacity must be a valid number.' });
+      }
+
       // 🔥 Kiểm tra BoardingHouse có tồn tại không
       const boardingHouse = await BoardingHouse.findById(id);
       if (!boardingHouse) {
@@ -127,6 +218,8 @@ class RoomTypeController {
       // }
 
       // ✅ Convert `facilities` từ string JSON thành array ObjectId
+      facilities = this.parseFacilities(facilities);
+
       if (!facilities || facilities === 'null' || facilities === '[]') {
         facilities = []; // 👉 Nếu không có, gán mặc định là []
       } else if (typeof facilities === 'string') {
@@ -176,6 +269,24 @@ class RoomTypeController {
       });
     } catch (error) {
       console.error('🔥 Error in addRoomTypeToBoardingHouse:', error);
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          message: 'Validation error',
+          errors: Object.values(error.errors).map((err) => err.message),
+        });
+      }
+
+      if (error.statusCode) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          message: 'Invalid data format',
+          error: error.message,
+        });
+      }
+
       return res.status(500).json({
         message: 'An unexpected error occurred while adding room type.',
         error: error.message,
@@ -188,6 +299,10 @@ class RoomTypeController {
       let { typeName, facilities, price, roomSize, peopleNumber } = req.body;
 
       // 🔥 Kiểm tra RoomType có tồn tại không
+      if (!mongoose.Types.ObjectId.isValid(roomTypeId)) {
+        return res.status(400).json({ message: 'Invalid room type id.' });
+      }
+
       const roomType = await RoomType.findById(roomTypeId);
       if (!roomType) {
         return res.status(404).json({ message: 'Room Type not found' });
@@ -229,6 +344,8 @@ class RoomTypeController {
       // }
 
       if (facilities !== undefined) {
+        facilities = this.parseFacilities(facilities);
+
         // ✅ Convert `facilities` từ string JSON thành array ObjectId
         if (!facilities || facilities === 'null' || facilities === '[]') {
           facilities = [];
@@ -286,6 +403,24 @@ class RoomTypeController {
       });
     } catch (error) {
       console.error('🔥 Error in updateRoomTypeToBoardingHouse:', error);
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({
+          message: 'Validation error',
+          errors: Object.values(error.errors).map((err) => err.message),
+        });
+      }
+
+      if (error.statusCode) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
+
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          message: 'Invalid data format',
+          error: error.message,
+        });
+      }
+
       return res.status(500).json({
         message: 'An unexpected error occurred while updating room type.',
         error: error.message,
@@ -314,6 +449,36 @@ class RoomTypeController {
         return res
           .status(400)
           .json({ message: 'Room Type has already been deleted.' });
+      }
+
+      // Không được xóa loại phòng khi vẫn còn Room tham chiếu tới nó.
+      // Nếu soft-delete RoomType trước, populate roomTypeId của các Room sẽ trả về null
+      // và làm hỏng luồng đặt cọc/tính tiền thuê.
+      const roomsUsingType = await Room.find({ roomTypeId })
+        .select('_id roomNumber rentBy')
+        .lean();
+
+      if (roomsUsingType.length > 0) {
+        const occupiedRooms = roomsUsingType.filter(
+          (room) => Array.isArray(room.rentBy) && room.rentBy.length > 0
+        );
+
+        return res.status(409).json({
+          success: false,
+          message:
+            occupiedRooms.length > 0
+              ? `Cannot delete this room type because ${roomsUsingType.length} room(s) are using it and ${occupiedRooms.length} room(s) currently have tenants.`
+              : `Cannot delete this room type because ${roomsUsingType.length} room(s) are still using it. Reassign or delete those rooms first.`,
+          data: {
+            roomCount: roomsUsingType.length,
+            occupiedRoomCount: occupiedRooms.length,
+            rooms: roomsUsingType.map((room) => ({
+              roomId: room._id,
+              roomNumber: room.roomNumber,
+              tenantCount: Array.isArray(room.rentBy) ? room.rentBy.length : 0,
+            })),
+          },
+        });
       }
 
       // ✅ Cập nhật trạng thái `deleted` thành `true`

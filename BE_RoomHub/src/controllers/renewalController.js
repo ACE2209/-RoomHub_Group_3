@@ -11,7 +11,7 @@ const REQUEST_STATUS = {
   REJECTED: "rejected",
 };
 
-const RENEWABLE_DEPOSIT_STATUSES = ["accepted", "confirmed"];
+const RENEWABLE_DEPOSIT_STATUSES = ["accepted", "confirmed", "expired"];
 
 const getManagedBoardingHouseIds = async (userId) => {
   const boardingHouses = await BoardingHouse.find({
@@ -276,6 +276,11 @@ class RenewalController {
         }
 
         deposit.endDate = renewalRequest.requestedEndDate;
+        // Gia hạn được duyệt thì khôi phục thời gian thuê đang hoạt động.
+        // Không xóa người thuê khỏi phòng và các hóa đơn cũ vẫn được giữ nguyên.
+        deposit.status = "confirmed";
+        deposit.expiredAt = null;
+        deposit.reasonForCancel = "";
         await deposit.save();
 
         renewalRequest.status = REQUEST_STATUS.ACCEPTED;

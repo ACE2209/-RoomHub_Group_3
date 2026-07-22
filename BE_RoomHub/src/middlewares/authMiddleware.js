@@ -1,38 +1,78 @@
 import dotenv from "dotenv";
 import { verifyToken } from "../utils/functions.js";
+
 dotenv.config();
 
 /**
- * Middleware tổng quát kiểm tra xác thực và phân quyền
- * @param {Array<string>} allowedRoles - Các vai trò được phép truy cập (có thể bỏ trống để chỉ kiểm tra xác thực)
+ * General authentication and role authorization middleware.
+ * @param {Array<string>} allowedRoles roles allowed to access the route
+ * @param {{message?: string, code?: string}} options custom forbidden response
  */
-const authorize = (allowedRoles = []) => {
+const authorize = (allowedRoles = [], options = {}) => {
+  const normalizedAllowedRoles = allowedRoles.map((role) =>
+    String(role || "").toLowerCase()
+  );
+
   return (req, res, next) => {
-    const authorization = req?.headers["authorization"];
-    if (!authorization) {
-      return res.status(401).json({ message: "Unauthorized" });
+    const authorization = req?.headers?.authorization;
+
+    if (!authorization?.startsWith("Bearer ")) {
+      return res.status(401).json({
+        message: "Unauthorized",
+        code: "UNAUTHORIZED",
+      });
     }
 
-    const token = authorization.split(" ")[1];
+    const token = authorization.slice(7).trim();
+
+    if (!token) {
+      return res.status(401).json({
+        message: "Unauthorized",
+        code: "UNAUTHORIZED",
+      });
+    }
+
     try {
       const decoded = verifyToken(token);
-      // Nếu có role yêu cầu thì kiểm tra
-      if (allowedRoles.length && !allowedRoles.includes(decoded.role)) {
-        return res.status(403).json({ message: "Forbidden" });
+      const role = String(decoded?.role || "").toLowerCase();
+
+      if (
+        normalizedAllowedRoles.length > 0 &&
+        !normalizedAllowedRoles.includes(role)
+      ) {
+        return res.status(403).json({
+          message: options.message || "Forbidden",
+          code: options.code || "ROLE_FORBIDDEN",
+        });
       }
 
-      req.user = decoded;
+      req.user = {
+        ...decoded,
+        role,
+      };
       next();
     } catch (error) {
-      return res.status(401).json({ message: "Token is invalid" });
+      return res.status(401).json({
+        message: "Token is invalid",
+        code: "INVALID_TOKEN",
+      });
     }
   };
 };
 
-// Các middleware cụ thể
 const authMiddleware = authorize();
+const userMiddleware = authorize(["user"], {
+  message: "Only user accounts can access this feature.",
+  code: "USER_ROLE_REQUIRED",
+});
 const staffMiddleware = authorize(["staff", "owner"]);
 const ownerMiddleware = authorize(["owner"]);
 const adminMiddleware = authorize(["admin"]);
 
-export { authMiddleware, staffMiddleware, ownerMiddleware, adminMiddleware };
+export {
+  authMiddleware,
+  userMiddleware,
+  staffMiddleware,
+  ownerMiddleware,
+  adminMiddleware,
+};

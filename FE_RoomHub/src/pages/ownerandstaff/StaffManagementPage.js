@@ -179,12 +179,12 @@ export default function StaffManagementPage() {
         if (payload.sendInvitationEmail && res?.invitationEmailSent === false) {
           message.warning(
             getInvitationWarningMessage(
-              "Staff created, but invitation email was not sent",
+              "Staff created, but account email was not sent",
               res?.invitationEmailError
             )
           );
         } else if (payload.sendInvitationEmail) {
-          message.success("Staff created and invitation email sent");
+          message.success("Staff created and account email sent");
         } else {
           message.success("Staff created successfully");
         }
@@ -224,17 +224,17 @@ export default function StaffManagementPage() {
       }
 
       if (res?.invitationEmailSent) {
-        message.success("Invitation email sent successfully");
+        message.success("Account email sent successfully");
       } else {
         message.warning(
           getInvitationWarningMessage(
-            "Invitation email was not sent",
+            "Account email was not sent",
             res?.invitationEmailError
           )
         );
       }
     } catch (error) {
-      message.error(error.message || "Send invitation failed");
+      message.error(error.message || "Send account email failed");
     } finally {
       setResendingStaffId(null);
     }
@@ -306,8 +306,8 @@ export default function StaffManagementPage() {
       render: (_, staff) => (
         <Space>
           <Button
-            title="Resend invitation"
-            aria-label="Resend invitation email"
+            title="Resend account email"
+            aria-label="Resend account email"
             icon={<Mail size={16} />}
             loading={resendingStaffId === staff._id}
             onClick={() => handleResendInvitation(staff._id)}
@@ -466,7 +466,7 @@ export default function StaffManagementPage() {
 
           {!editingStaff && (
             <Form.Item name="sendInvitationEmail" valuePropName="checked">
-              <Checkbox>Send invitation email</Checkbox>
+              <Checkbox>Send account email with temporary password</Checkbox>
             </Form.Item>
           )}
 
@@ -535,7 +535,7 @@ const getInvitationStatusTag = (staff) => {
   if (staff.invitationEmailSent) {
     return (
       <div style={inviteTagWrapperStyle}>
-        <Tag color="green">Invite sent</Tag>
+        <Tag color="green">Account email sent</Tag>
       </div>
     );
   }
@@ -544,7 +544,7 @@ const getInvitationStatusTag = (staff) => {
     return (
       <div style={inviteTagWrapperStyle}>
         <Tag color="orange" title={staff.invitationEmailError}>
-          Invite not sent
+          Account email not sent
         </Tag>
       </div>
     );

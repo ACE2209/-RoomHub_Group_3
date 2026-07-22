@@ -11,7 +11,7 @@ import {
 } from "../controllers/index.js";
 
 import roomController from "../controllers/roomController.js";
-import { authMiddleware } from "../middlewares/index.js";
+import { userMiddleware } from "../middlewares/index.js";
 
 const commonRouter = Router();
 
@@ -27,7 +27,7 @@ commonRouter.post("/verify-register", authController.verifyRegister);
 // ======================
 // Report
 // ======================
-commonRouter.post("/reports", authMiddleware, reportController.createReport.bind(reportController));
+commonRouter.post("/reports", userMiddleware, reportController.createReport.bind(reportController));
 
 // ======================
 // Boarding House
@@ -39,7 +39,7 @@ commonRouter.get("/boardinghouse/highrating", boardingHouseController.getHighRat
 commonRouter.get("/boardinghouse/newest", boardingHouseController.getNewestBH);
 commonRouter.get("/boardinghouse/types", boardingHouseController.getAllBoardingHouseTypes);
 commonRouter.get("/boardinghouse/:id", boardingHouseController.getBoardingHouseDetailInUser);
-commonRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId);
+commonRouter.get("/boardinghouse/room-types/:id", roomTypeController.getRoomTypeByBhId.bind(roomTypeController));
 
 // ======================
 // Reviews
@@ -58,17 +58,17 @@ commonRouter.get(
 // ======================
 commonRouter.post(
   "/appointments",
-  authMiddleware,
+  userMiddleware,
   appointmentController.createAppointment
 );
 commonRouter.get(
   "/appointments/my",
-  authMiddleware,
+  userMiddleware,
   appointmentController.getAppointmentByUserId
 );
 commonRouter.patch(
   "/appointments/:appointmentId/cancel",
-  authMiddleware,
+  userMiddleware,
   appointmentController.cancelAppointment
 );
 
@@ -90,17 +90,17 @@ commonRouter.get("/rooms/:roomId", roomController.getRoomDetails);
 // ======================
 commonRouter.get(
   "/monthly-rents/my",
-  authMiddleware,
+  userMiddleware,
   monthlyRentController.getMyMonthlyRents
 );
 commonRouter.get(
   "/monthly-rents/my/:userPaymentId",
-  authMiddleware,
+  userMiddleware,
   monthlyRentController.getMyMonthlyRentDetail
 );
 commonRouter.post(
   "/monthly-rents/my/:userPaymentId/pay",
-  authMiddleware,
+  userMiddleware,
   paymentController.payUserMonthlyRent
 );
 

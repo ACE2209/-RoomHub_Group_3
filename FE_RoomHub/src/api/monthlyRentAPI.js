@@ -42,6 +42,16 @@ export const getManagedMonthlyRentDetail = async (billId) => {
   return parseJsonResponse(res);
 };
 
+
+export const getNextMonthlyRentCycle = async (roomId) => {
+  const res = await fetch(
+    `${API_URL}${getRolePrefix()}/monthly-rents/next-cycle/${roomId}`,
+    { headers: authHeaders() }
+  );
+
+  return parseJsonResponse(res);
+};
+
 export const calculateMonthlyRent = async (roomId, data) => {
   const res = await fetch(
     `${API_URL}${getRolePrefix()}/monthly-rents/calculate/${roomId}`,

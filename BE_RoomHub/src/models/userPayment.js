@@ -24,7 +24,7 @@ const userPaymentSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Pending", "Done", "Cancel", "Paid", "Failed"],
+      enum: ["Pending", "Overdue", "Expired", "Done", "Cancel", "Paid", "Failed"],
       default: "Pending",
     },
     paymentMethod: {
@@ -45,6 +45,12 @@ enum: ["Unpaid", "Cash", "Bank Transfer", "Momo", "MoMo", "VNPay", "ZaloPay"],
     transactionNo: {
       type: String,
       default: "",
+    },
+    // Thời điểm giao dịch thực sự hoàn tất. Revenue chỉ lấy theo field này
+    // (có fallback updatedAt cho dữ liệu cũ), không lấy ngày tạo giao dịch Pending.
+    paidAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }

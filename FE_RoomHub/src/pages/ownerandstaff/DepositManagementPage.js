@@ -4,7 +4,6 @@ import {
   Check,
   Eye,
   RefreshCw,
-  Search,
   Trash2,
   X,
 } from "lucide-react";
@@ -26,15 +25,6 @@ const statusOptions = [
   { value: "refunded", label: "Refunded" },
 ];
 
-const getTodayDateValue = () => {
-  const today = new Date();
-  const timezoneOffset = today.getTimezoneOffset() * 60000;
-  return new Date(today.getTime() - timezoneOffset).toISOString().slice(0, 10);
-};
-
-const isFutureDate = (dateValue, todayValue) =>
-  Boolean(dateValue && dateValue > todayValue);
-
 export default function DepositManagementPage() {
   const [deposits, setDeposits] = useState([]);
   const [pagination, setPagination] = useState({
@@ -48,8 +38,6 @@ export default function DepositManagementPage() {
 
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -61,35 +49,19 @@ export default function DepositManagementPage() {
   const [actionLoadingId, setActionLoadingId] = useState("");
   const [actionError, setActionError] = useState("");
   const [actionNotice, setActionNotice] = useState(null);
-  const todayDate = getTodayDateValue();
-
   const query = useMemo(
     () => ({
       page,
       limit: pagination.limit,
       status,
-      startDate,
-      endDate,
     }),
-    [page, pagination.limit, status, startDate, endDate]
+    [page, pagination.limit, status]
   );
 
   const fetchDeposits = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-
-      if (isFutureDate(startDate, todayDate) || isFutureDate(endDate, todayDate)) {
-        setDeposits([]);
-        setError("Date filters cannot be in the future.");
-        return;
-      }
-
-      if (startDate && endDate && startDate > endDate) {
-        setDeposits([]);
-        setError("End date cannot be earlier than start date.");
-        return;
-      }
 
       const res = await getManagedDeposits(query);
 
@@ -109,7 +81,7 @@ export default function DepositManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [query, startDate, endDate, todayDate]);
+  }, [query]);
 
   useEffect(() => {
     fetchDeposits();
@@ -117,8 +89,6 @@ export default function DepositManagementPage() {
 
   const resetFilters = () => {
     setStatus("");
-    setStartDate("");
-    setEndDate("");
     setPage(1);
   };
 
@@ -273,38 +243,6 @@ export default function DepositManagementPage() {
               </option>
             ))}
           </select>
-
-          <input
-            className="deposit-control"
-            type="date"
-            value={startDate}
-            max={todayDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              setPage(1);
-            }}
-          />
-
-          <input
-            className="deposit-control"
-            type="date"
-            value={endDate}
-            max={todayDate}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              setPage(1);
-            }}
-          />
-
-          <button
-            className="deposit-btn deposit-btn-primary"
-            type="button"
-            disabled={loading}
-            onClick={fetchDeposits}
-          >
-            <Search size={16} />
-            Search
-          </button>
 
           <button
             className="deposit-btn deposit-btn-ghost"
@@ -739,7 +677,9 @@ function StatusBadge({ status }) {
 }
 
 const canDeleteDeposit = (status) =>
-  ["rejected", "accepted", "confirmed"].includes(String(status || "").toLowerCase());
+  ["pending", "rejected", "expired", "cancelled"].includes(
+    String(status || "").toLowerCase()
+  );
 
 const formatMoney = (value) =>
   new Intl.NumberFormat("vi-VN", {

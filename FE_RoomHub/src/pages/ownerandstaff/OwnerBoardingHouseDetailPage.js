@@ -72,7 +72,7 @@ const getReverseGeocodedAddress = async (lat, lon) => {
     lon: String(lon),
     zoom: "18",
     addressdetails: "1",
-    "accept-language": "vi",
+    "accept-language": "en",
   });
 
   const response = await fetch(
@@ -124,7 +124,7 @@ export default function OwnerBoardingHouseDetailPage() {
   const [mapCandidate, setMapCandidate] = useState(null);
   const [mapZoom, setMapZoom] = useState(13);
   const [geocoding, setGeocoding] = useState(false);
-  const [mapMessage, setMapMessage] = useState("Nhập địa chỉ để bản đồ tự di chuyển đến khu vực phù hợp.");
+  const [mapMessage, setMapMessage] = useState("Enter an address so the map can move to the matching area.");
   const [geocodeRequest, setGeocodeRequest] = useState({ query: "", precise: false });
   const geocodeRequestRef = useRef(0);
 
@@ -162,7 +162,7 @@ export default function OwnerBoardingHouseDetailPage() {
         const res = await getBoardingHouseTypes();
         setTypes(res?.data || []);
       } catch (err) {
-        setError(err.message || "Không thể tải danh sách loại nhà trọ");
+        setError(err.message || "Unable to load boarding house types");
       }
     };
 
@@ -187,11 +187,11 @@ export default function OwnerBoardingHouseDetailPage() {
           availableRooms: house?.availableRooms ?? "",
           electricityPrice: house?.electricityPrice || "",
           waterPrice: house?.waterPrice || "",
-          provinceName: house?.address?.province?.name || "",
+          provinceName: house?.address?.province?.name_en || house?.address?.province?.name || "",
           provinceNameEn: house?.address?.province?.name_en || "",
-          districtName: house?.address?.district?.name || "",
+          districtName: house?.address?.district?.name_en || house?.address?.district?.name || "",
           districtNameEn: house?.address?.district?.name_en || "",
-          wardName: house?.address?.ward?.name || "",
+          wardName: house?.address?.ward?.name_en || house?.address?.ward?.name || "",
           wardNameEn: house?.address?.ward?.name_en || "",
           detail: house?.address?.detail || "",
           latitude: house?.location?.lat ?? "",
@@ -202,7 +202,7 @@ export default function OwnerBoardingHouseDetailPage() {
           existingImages: house?.images || [],
         });
       } catch (err) {
-        setError(err.message || "Không thể tải chi tiết nhà trọ");
+        setError(err.message || "Unable to load boarding house details");
       } finally {
         setLoading(false);
       }
@@ -218,10 +218,10 @@ export default function OwnerBoardingHouseDetailPage() {
     setMapCandidate({
       lat: selectedPosition[0],
       lon: selectedPosition[1],
-      label: "Vị trí đã lưu",
+      label: "Saved location",
     });
     setMapZoom(16);
-    setMapMessage("Vị trí nhà trọ đang được hiển thị trên bản đồ.");
+    setMapMessage("The boarding house location is being shown on the map.");
   }, [selectedPosition]);
 
   useEffect(() => {
@@ -244,7 +244,7 @@ export default function OwnerBoardingHouseDetailPage() {
           q: query,
           limit: "1",
           addressdetails: "1",
-          "accept-language": "vi",
+          "accept-language": "en",
         });
         const response = await fetch(
           `https://nominatim.openstreetmap.org/search?${params.toString()}`,
@@ -259,7 +259,7 @@ export default function OwnerBoardingHouseDetailPage() {
         const result = results?.[0];
         if (!result) {
           setMapCandidate(null);
-          setMapMessage("Không tìm thấy vị trí phù hợp. Bạn có thể bấm trực tiếp trên bản đồ để chọn.");
+          setMapMessage("No matching location found. You can click directly on the map to choose one.");
           return;
         }
 
@@ -278,12 +278,12 @@ export default function OwnerBoardingHouseDetailPage() {
         setMapZoom(geocodeRequest.precise ? 16 : 13);
         setMapMessage(
           geocodeRequest.precise
-            ? "Bản đồ đã kéo đến địa chỉ chi tiết. Bấm \"Chọn vị trí này\" để ghim."
-            : "Bản đồ đã kéo đến khu vực đã nhập. Nhập thêm địa chỉ chi tiết để chính xác hơn."
+            ? "The map moved to the detailed address. Click \"Select this location\" to pin it."
+            : "The map moved to the entered area. Add a detailed address for better accuracy."
         );
       } catch (err) {
         if (err.name === "AbortError" || requestId !== geocodeRequestRef.current) return;
-        setMapMessage("Không thể tự tìm vị trí lúc này. Bạn vẫn có thể bấm trực tiếp trên bản đồ.");
+        setMapMessage("Unable to find the location automatically right now. You can still click directly on the map.");
       } finally {
         if (requestId === geocodeRequestRef.current) {
           setGeocoding(false);
@@ -354,7 +354,7 @@ export default function OwnerBoardingHouseDetailPage() {
     const query = buildAddressSearchText(address);
 
     if (!query) {
-      setMapMessage("Nhập địa chỉ để bản đồ tự di chuyển đến khu vực phù hợp.");
+      setMapMessage("Enter an address so the map can move to the matching area.");
       return;
     }
 
@@ -374,23 +374,23 @@ export default function OwnerBoardingHouseDetailPage() {
     setMapCandidate({
       lat,
       lon,
-      label: "Vị trí được chọn trên bản đồ",
+      label: "Location selected on the map",
     });
     setMapZoom(16);
-    setMapMessage("Đã di chuyển ghim trên bản đồ. Bấm \"Chọn vị trí này\" để lưu vị trí này.");
+    setMapMessage("The map pin has been moved. Click \"Select this location\" to save it.");
   }, []);
 
   const handleConfirmMapPosition = async () => {
     const candidate = mapCandidate;
 
     if (!candidate) {
-      setError("Vui lòng nhập địa chỉ hoặc chọn vị trí trên bản đồ.");
+      setError("Please enter an address or select a location on the map.");
       return;
     }
 
     try {
       setGeocoding(true);
-      setMapMessage("Đang lấy địa chỉ từ vị trí đã ghim...");
+      setMapMessage("Getting the address from the pinned location...");
       const pinnedAddress = await getReverseGeocodedAddress(candidate.lat, candidate.lon);
 
       setForm((prev) => ({
@@ -402,8 +402,8 @@ export default function OwnerBoardingHouseDetailPage() {
       setError("");
       setMapMessage(
         pinnedAddress
-          ? "Đã ghim vị trí và cập nhật địa chỉ chi tiết."
-          : "Đã ghim vị trí này cho nhà trọ."
+          ? "The location has been pinned and the detailed address has been updated."
+          : "This location has been pinned for the boarding house."
       );
     } catch (err) {
       setForm((prev) => ({
@@ -412,7 +412,7 @@ export default function OwnerBoardingHouseDetailPage() {
         longitude: formatCoordinate(candidate.lon),
       }));
       setError("");
-      setMapMessage("Đã ghim vị trí, nhưng chưa lấy được địa chỉ chi tiết từ bản đồ.");
+      setMapMessage("The location has been pinned, but the detailed address could not be retrieved from the map.");
     } finally {
       setGeocoding(false);
     }
@@ -424,16 +424,16 @@ export default function OwnerBoardingHouseDetailPage() {
     data.append("name", form.name);
     data.append("description", form.description);
     data.append("priceRange", form.priceRange);
-    data.append("totalRooms", form.totalRooms || 0);
-    data.append("availableRooms", form.availableRooms || 0);
+    data.append("totalRooms", isCreate ? 0 : form.totalRooms || 0);
+    data.append("availableRooms", isCreate ? 0 : form.availableRooms || 0);
     data.append("electricityPrice", form.electricityPrice);
     data.append("waterPrice", form.waterPrice);
     data.append("address[province][name]", form.provinceName);
-    data.append("address[province][name_en]", form.provinceNameEn || form.provinceName);
+    data.append("address[province][name_en]", form.provinceName);
     data.append("address[district][name]", form.districtName);
-    data.append("address[district][name_en]", form.districtNameEn || form.districtName);
+    data.append("address[district][name_en]", form.districtName);
     data.append("address[ward][name]", form.wardName);
-    data.append("address[ward][name_en]", form.wardNameEn || form.wardName);
+    data.append("address[ward][name_en]", form.wardName);
     data.append("address[detail]", form.detail);
     data.append("location[lat]", form.latitude);
     data.append("location[lon]", form.longitude);
@@ -455,8 +455,6 @@ export default function OwnerBoardingHouseDetailPage() {
       "boardingHouseType",
       "name",
       "priceRange",
-      "totalRooms",
-      "availableRooms",
       "electricityPrice",
       "waterPrice",
       "provinceName",
@@ -466,40 +464,40 @@ export default function OwnerBoardingHouseDetailPage() {
     ];
 
     const missing = required.some((key) => String(form[key] || "").trim() === "");
-    if (missing) return "Vui lòng nhập đầy đủ các trường bắt buộc.";
-    if (isCreate && !form.images.length) return "Vui lòng tải lên ít nhất một hình ảnh.";
+    if (missing) return "Please fill in all required fields.";
+    if (isCreate && !form.images.length) return "Please upload at least one image.";
 
     if (!String(form.latitude || "").trim() || !String(form.longitude || "").trim()) {
-      return "Vui lòng chọn vị trí trên bản đồ.";
+      return "Please select a location on the map.";
     }
 
     const nonNegativeFields = [
-      ["Giá thuê", form.priceRange],
-      ["Tổng số phòng", form.totalRooms],
-      ["Phòng còn trống", form.availableRooms],
-      ["Giá điện", form.electricityPrice],
-      ["Giá nước", form.waterPrice],
+      ["Expected rent", form.priceRange],
+      ["Total rooms", form.totalRooms],
+      ["Available rooms", form.availableRooms],
+      ["Electricity price", form.electricityPrice],
+      ["Water price", form.waterPrice],
     ];
 
     for (const [label, value] of nonNegativeFields) {
       const numberValue = Number(value);
       if (!Number.isFinite(numberValue) || numberValue < 0) {
-        return `${label} phải là số không âm.`;
+        return `${label} must be a non-negative number.`;
       }
     }
 
     if (Number(form.availableRooms) > Number(form.totalRooms)) {
-      return "Số phòng còn trống không được lớn hơn tổng số phòng.";
+      return "Available rooms cannot be greater than total rooms.";
     }
 
     const latitude = Number(form.latitude);
     const longitude = Number(form.longitude);
     if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
-      return "Vĩ độ phải nằm trong khoảng -90 đến 90.";
+      return "Latitude must be between -90 and 90.";
     }
 
     if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-      return "Kinh độ phải nằm trong khoảng -180 đến 180.";
+      return "Longitude must be between -180 and 180.";
     }
 
     return "";
@@ -524,12 +522,12 @@ export default function OwnerBoardingHouseDetailPage() {
       if (res?.success) {
         setNotice({
           type: "success",
-          message: isCreate ? "Thêm nhà trọ thành công." : "Cập nhật nhà trọ thành công.",
+          message: isCreate ? "Boarding house created successfully." : "Boarding house updated successfully.",
         });
         window.setTimeout(() => navigate("/my-boarding-houses"), 700);
       }
     } catch (err) {
-      setError(err.message || "Lưu thông tin thất bại");
+      setError(err.message || "Failed to save boarding house information");
     } finally {
       setSaving(false);
     }
@@ -587,17 +585,17 @@ export default function OwnerBoardingHouseDetailPage() {
       <div style={headerStyle}>
         <button style={secondaryBtnStyle} onClick={() => navigate("/my-boarding-houses")}>
           <ArrowLeft size={17} />
-          Quay lại
+          Back
         </button>
         <div>
-          <h2 style={titleStyle}>{isCreate ? "Thêm nhà trọ" : isReadOnly ? "Thông tin nhà trọ" : "Cập nhật nhà trọ"}</h2>
-          <p style={subtitleStyle}>{isCreate ? "Tạo nhà trọ mới cho tài khoản của bạn." : isReadOnly ? "Xem thông tin nhà trọ của bạn." : "Cập nhật thông tin nhà trọ."}</p>
+          <h2 style={titleStyle}>{isCreate ? "Add Boarding House" : isReadOnly ? "Boarding House Detail" : "Update Boarding House"}</h2>
+          <p style={subtitleStyle}>{isCreate ? "Create a new boarding house for your account." : isReadOnly ? "View your boarding house detail." : "Update boarding house information."}</p>
         </div>
       </div>
 
       <form style={formCardStyle} onSubmit={handleSubmit}>
         {loading ? (
-          <div style={emptyStyle}>Đang tải thông tin nhà trọ...</div>
+          <div style={emptyStyle}>Loading boarding house information...</div>
         ) : (
           <>
             {notice && <div style={noticeStyle(notice.type)}>{notice.message}</div>}
@@ -605,49 +603,47 @@ export default function OwnerBoardingHouseDetailPage() {
 
             <div style={gridStyle}>
               <label style={fieldStyle}>
-                <span style={labelStyle}>Loại nhà trọ *</span>
+                <span style={labelStyle}>Boarding House Type *</span>
                 <select value={form.boardingHouseType} onChange={(e) => updateField("boardingHouseType", e.target.value)} style={inputStyle} disabled={isReadOnly}>
-                  <option value="">Chọn loại nhà trọ</option>
+                  <option value="">Select boarding house type</option>
                   {types.map((type) => (
-                    <option key={type._id || type.value} value={type._id || type.value}>{type.name || type.label}</option>
+                    <option key={type._id || type.value} value={type._id || type.value}>{getBoardingHouseTypeLabel(type)}</option>
                   ))}
                 </select>
               </label>
 
-              <TextField label="Tên nhà trọ *" value={form.name} onChange={(value) => updateField("name", value)} disabled={isReadOnly} />
-              <TextField label="Giá thuê dự kiến (VNĐ) *" type="text" formatCurrency value={form.priceRange} onChange={(value) => updateField("priceRange", value)} disabled={isReadOnly} />
-              <TextField label="Tổng số phòng *" type="number" value={form.totalRooms} onChange={(value) => updateField("totalRooms", value)} disabled={isReadOnly} />
-              <TextField label="Số phòng còn trống *" type="number" value={form.availableRooms} onChange={(value) => updateField("availableRooms", value)} disabled={isReadOnly} />
-              <TextField label="Giá điện (VNĐ/kWh) *" type="text" formatCurrency value={form.electricityPrice} onChange={(value) => updateField("electricityPrice", value)} disabled={isReadOnly} />
-              <TextField label="Giá nước (VNĐ/m3) *" type="text" formatCurrency value={form.waterPrice} onChange={(value) => updateField("waterPrice", value)} disabled={isReadOnly} />
+              <TextField label="Boarding House Name *" value={form.name} onChange={(value) => updateField("name", value)} disabled={isReadOnly} />
+              <TextField label="Expected Rent (VND) *" type="text" formatCurrency value={form.priceRange} onChange={(value) => updateField("priceRange", value)} disabled={isReadOnly} />
+              <TextField label="Electricity Price (VND/kWh) *" type="text" formatCurrency value={form.electricityPrice} onChange={(value) => updateField("electricityPrice", value)} disabled={isReadOnly} />
+              <TextField label="Water Price (VND/m3) *" type="text" formatCurrency value={form.waterPrice} onChange={(value) => updateField("waterPrice", value)} disabled={isReadOnly} />
             </div>
 
             <label style={{ ...fieldStyle, marginTop: 16 }}>
-              <span style={labelStyle}>Mô tả</span>
+              <span style={labelStyle}>Description</span>
               <textarea value={form.description} onChange={(e) => updateField("description", e.target.value)} rows={4} style={textareaStyle} disabled={isReadOnly} />
             </label>
 
-            <h3 style={sectionTitleStyle}>Địa chỉ</h3>
+            <h3 style={sectionTitleStyle}>Address</h3>
             <div style={gridStyle}>
-              <TextField label="Tỉnh/Thành phố *" value={form.provinceName} onChange={(value) => updateField("provinceName", value)} onBlur={(value) => handleAddressRegionBlur("provinceName", value)} disabled={isReadOnly} />
-              <TextField label="Quận/Huyện *" value={form.districtName} onChange={(value) => updateField("districtName", value)} onBlur={(value) => handleAddressRegionBlur("districtName", value)} disabled={isReadOnly} />
-              <TextField label="Phường/Xã *" value={form.wardName} onChange={(value) => updateField("wardName", value)} onBlur={(value) => handleAddressRegionBlur("wardName", value)} disabled={isReadOnly} />
+              <TextField label="Province/City *" value={form.provinceName} onChange={(value) => updateField("provinceName", value)} onBlur={(value) => handleAddressRegionBlur("provinceName", value)} disabled={isReadOnly} />
+              <TextField label="District *" value={form.districtName} onChange={(value) => updateField("districtName", value)} onBlur={(value) => handleAddressRegionBlur("districtName", value)} disabled={isReadOnly} />
+              <TextField label="Ward/Commune *" value={form.wardName} onChange={(value) => updateField("wardName", value)} onBlur={(value) => handleAddressRegionBlur("wardName", value)} disabled={isReadOnly} />
             </div>
 
             <label style={{ ...fieldStyle, marginTop: 16 }}>
-              <span style={labelStyle}>Địa chỉ chi tiết *</span>
+              <span style={labelStyle}>Detailed Address *</span>
               <textarea value={form.detail} onChange={(e) => updateField("detail", e.target.value)} onBlur={(e) => handleDetailAddressBlur(e.target.value)} rows={3} style={textareaStyle} disabled={isReadOnly} />
             </label>
 
             <section style={mapPickerSectionStyle}>
               <div style={mapHeaderStyle}>
                 <div>
-                  <h3 style={mapTitleStyle}>Vị trí trên bản đồ</h3>
+                  <h3 style={mapTitleStyle}>Map Location</h3>
                   <p style={mapHintStyle}>
-                    {isReadOnly ? "Vị trí nhà trọ đang được hiển thị trên bản đồ." : mapMessage}
+                    {isReadOnly ? "The boarding house location is being shown on the map." : mapMessage}
                   </p>
                 </div>
-                {!isReadOnly && geocoding && <span style={mapLoadingStyle}>Đang tìm...</span>}
+                {!isReadOnly && geocoding && <span style={mapLoadingStyle}>Searching...</span>}
               </div>
 
               <div style={mapFrameStyle}>
@@ -669,20 +665,20 @@ export default function OwnerBoardingHouseDetailPage() {
                     disabled={!mapCandidate || saving || geocoding}
                   >
                     <MapPin size={17} />
-                    Chọn vị trí này
+                    Select this location
                   </button>
                   <span style={mapSelectedTextStyle}>
-                    {form.latitude && form.longitude ? "Đã ghim vị trí cho nhà trọ." : "Chưa ghim vị trí."}
+                    {form.latitude && form.longitude ? "Location pinned for this boarding house." : "No location pinned yet."}
                   </span>
                 </div>
               )}
             </section>
 
-            <h3 style={sectionTitleStyle}>Hình ảnh</h3>
+            <h3 style={sectionTitleStyle}>Images</h3>
             {!isReadOnly && (
               <label style={uploadStyle}>
                 <Upload size={20} />
-                <span>Chọn hình ảnh</span>
+                <span>Choose images</span>
                 <input type="file" accept="image/*" multiple hidden onChange={(e) => updateField("images", Array.from(e.target.files || []))} />
               </label>
             )}
@@ -690,17 +686,17 @@ export default function OwnerBoardingHouseDetailPage() {
             {previews.length > 0 && (
               <div style={previewGridStyle}>
                 {previews.map((image) => (
-                  <img key={image.key} src={image.url} alt="Nhà trọ" style={previewStyle} />
+                  <img key={image.key} src={image.url} alt="Boarding house" style={previewStyle} />
                 ))}
               </div>
             )}
 
             <div style={actionRowStyle}>
-              <button type="button" style={secondaryBtnStyle} onClick={() => navigate("/my-boarding-houses")}>{isReadOnly ? "Quay lại" : "Hủy"}</button>
+              <button type="button" style={secondaryBtnStyle} onClick={() => navigate("/my-boarding-houses")}>{isReadOnly ? "Back" : "Cancel"}</button>
               {!isReadOnly && (
                 <button type="submit" style={primaryBtnStyle} disabled={saving}>
                   <Save size={17} />
-                  {saving ? "Đang lưu..." : "Lưu"}
+                  {saving ? "Saving..." : "Save"}
                 </button>
               )}
             </div>
@@ -896,6 +892,51 @@ function TextField({ label, value, onChange, onBlur, type = "text", disabled = f
 const formatCurrencyValue = (value) => {
   const cleaned = String(value ?? "").replace(/[^0-9]/g, "");
   return cleaned ? Number(cleaned).toLocaleString("vi-VN") : "";
+};
+
+const boardingHouseTypeLabels = {
+  can_ho: "Apartment",
+  can_ho_mini: "Mini Apartment",
+  chung_cu: "Apartment Building",
+  chung_cu_mini: "Mini Apartment",
+  homestay: "Homestay",
+  ky_tuc_xa: "Dormitory",
+  nha_nguyen_can: "Whole House",
+  nha_tro: "Boarding House",
+  nha_tro_kien_truc_xa: "Dorm-style Boarding House",
+  phong_tro: "Room for Rent",
+};
+
+const normalizeLabelKey = (value = "") =>
+  String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+const toTitleCase = (value = "") =>
+  String(value)
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const getBoardingHouseTypeLabel = (type = {}) => {
+  const labelSource =
+    type.nameEn ||
+    type.name_en ||
+    type.labelEn ||
+    type.label_en ||
+    type.code ||
+    type.codeName ||
+    type.name ||
+    type.label;
+  const normalizedKey = normalizeLabelKey(type.code || type.codeName || type.name || type.label);
+
+  return boardingHouseTypeLabels[normalizedKey] || toTitleCase(labelSource) || "Boarding House";
 };
 
 const getStaffDisplayName = (staff) => {

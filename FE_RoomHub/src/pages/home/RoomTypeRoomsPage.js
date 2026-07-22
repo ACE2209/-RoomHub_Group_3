@@ -25,6 +25,15 @@ const hasAcceptedDeposit = (room) =>
   room?.hasAcceptedDeposit || room?.depositStatus === "accepted";
 
 const getRoomStatus = (room) => {
+  if (room?.isDormitory) {
+    const slots = Number(room?.availableSlots || 0);
+    return {
+      className: slots > 0 ? "available" : "unavailable",
+      label: slots > 0 ? `Còn ${slots} chỗ` : "Đã đủ người",
+      isActionDisabled: slots <= 0,
+    };
+  }
+
   if (hasAcceptedDeposit(room)) {
     return {
       className: "deposited",
@@ -104,7 +113,7 @@ const RoomTypeRoomsPage = () => {
       return;
     }
 
-    if (!room.isAvailable || hasAcceptedDeposit(room)) {
+    if (!room.isAvailable || (!room.isDormitory && hasAcceptedDeposit(room))) {
       alert("This room is not available.");
       return;
     }

@@ -1,21 +1,50 @@
 import { Navigate } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
+import {
+  getRoleHomePath,
+  getStoredUser,
+  normalizeRole,
+} from "../utils/roleNavigation";
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-    const token = localStorage.getItem("token");
-    const user = JSON.parse(localStorage.getItem("user"));
+  const token = localStorage.getItem("token");
+  const user = getStoredUser();
 
-    if (!token || !user) {
-        return <Navigate to="/login" replace />;
-    }
+  let decoded = null;
+  let tokenIsValid = false;
 
-    if (
-        allowedRoles.length > 0 &&
-        !allowedRoles.includes(user.role)
-    ) {
-        return <Navigate to="/" replace />;
-    }
+  try {
+    decoded = token ? jwtDecode(token) : null;
+    tokenIsValid = Boolean(
+      decoded && (!decoded.exp || decoded.exp * 1000 > Date.now())
+    );
+  } catch (error) {
+    tokenIsValid = false;
+  }
 
-    return children;
+  if (!tokenIsValid || !user) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = normalizeRole(user.role || decoded?.role);
+  const normalizedAllowedRoles = allowedRoles.map(normalizeRole);
+
+  if (!role) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    return <Navigate to="/login" replace />;
+  }
+
+  if (
+    normalizedAllowedRoles.length > 0 &&
+    !normalizedAllowedRoles.includes(role)
+  ) {
+    return <Navigate to={getRoleHomePath(role)} replace />;
+  }
+
+  return children;
 };
 
 export default ProtectedRoute;

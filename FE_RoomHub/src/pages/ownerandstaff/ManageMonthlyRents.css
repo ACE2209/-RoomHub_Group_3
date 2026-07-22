@@ -94,3 +94,7 @@
     justify-content: flex-start;
   }
 }
+
+.manage-monthly-rents__arrears-alert {
+  margin-bottom: 16px;
+}

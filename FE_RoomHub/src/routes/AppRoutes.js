@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 
 import HomePage from "../pages/home/HomePage";
 
@@ -15,14 +15,14 @@ import AccountManagementPage from "../pages/admin/AccountManagementPage";
 import BoardingHouseManagementPage from "../pages/admin/BoardingHouseManagementPage";
 import ReviewManagementPage from "../pages/admin/ReviewManagementPage";
 import ReviewDetailPage from "../pages/admin/ReviewDetailPage";
-
 import BHDetailPage from "../pages/admin/BHDetailPage";
 import AddBoardingHousePage from "../pages/admin/AddBoardingHousePage";
 import ProfilePage from "../pages/admin/ProfilePage";
-
 import ReportDetailPage from "../pages/admin/ReportManagement/ReportDetailPage";
 import ReviewReportManagementPage from "../pages/admin/ReportManagement/ReviewReportManagementPage";
 import BoardingHouseReportManagementPage from "../pages/admin/BoardingHouseReportManagementPage";
+import TotalRevenuePage from "../pages/admin/Revenue/TotalRevenuePage";
+import BoardingHouseRevenuePage from "../pages/admin/Revenue/BoardingHouseRevenuePage";
 
 import BoardingHouseDetailPage from "../pages/home/BoardingHouseDetailPage";
 import RoomDetailPage from "../pages/home/RoomDetailPage";
@@ -33,8 +33,18 @@ import OwnerBoardingHouseDetailPage from "../pages/ownerandstaff/OwnerBoardingHo
 import AppointmentManagementPage from "../pages/ownerandstaff/AppointmentManagementPage";
 import DepositManagementPage from "../pages/ownerandstaff/DepositManagementPage";
 import ManagedReviewsPage from "../pages/ownerandstaff/ManagedReviewsPage";
-import MyReportsPage from "../pages/report/MyReportsPage";
+import ManageRooms from "../pages/ownerandstaff/ManageRooms";
+import ManageRoomAdditionalFees from "../pages/ownerandstaff/ManageRoomAdditionalFees";
+import ManageMonthlyRents from "../pages/ownerandstaff/ManageMonthlyRents";
+import ManageMonthlyRentDetail from "../pages/ownerandstaff/ManageMonthlyRentDetail";
+import ManageRoomTypes from "../pages/ownerandstaff/ManageRoomTypes";
+import StaffManagementPage from "../pages/ownerandstaff/StaffManagementPage";
+import TaskManagementPage from "../pages/ownerandstaff/TaskManagementPage";
+import ManagedRefundRequestsPage from "../pages/ownerandstaff/ManagedRefundRequestsPage";
+import ManagedRenewalRequestsPage from "../pages/ownerandstaff/ManagedRenewalRequestsPage";
+import ManageExpensesPage from "../pages/ownerandstaff/ManageExpensesPage";
 
+import MyReportsPage from "../pages/report/MyReportsPage";
 import AppointmentPage from "../pages/user/AppointmentPage";
 import CreateDepositPage from "../pages/user/CreateDepositPage";
 import FavoritesPage from "../pages/user/FavoritesPage";
@@ -42,450 +52,239 @@ import MyDepositsPage from "../pages/user/MyDepositsPage";
 import PaymentResultPage from "../pages/user/PaymentResultPage";
 import MyMonthlyRentsPage from "../pages/user/MyMonthlyRentsPage";
 import MyMonthlyRentDetailPage from "../pages/user/MyMonthlyRentDetailPage";
-
-import ProtectedRoute from "./ProtectedRoute";
 import WatchLaterPage from "../pages/user/WatchLaterPage";
-
-import ManageRooms from "../pages/ownerandstaff/ManageRooms";
-import ManageRoomAdditionalFees from "../pages/ownerandstaff/ManageRoomAdditionalFees";
-import ManageMonthlyRents from "../pages/ownerandstaff/ManageMonthlyRents";
-import ManageMonthlyRentDetail from "../pages/ownerandstaff/ManageMonthlyRentDetail";
-
-import ManageRoomTypes from "../pages/ownerandstaff/ManageRoomTypes";
-import StaffManagementPage from "../pages/ownerandstaff/StaffManagementPage";
-import TaskManagementPage from "../pages/ownerandstaff/TaskManagementPage";
 import MyPaymentBillsPage from "../pages/user/MyPaymentBillsPage";
 import MyRefundRequestsPage from "../pages/user/MyRefundRequestsPage";
-import ManagedRefundRequestsPage from "../pages/ownerandstaff/ManagedRefundRequestsPage";
 import MyRenewalRequestsPage from "../pages/user/MyRenewalRequestsPage";
-import ManagedRenewalRequestsPage from "../pages/ownerandstaff/ManagedRenewalRequestsPage";
-import ManageExpensesPage from "../pages/ownerandstaff/ManageExpensesPage";
-import TotalRevenuePage from "../pages/admin/Revenue/TotalRevenuePage";
-import BoardingHouseRevenuePage from "../pages/admin/Revenue/BoardingHouseRevenuePage";
+
+import ProtectedRoute from "./ProtectedRoute";
+import PublicRoute from "./PublicRoute";
+
+const publicPage = (element) => <PublicRoute>{element}</PublicRoute>;
+const guestPage = (element) => <PublicRoute guestOnly>{element}</PublicRoute>;
+const userPage = (element) => (
+  <ProtectedRoute allowedRoles={["user"]}>{element}</ProtectedRoute>
+);
+const managerPage = (element, allowedRoles = ["owner", "staff"]) => (
+  <ProtectedRoute allowedRoles={allowedRoles}>{element}</ProtectedRoute>
+);
+const adminPage = (element) => (
+  <ProtectedRoute allowedRoles={["admin"]}>{element}</ProtectedRoute>
+);
+
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Public Routes */}
-      <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password/:token" element={<ResetPassword />} />
+      {/* Guest and tenant-facing pages. Management roles are redirected. */}
+      <Route path="/" element={publicPage(<HomePage />)} />
+      <Route path="/login" element={guestPage(<Login />)} />
+      <Route path="/register" element={guestPage(<Register />)} />
+      <Route path="/forgot-password" element={guestPage(<ForgotPassword />)} />
+      <Route
+        path="/reset-password/:token"
+        element={guestPage(<ResetPassword />)}
+      />
 
-      {/* Boarding House */}
       <Route
         path="/boarding-houses/:boardingHouseId"
-        element={<BoardingHouseDetailPage />}
+        element={publicPage(<BoardingHouseDetailPage />)}
       />
       <Route
         path="/boardinghouse/:boardingHouseId"
-        element={<BoardingHouseDetailPage />}
+        element={publicPage(<BoardingHouseDetailPage />)}
       />
       <Route
         path="/boarding-house/:boardingHouseId"
-        element={<BoardingHouseDetailPage />}
+        element={publicPage(<BoardingHouseDetailPage />)}
       />
       <Route
         path="/room-types/:roomTypeId/rooms"
-        element={<RoomTypeRoomsPage />}
+        element={publicPage(<RoomTypeRoomsPage />)}
       />
-      <Route path="/rooms/:roomId" element={<RoomDetailPage />} />
+      <Route path="/rooms/:roomId" element={publicPage(<RoomDetailPage />)} />
 
-      {/* User */}
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/change-password"
-        element={
-          <ProtectedRoute>
-            <ChangePassword />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/appointments"
-        element={
-          <ProtectedRoute>
-            <AppointmentPage />
-          </ProtectedRoute>
-        }
-      />
-
+      {/* Tenant-only pages */}
+      <Route path="/profile" element={userPage(<Profile />)} />
+      <Route path="/change-password" element={userPage(<ChangePassword />)} />
+      <Route path="/appointments" element={userPage(<AppointmentPage />)} />
       <Route
         path="/deposits/create/:roomId"
-        element={
-          <ProtectedRoute>
-            <CreateDepositPage />
-          </ProtectedRoute>
-        }
+        element={userPage(<CreateDepositPage />)}
       />
-
-      <Route
-        path="/favorites"
-        element={
-          <ProtectedRoute>
-            <FavoritesPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/watchlater"
-        element={
-          <ProtectedRoute>
-            <WatchLaterPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/my-reports"
-        element={
-          <ProtectedRoute>
-            <MyReportsPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/my-deposits"
-        element={
-          <ProtectedRoute>
-            <MyDepositsPage />
-          </ProtectedRoute>
-        }
-      />
-
+      <Route path="/favorites" element={userPage(<FavoritesPage />)} />
+      <Route path="/watchlater" element={userPage(<WatchLaterPage />)} />
+      <Route path="/my-reports" element={userPage(<MyReportsPage />)} />
+      <Route path="/my-deposits" element={userPage(<MyDepositsPage />)} />
       <Route
         path="/payment-result"
-        element={
-          <ProtectedRoute>
-            <PaymentResultPage />
-          </ProtectedRoute>
-        }
+        element={userPage(<PaymentResultPage />)}
       />
-
       <Route
         path="/monthly-rents"
-        element={
-          <ProtectedRoute>
-            <MyMonthlyRentsPage />
-          </ProtectedRoute>
-        }
+        element={userPage(<MyMonthlyRentsPage />)}
       />
-
       <Route
         path="/monthly-rent"
-        element={
-          <ProtectedRoute>
-            <MyMonthlyRentsPage />
-          </ProtectedRoute>
-        }
+        element={userPage(<MyMonthlyRentsPage />)}
       />
-
       <Route
         path="/monthly-rents/:userPaymentId"
-        element={
-          <ProtectedRoute>
-            <MyMonthlyRentDetailPage />
-          </ProtectedRoute>
-        }
+        element={userPage(<MyMonthlyRentDetailPage />)}
       />
-
       <Route
         path="/monthly-rent/:userPaymentId"
-        element={
-          <ProtectedRoute>
-            <MyMonthlyRentDetailPage />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Owner & Staff */}
-      <Route
-        path="/my-boarding-houses"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <MyBoardingHousesPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/my-boarding-houses/:id"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <OwnerBoardingHouseDetailPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/managed-appointments"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <AppointmentManagementPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/managed-deposits"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <DepositManagementPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/managed-reviews"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <ManagedReviewsPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/manage-rooms"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <ManageRooms />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/manage-room-additional-fees"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <ManageRoomAdditionalFees />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/manage-monthly-rents"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <ManageMonthlyRents />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/manage-monthly-rents/:billId"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <ManageMonthlyRentDetail />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/manage-room-types"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <ManageRoomTypes />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/staff-management"
-        element={
-          <ProtectedRoute allowedRoles={["owner"]}>
-            <StaffManagementPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/task-management"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <TaskManagementPage />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Admin */}
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <AdminDashboardPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/accounts"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <AccountManagementPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/reviews"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <ReviewManagementPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/reviews/:reviewId"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <ReviewDetailPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/reports"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <Navigate to="/admin/review-reports" replace />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/review-reports"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <ReviewReportManagementPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/review-reports/:reportId"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <ReportDetailPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/boarding-houses"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <BoardingHouseManagementPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/boarding-house-reports"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <BoardingHouseReportManagementPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/boarding-houses/new"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <AddBoardingHousePage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/boarding-houses/:boardingHouseId"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <BHDetailPage />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/profile"
-        element={
-          <ProtectedRoute allowedRoles={["admin"]}>
-            <ProfilePage />
-          </ProtectedRoute>
-        }
+        element={userPage(<MyMonthlyRentDetailPage />)}
       />
       <Route
         path="/my-payment-bills"
-        element={
-          <ProtectedRoute>
-            <MyPaymentBillsPage />
-          </ProtectedRoute>
-        }
+        element={userPage(<MyPaymentBillsPage />)}
       />
-      <Route path="/my-refund-requests" element={<MyRefundRequestsPage />} />
-      <Route path="/owner/refund-requests" element={<ManagedRefundRequestsPage />} />
-      <Route path="/staff/refund-requests" element={<ManagedRefundRequestsPage />} />
       <Route
-        path="/managed-refund-requests"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <ManagedRefundRequestsPage />
-          </ProtectedRoute>
-        }
+        path="/my-refund-requests"
+        element={userPage(<MyRefundRequestsPage />)}
       />
       <Route
         path="/my-renewal-requests"
-        element={
-          <ProtectedRoute>
-            <MyRenewalRequestsPage />
-          </ProtectedRoute>
-        }
+        element={userPage(<MyRenewalRequestsPage />)}
+      />
+
+      {/* Owner and staff dashboard pages */}
+      <Route
+        path="/owner/dashboard"
+        element={managerPage(<Navigate to="/my-boarding-houses" replace />, ["owner"])}
+      />
+      <Route
+        path="/staff/dashboard"
+        element={managerPage(<Navigate to="/my-boarding-houses" replace />, ["staff"])}
+      />
+      <Route
+        path="/management/profile"
+        element={managerPage(<ProfilePage />)}
+      />
+      <Route
+        path="/my-boarding-houses"
+        element={managerPage(<MyBoardingHousesPage />)}
+      />
+      <Route
+        path="/my-boarding-houses/:id"
+        element={managerPage(<OwnerBoardingHouseDetailPage />)}
+      />
+      <Route
+        path="/managed-appointments"
+        element={managerPage(<AppointmentManagementPage />)}
+      />
+      <Route
+        path="/managed-deposits"
+        element={managerPage(<DepositManagementPage />)}
+      />
+      <Route
+        path="/managed-reviews"
+        element={managerPage(<ManagedReviewsPage />)}
+      />
+      <Route path="/manage-rooms" element={managerPage(<ManageRooms />)} />
+      <Route
+        path="/manage-room-additional-fees"
+        element={managerPage(<ManageRoomAdditionalFees />)}
+      />
+      <Route
+        path="/manage-monthly-rents"
+        element={managerPage(<ManageMonthlyRents />)}
+      />
+      <Route
+        path="/manage-monthly-rents/:billId"
+        element={managerPage(<ManageMonthlyRentDetail />)}
+      />
+      <Route
+        path="/manage-room-types"
+        element={managerPage(<ManageRoomTypes />)}
+      />
+      <Route
+        path="/staff-management"
+        element={managerPage(<StaffManagementPage />, ["owner"])}
+      />
+      <Route
+        path="/task-management"
+        element={managerPage(<TaskManagementPage />)}
+      />
+      <Route
+        path="/owner/refund-requests"
+        element={managerPage(<ManagedRefundRequestsPage />, ["owner"])}
+      />
+      <Route
+        path="/staff/refund-requests"
+        element={managerPage(<ManagedRefundRequestsPage />, ["staff"])}
+      />
+      <Route
+        path="/managed-refund-requests"
+        element={managerPage(<ManagedRefundRequestsPage />)}
       />
       <Route
         path="/managed-renewal-requests"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <ManagedRenewalRequestsPage />
-          </ProtectedRoute>
-        }
+        element={managerPage(<ManagedRenewalRequestsPage />)}
       />
       <Route
         path="/manage-expenses"
-        element={
-          <ProtectedRoute allowedRoles={["owner", "staff"]}>
-            <ManageExpensesPage />
-          </ProtectedRoute>
-        }
+        element={managerPage(<ManageExpensesPage />)}
+      />
+
+      {/* Admin dashboard pages */}
+      <Route
+        path="/admin/dashboard"
+        element={adminPage(<Navigate to="/admin" replace />)}
+      />
+      <Route path="/admin" element={adminPage(<AdminDashboardPage />)} />
+      <Route
+        path="/admin/accounts"
+        element={adminPage(<AccountManagementPage />)}
       />
       <Route
-  path="/admin/revenue/total"
-  element={
-    <ProtectedRoute allowedRoles={["admin"]}>
-      <TotalRevenuePage />
-    </ProtectedRoute>
-  }
-/>
+        path="/admin/reviews"
+        element={adminPage(<ReviewManagementPage />)}
+      />
+      <Route
+        path="/admin/reviews/:reviewId"
+        element={adminPage(<ReviewDetailPage />)}
+      />
+      <Route
+        path="/admin/reports"
+        element={adminPage(<Navigate to="/admin/review-reports" replace />)}
+      />
+      <Route
+        path="/admin/review-reports"
+        element={adminPage(<ReviewReportManagementPage />)}
+      />
+      <Route
+        path="/admin/review-reports/:reportId"
+        element={adminPage(<ReportDetailPage />)}
+      />
+      <Route
+        path="/admin/boarding-houses"
+        element={adminPage(<BoardingHouseManagementPage />)}
+      />
+      <Route
+        path="/admin/boarding-house-reports"
+        element={adminPage(<BoardingHouseReportManagementPage />)}
+      />
+      <Route
+        path="/admin/boarding-houses/new"
+        element={adminPage(<AddBoardingHousePage />)}
+      />
+      <Route
+        path="/admin/boarding-houses/:boardingHouseId"
+        element={adminPage(<BHDetailPage />)}
+      />
+      <Route path="/admin/profile" element={adminPage(<ProfilePage />)} />
+      <Route
+        path="/admin/revenue/total"
+        element={adminPage(<TotalRevenuePage />)}
+      />
+      <Route
+        path="/admin/revenue/boarding-houses"
+        element={adminPage(<BoardingHouseRevenuePage />)}
+      />
 
-<Route
-  path="/admin/revenue/boarding-houses"
-  element={
-    <ProtectedRoute allowedRoles={["admin"]}>
-      <BoardingHouseRevenuePage />
-    </ProtectedRoute>
-  }
-/>
+      {/* Unknown public/user URL goes home; management accounts go dashboard. */}
+      <Route path="*" element={publicPage(<Navigate to="/" replace />)} />
     </Routes>
   );
 };

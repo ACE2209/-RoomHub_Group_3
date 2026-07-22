@@ -1,6 +1,11 @@
 import mongoose from "mongoose";
 
 const BillSchema = new mongoose.Schema({
+  unitPrice: {
+    type: Number,
+    required: true,
+    default: 0,
+  },
   oldNumber: {
     type: Number,
     required: true,
@@ -26,6 +31,24 @@ const paymentBillSchema = new mongoose.Schema(
       ref: "Room",
       required: true,
     },
+    depositRoomId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DepositRoom",
+    },
+    cycleNumber: {
+      type: Number,
+      min: 1,
+    },
+    periodStart: {
+      type: Date,
+    },
+    periodEnd: {
+      type: Date,
+    },
+    roomPrice: {
+      type: Number,
+      min: 0,
+    },
     paymentAmount: {
       type: Number,
       required: true,
@@ -33,7 +56,7 @@ const paymentBillSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["Pending", "Done", "Cancel", "Paid", "Failed"],
+      enum: ["Pending", "Overdue", "Done", "Cancel", "Paid", "Failed"],
       default: "Pending",
     },
     additionalFee: [
@@ -55,6 +78,10 @@ const paymentBillSchema = new mongoose.Schema(
     year: {
       type: Number,
     },
+    dueDate: Date,
+    gracePeriodEnd: Date,
+    overdueAt: Date,
+    closedAt: Date,
   },
   {
     timestamps: {
@@ -72,6 +99,17 @@ paymentBillSchema.index(
       roomId: { $exists: true },
       month: { $exists: true },
       year: { $exists: true },
+    },
+  }
+);
+
+paymentBillSchema.index(
+  { depositRoomId: 1, cycleNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      depositRoomId: { $type: "objectId" },
+      cycleNumber: { $type: "number" },
     },
   }
 );

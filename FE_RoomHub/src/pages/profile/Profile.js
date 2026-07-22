@@ -7,7 +7,15 @@ import {
     verifyChangeEmailAPI
 } from "../../api/accountAPI";
 
-import { User, Mail, Phone, Venus, Shield, Edit, Pencil } from "lucide-react";
+import {
+    User,
+    Mail,
+    Phone,
+    Venus,
+    Shield,
+    Edit,
+    Pencil
+} from "lucide-react";
 
 import Header from "../layout/homepage/header";
 import Footer from "../layout/homepage/footer";
@@ -47,6 +55,7 @@ const Profile = () => {
     const fetchProfile = async () => {
         try {
             const data = await getProfileAPI();
+
             setUser(data);
 
             setForm({
@@ -58,17 +67,20 @@ const Profile = () => {
             if (error?.response?.status === 401) {
                 localStorage.removeItem("token");
                 localStorage.removeItem("user");
-                window.location.href = "/login";
+
+                if (window.location.pathname !== "/login") {
+                    window.location.replace("/login");
+                }
+
                 return;
             }
 
             Swal.fire({
-                toast: true,
-                position: "top-end",
                 icon: "error",
-                title: "Load profile failed",
-                showConfirmButton: false,
-                timer: 2000,
+                title: "Error",
+                text:
+                    error?.response?.data?.message ||
+                    "Unable to load profile",
             });
         } finally {
             setLoading(false);
@@ -78,9 +90,9 @@ const Profile = () => {
     const hasChange =
         user &&
         (
-            form.fullname !== user.fullname ||
-            form.phoneNumber !== user.phoneNumber ||
-            form.gender !== user.gender
+            form.fullname !== (user.fullname || "") ||
+            form.phoneNumber !== (user.phoneNumber || "") ||
+            form.gender !== (user.gender || "")
         );
 
     const isValidPhone = (value) => /^0[1-9]\d{8,9}$/.test(value) && value.length >= 10 && value.length <= 11;
@@ -101,13 +113,18 @@ const Profile = () => {
             return;
         }
 
-        if (!form.phoneNumber || !isValidPhone(form.phoneNumber)) {
-            const message = "Invalid phone number\nPhone number must start with 0, contain 10-11 digits, and the first digit after 0 cannot be 0.";
-            setPhoneError(message);
+        const phoneRegex = /^(0)[0-9]{9}$/;
+        const uniqueDigits = new Set(form.phoneNumber?.split('') || []).size;
+        const isConsecutive = form.phoneNumber === "0123456789" || form.phoneNumber === "0987654321";
+
+        if (form.phoneNumber && (!phoneRegex.test(form.phoneNumber) || uniqueDigits <= 2 || isConsecutive)) {
+            Swal.fire({
+                icon: "error",
+                title: "Invalid Phone Format",
+                text: "Please enter a real 10-digit phone number. Fake sequences are not allowed.",
+            });
             return;
         }
-
-        setPhoneError("");
 
         try {
             await updateProfileAPI({
@@ -117,7 +134,8 @@ const Profile = () => {
             });
 
             setEditOpen(false);
-            fetchProfile();
+
+            await fetchProfile();
 
             Swal.fire({
                 toast: true,
@@ -127,26 +145,43 @@ const Profile = () => {
                 showConfirmButton: false,
                 timer: 1500,
             });
-
-        } catch (err) {
+        } catch (error) {
             Swal.fire({
                 icon: "error",
                 title: "Error",
-                text: err.response?.data?.message || "Update failed",
+                text:
+                    error?.response?.data?.message ||
+                    "Update failed",
             });
         }
     };
 
     const handleSendOTP = async () => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        const trimmedEmail = newEmail.trim();
 
-        if (!newEmail.trim()) {
+        if (!trimmedEmail) {
             setEmailError("Please enter email");
             return;
         }
 
-        if (!emailRegex.test(newEmail)) {
+        if (!emailRegex.test(trimmedEmail)) {
+            Swal.fire({
+                icon: "error",
+                title: "Invalid Email Format",
+                text: "Please enter a valid email address (e.g. example@domain.com).",
+            });
             setEmailError("Please enter a valid email address");
+            return;
+        }
+
+        if (
+            user?.email &&
+            trimmedEmail.toLowerCase() === user.email.toLowerCase()
+        ) {
+            setEmailError(
+                "New email must be different from your current email"
+            );
             return;
         }
 
@@ -155,18 +190,19 @@ const Profile = () => {
             setEmailError("");
             setEmailMessage("");
 
-            const res = await sendOTPChangeEmailAPI(newEmail);
+            const response = await sendOTPChangeEmailAPI(trimmedEmail);
 
-            setToken(res.token);
+            setToken(response.token);
+            setNewEmail(trimmedEmail);
             setStep(2);
 
             setEmailMessage(
-                `OTP has been sent to ${newEmail}. Please check your inbox and spam folder.`
+                `OTP has been sent to ${trimmedEmail}. Please check your inbox and spam folder.`
             );
-
-        } catch (err) {
+        } catch (error) {
             setEmailError(
-                err.response?.data?.message || "Failed to send OTP"
+                error?.response?.data?.message ||
+                "Failed to send OTP"
             );
         } finally {
             setSendLoading(false);
@@ -174,7 +210,9 @@ const Profile = () => {
     };
 
     const handleVerifyEmail = async () => {
-        if (!otp.trim()) {
+        const trimmedOtp = otp.trim();
+
+        if (!trimmedOtp) {
             setEmailError("Please enter OTP");
             return;
         }
@@ -185,18 +223,11 @@ const Profile = () => {
 
             await verifyChangeEmailAPI({
                 email: newEmail,
-                otp,
+                otp: trimmedOtp,
                 token,
             });
 
-            setEmailModal(false);
-
-            setStep(1);
-            setNewEmail("");
-            setOtp("");
-            setToken("");
-            setEmailMessage("");
-            setEmailError("");
+            closeEmailModal();
 
             await fetchProfile();
 
@@ -206,17 +237,78 @@ const Profile = () => {
                 text: "Your email has been changed successfully.",
                 confirmButtonColor: "#ff6b00",
             });
-
-        } catch (err) {
+        } catch (error) {
             setEmailError(
-                err.response?.data?.message || "Invalid OTP"
+                error?.response?.data?.message ||
+                "Invalid OTP"
             );
         } finally {
             setVerifyLoading(false);
         }
     };
 
-    if (loading) return <div>Loading...</div>;
+    const openEditModal = () => {
+        setForm({
+            fullname: user?.fullname || "",
+            phoneNumber: user?.phoneNumber || "",
+            gender: user?.gender || "",
+        });
+
+        setEditOpen(true);
+    };
+
+    const closeEditModal = () => {
+        setForm({
+            fullname: user?.fullname || "",
+            phoneNumber: user?.phoneNumber || "",
+            gender: user?.gender || "",
+        });
+
+        setEditOpen(false);
+    };
+
+    const openEmailModal = () => {
+        setNewEmail("");
+        setOtp("");
+        setToken("");
+        setStep(1);
+        setEmailMessage("");
+        setEmailError("");
+        setEmailModal(true);
+    };
+
+    const closeEmailModal = () => {
+        setEmailModal(false);
+        setStep(1);
+        setNewEmail("");
+        setOtp("");
+        setToken("");
+        setEmailMessage("");
+        setEmailError("");
+        setSendLoading(false);
+        setVerifyLoading(false);
+    };
+
+    if (loading) {
+        return (
+            <>
+                <Header />
+
+                <div
+                    style={{
+                        minHeight: "70vh",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                    }}
+                >
+                    Loading...
+                </div>
+
+                <Footer />
+            </>
+        );
+    }
 
     const inputStyle = {
         width: "100%",
@@ -225,25 +317,29 @@ const Profile = () => {
         border: "1px solid #e5e7eb",
         outline: "none",
         fontSize: "14px",
+        boxSizing: "border-box",
     };
 
     return (
         <>
             <Header />
 
-            <div style={{
-                minHeight: "100vh",
-                background: "#f6f7f9",
-                padding: "40px 20px",
-            }}>
-                <div style={{
-                    maxWidth: "1100px",
-                    margin: "0 auto",
-                    display: "grid",
-                    gridTemplateColumns: "300px 1fr",
-                    gap: "20px",
-                }}>
-
+            <div
+                style={{
+                    minHeight: "100vh",
+                    background: "#f6f7f9",
+                    padding: "40px 20px",
+                }}
+            >
+                <div
+                    style={{
+                        maxWidth: "1100px",
+                        margin: "0 auto",
+                        display: "grid",
+                        gridTemplateColumns: "300px 1fr",
+                        gap: "20px",
+                    }}
+                >
                     <ProfileSidebar
                         user={user}
                         active={active}
@@ -251,55 +347,48 @@ const Profile = () => {
                         fetchProfile={fetchProfile}
                     />
 
-                    <div style={{
-                        background: "#fff",
-                        borderRadius: "16px",
-                        padding: "30px",
-                        border: "1px solid #eee",
-                        boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
-                    }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                            <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 700, color: "#1f2937" }}>My Profile</h2>
-                            <button
-                                onClick={() => {
-                                    setPhoneError("");
-                                    setEditOpen(true);
-                                }}
-                                style={{
-                                    background: "#ff6b00",
-                                    color: "#fff",
-                                    padding: "10px 14px",
-                                    borderRadius: 10,
-                                    border: "none",
-                                    cursor: "pointer",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: "8px",
-                                    fontWeight: 600,
-                                }}
-                            >
-                                <Edit size={16} /> Edit Profile
-                            </button>
-                        </div>
-                        <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 12 }}>
-                            <Info icon={<User />} label="Username" value={user?.username} />
+                    <div
+                        style={{
+                            background: "#fff",
+                            borderRadius: "16px",
+                            padding: "30px",
+                        }}
+                    >
+                        <h2>My Profile</h2>
+
+                        <div style={{ marginTop: 20 }}>
+                            <Info
+                                icon={<User size={18} />}
+                                label="Username"
+                                value={user?.username}
+                            />
 
                             <Info
-                                icon={<Mail />}
+                                icon={<Mail size={18} />}
                                 label="Email"
                                 value={
-                                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                                        <span>{user?.email}</span>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            gap: 8,
+                                            alignItems: "center",
+                                        }}
+                                    >
+                                        <span>{user?.email || "N/A"}</span>
 
                                         <button
-                                            onClick={() => setEmailModal(true)}
+                                            type="button"
+                                            onClick={openEmailModal}
+                                            aria-label="Change email"
                                             style={{
                                                 background: "transparent",
                                                 border: "1px solid #eee",
                                                 borderRadius: 6,
                                                 padding: "4px 6px",
                                                 cursor: "pointer",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
                                             }}
                                         >
                                             <Pencil size={14} />
@@ -308,32 +397,72 @@ const Profile = () => {
                                 }
                             />
 
-                            <Info icon={<Phone />} label="Phone" value={user?.phoneNumber} />
-                            <Info icon={<Venus />} label="Gender" value={user?.gender} />
-                            <Info icon={<Shield />} label="Role" value={user?.role} />
+                            <Info
+                                icon={<Phone size={18} />}
+                                label="Phone"
+                                value={user?.phoneNumber}
+                            />
+
+                            <Info
+                                icon={<Venus size={18} />}
+                                label="Gender"
+                                value={user?.gender}
+                            />
+
+                            <Info
+                                icon={<Shield size={18} />}
+                                label="Role"
+                                value={user?.role}
+                            />
                         </div>
 
-
+                        <button
+                            type="button"
+                            onClick={openEditModal}
+                            style={{
+                                marginTop: 20,
+                                width: "100%",
+                                background: "#ff6b00",
+                                color: "#fff",
+                                padding: 12,
+                                borderRadius: 10,
+                                border: "none",
+                                cursor: "pointer",
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                gap: 8,
+                            }}
+                        >
+                            <Edit size={16} />
+                            Edit Profile
+                        </button>
                     </div>
                 </div>
             </div>
 
             {emailModal && (
-                <div style={{
-                    position: "fixed",
-                    inset: 0,
-                    background: "rgba(0,0,0,0.5)",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    zIndex: 9999,
-                }}>
-                    <div style={{
-                        width: 400,
-                        background: "#fff",
+                <div
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        background: "rgba(0,0,0,0.5)",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        zIndex: 1000,
                         padding: 20,
-                        borderRadius: 12,
-                    }}>
+                    }}
+                >
+                    <div
+                        style={{
+                            width: "100%",
+                            maxWidth: 400,
+                            background: "#fff",
+                            padding: 20,
+                            borderRadius: 12,
+                        }}
+                    >
                         <h3
                             style={{
                                 marginBottom: 16,
@@ -378,13 +507,24 @@ const Profile = () => {
                         {step === 1 && (
                             <>
                                 <input
+                                    type="email"
                                     placeholder="New email"
                                     value={newEmail}
-                                    onChange={(e) => setNewEmail(e.target.value)}
+                                    disabled={sendLoading}
+                                    onChange={(event) => {
+                                        setNewEmail(event.target.value);
+                                        setEmailError("");
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            handleSendOTP();
+                                        }
+                                    }}
                                     style={inputStyle}
                                 />
 
                                 <button
+                                    type="button"
                                     onClick={handleSendOTP}
                                     disabled={sendLoading}
                                     style={{
@@ -395,11 +535,15 @@ const Profile = () => {
                                         padding: 10,
                                         border: "none",
                                         borderRadius: 8,
-                                        cursor: sendLoading ? "not-allowed" : "pointer",
+                                        cursor: sendLoading
+                                            ? "not-allowed"
+                                            : "pointer",
                                         opacity: sendLoading ? 0.7 : 1,
                                     }}
                                 >
-                                    {sendLoading ? "Sending..." : "Send OTP"}
+                                    {sendLoading
+                                        ? "Sending..."
+                                        : "Send OTP"}
                                 </button>
                             </>
                         )}
@@ -407,13 +551,25 @@ const Profile = () => {
                         {step === 2 && (
                             <>
                                 <input
+                                    type="text"
+                                    inputMode="numeric"
                                     placeholder="Enter OTP"
                                     value={otp}
-                                    onChange={(e) => setOtp(e.target.value)}
+                                    disabled={verifyLoading}
+                                    onChange={(event) => {
+                                        setOtp(event.target.value);
+                                        setEmailError("");
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            handleVerifyEmail();
+                                        }
+                                    }}
                                     style={inputStyle}
                                 />
 
                                 <button
+                                    type="button"
                                     onClick={handleVerifyEmail}
                                     disabled={verifyLoading}
                                     style={{
@@ -424,25 +580,49 @@ const Profile = () => {
                                         padding: 10,
                                         border: "none",
                                         borderRadius: 8,
-                                        cursor: verifyLoading ? "not-allowed" : "pointer",
+                                        cursor: verifyLoading
+                                            ? "not-allowed"
+                                            : "pointer",
                                         opacity: verifyLoading ? 0.7 : 1,
                                     }}
                                 >
-                                    {verifyLoading ? "Verifying..." : "Verify OTP"}
+                                    {verifyLoading
+                                        ? "Verifying..."
+                                        : "Verify OTP"}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setStep(1);
+                                        setOtp("");
+                                        setToken("");
+                                        setEmailMessage("");
+                                        setEmailError("");
+                                    }}
+                                    disabled={verifyLoading}
+                                    style={{
+                                        marginTop: 10,
+                                        width: "100%",
+                                        background: "#f3f4f6",
+                                        color: "#111827",
+                                        padding: 10,
+                                        border: "none",
+                                        borderRadius: 8,
+                                        cursor: verifyLoading
+                                            ? "not-allowed"
+                                            : "pointer",
+                                    }}
+                                >
+                                    Change email address
                                 </button>
                             </>
                         )}
 
                         <button
-                            onClick={() => {
-                                setEmailModal(false);
-                                setStep(1);
-                                setNewEmail("");
-                                setOtp("");
-                                setToken("");
-                                setEmailMessage("");
-                                setEmailError("");
-                            }}
+                            type="button"
+                            onClick={closeEmailModal}
+                            disabled={sendLoading || verifyLoading}
                             style={{
                                 marginTop: 10,
                                 width: "100%",
@@ -450,6 +630,10 @@ const Profile = () => {
                                 border: "none",
                                 padding: 10,
                                 borderRadius: 8,
+                                cursor:
+                                    sendLoading || verifyLoading
+                                        ? "not-allowed"
+                                        : "pointer",
                             }}
                         >
                             Cancel
@@ -459,55 +643,70 @@ const Profile = () => {
             )}
 
             {editOpen && (
-                <div style={{
-                    position: "fixed",
-                    inset: 0,
-                    background: "rgba(0,0,0,0.5)",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    zIndex: 9999,
-                }}>
-                    <div style={{
-                        width: 420,
-                        background: "#fff",
-                        borderRadius: 16,
-                        padding: 24,
-                        boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-                    }}>
-                        <h3 style={{ marginTop: 0, marginBottom: 16 }}>Edit Profile</h3>
+                <div
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        background: "rgba(0,0,0,0.5)",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        zIndex: 1000,
+                        padding: 20,
+                    }}
+                >
+                    <div
+                        style={{
+                            width: "100%",
+                            maxWidth: 420,
+                            background: "#fff",
+                            borderRadius: 16,
+                            padding: 24,
+                        }}
+                    >
+                        <h3>Edit Profile</h3>
 
                         <input
+                            type="text"
                             placeholder="Full name"
                             value={form.fullname}
-                            onChange={(e) => setForm({ ...form, fullname: e.target.value })}
+                            onChange={(event) =>
+                                setForm({
+                                    ...form,
+                                    fullname: event.target.value,
+                                })
+                            }
                             style={inputStyle}
                         />
 
-                        <div style={{ marginTop: 10 }}>
-                            <input
-                                placeholder="Phone number"
-                                value={form.phoneNumber}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    setForm({ ...form, phoneNumber: value });
-                                    if (!value) {
-                                        setPhoneError("Invalid phone number\nPhone number is required");
-                                    } else {
-                                        setPhoneError(isValidPhone(value) ? "" : "Invalid phone number\nPhone number must start with 0, contain 10-11 digits, and the first digit after 0 cannot be 0.");
-                                    }
-                                }}
-                                style={{ ...inputStyle, marginTop: 0 }}
-                            />
-                            {phoneError && (
-                                <div style={{ color: "#dc2626", fontSize: 13, marginTop: 6, whiteSpace: "pre-line" }}>{phoneError}</div>
-                            )}
-                        </div>
+                        <input
+                            type="tel"
+                            placeholder="Phone number"
+                            value={form.phoneNumber}
+                            onChange={(event) =>
+                                setForm({
+                                    ...form,
+                                    phoneNumber: event.target.value,
+                                })
+                            }
+                            style={{
+                                ...inputStyle,
+                                marginTop: 10,
+                            }}
+                        />
 
                         <select
                             value={form.gender}
-                            onChange={(e) => setForm({ ...form, gender: e.target.value })}
-                            style={{ ...inputStyle, marginTop: 10 }}
+                            onChange={(event) =>
+                                setForm({
+                                    ...form,
+                                    gender: event.target.value,
+                                })
+                            }
+                            style={{
+                                ...inputStyle,
+                                marginTop: 10,
+                            }}
                         >
                             <option value="">Gender</option>
                             <option value="male">Male</option>
@@ -515,25 +714,37 @@ const Profile = () => {
                             <option value="other">Other</option>
                         </select>
 
-                        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: 10,
+                                marginTop: 20,
+                            }}
+                        >
                             <button
+                                type="button"
                                 onClick={handleUpdate}
                                 disabled={!hasChange}
                                 style={{
                                     flex: 1,
-                                    background: hasChange ? "#ff6b00" : "#ccc",
+                                    background: hasChange
+                                        ? "#ff6b00"
+                                        : "#ccc",
                                     color: "#fff",
                                     padding: 12,
                                     borderRadius: 10,
                                     border: "none",
-                                    cursor: hasChange ? "pointer" : "not-allowed",
+                                    cursor: hasChange
+                                        ? "pointer"
+                                        : "not-allowed",
                                 }}
                             >
                                 Save
                             </button>
 
                             <button
-                                onClick={() => setEditOpen(false)}
+                                type="button"
+                                onClick={closeEditModal}
                                 style={{
                                     flex: 1,
                                     background: "#eee",
@@ -555,16 +766,38 @@ const Profile = () => {
 };
 
 const Info = ({ icon, label, value }) => (
-    <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        padding: 10,
-        background: "#f8fafc",
-        marginBottom: 8,
-        borderRadius: 8,
-    }}>
-        <span>{icon} {label}</span>
-        <b>{value || "N/A"}</b>
+    <div
+        style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 16,
+            padding: 10,
+            background: "#f8fafc",
+            marginBottom: 8,
+            borderRadius: 8,
+        }}
+    >
+        <span
+            style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+            }}
+        >
+            {icon}
+            {label}
+        </span>
+
+        <div
+            style={{
+                fontWeight: 700,
+                textAlign: "right",
+                wordBreak: "break-word",
+            }}
+        >
+            {value || "N/A"}
+        </div>
     </div>
 );
 

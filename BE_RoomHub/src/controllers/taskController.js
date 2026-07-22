@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
+import dotenv from "dotenv";
+import nodemailer from "nodemailer";
 import Task from "../models/task.js";
 import { Staff } from "../models/account.js";
+
+dotenv.config();
 
 const ALLOWED_PRIORITIES = ["Low", "Medium", "High"];
 const ALLOWED_STATUSES = ["In Progress", "Completed", "Cancelled"];
@@ -13,6 +17,93 @@ class TaskController {
 
   getRole(req) {
     return req.user?.role;
+  }
+
+  getMailAuth() {
+    const user = process.env.MAIL_USER || process.env.GMAIL_USER || process.env.EMAIL_USER;
+    const pass = process.env.MAIL_PASS || process.env.GMAIL_PASSWORD || process.env.EMAIL_PASS;
+
+    if (!user || !pass) {
+      throw new Error("MAIL_USER and MAIL_PASS are not configured");
+    }
+
+    return { user, pass };
+  }
+
+  escapeHtml(value = "") {
+    return String(value).replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;",
+    }[char]));
+  }
+
+  formatDueDate(value) {
+    if (!value) return "N/A";
+
+    return new Date(value).toLocaleDateString("vi-VN");
+  }
+
+  getTaskManagementLink() {
+    const clientUrl = (process.env.CLIENT_URL || "http://localhost:3001").replace(/\/$/, "");
+    return `${clientUrl}/task-management`;
+  }
+
+  shouldNotifyResponsible(task, actorId) {
+    const responsible = task.responsibleBy;
+    const responsibleId = responsible?._id || responsible;
+
+    return (
+      responsible?.role === "staff" &&
+      responsible?.email &&
+      responsibleId?.toString() !== actorId?.toString()
+    );
+  }
+
+  async sendTaskAssignmentEmail(task) {
+    const { user, pass } = this.getMailAuth();
+    const taskLink = this.getTaskManagementLink();
+    const responsible = task.responsibleBy;
+    const createdBy = task.createdBy;
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user, pass },
+    });
+
+    await transporter.sendMail({
+      from: `RoomHub <${user}>`,
+      to: responsible.email,
+      subject: "RoomHub task assignment",
+      html: `
+        <p>Hello ${this.escapeHtml(responsible.fullname || responsible.username)},</p>
+        <p>You have been assigned a task on RoomHub.</p>
+        <p><strong>Task:</strong> ${this.escapeHtml(task.title)}</p>
+        <p><strong>Priority:</strong> ${this.escapeHtml(task.priority)}</p>
+        <p><strong>Status:</strong> ${this.escapeHtml(task.status)}</p>
+        <p><strong>Due date:</strong> ${this.escapeHtml(this.formatDueDate(task.dueDate))}</p>
+        <p><strong>Created by:</strong> ${this.escapeHtml(createdBy?.fullname || createdBy?.username || "RoomHub")}</p>
+        ${task.details ? `<p><strong>Details:</strong> ${this.escapeHtml(task.details)}</p>` : ""}
+        <p><a href="${taskLink}" style="color: #2a7ae4; text-decoration: none;">Open Task Management</a></p>
+        <p>Best regards,<br/>RoomHub Team</p>
+      `,
+    });
+  }
+
+  async trySendTaskAssignmentEmail(task, actorId) {
+    if (!this.shouldNotifyResponsible(task, actorId)) {
+      return { sent: false, error: null };
+    }
+
+    try {
+      await this.sendTaskAssignmentEmail(task);
+      return { sent: true, error: null };
+    } catch (error) {
+      console.error("Task assignment email failed:", error.message);
+      return { sent: false, error: error.message };
+    }
   }
 
   parsePagination(req) {
@@ -341,10 +432,18 @@ class TaskController {
       });
 
       await this.populateTask(task);
+      const notificationResult = await this.trySendTaskAssignmentEmail(
+        task,
+        this.getUserId(req)
+      );
 
       return res.status(201).json({
         success: true,
-        message: "Task created successfully",
+        message: notificationResult.error
+          ? "Task created, but assignment email was not sent"
+          : "Task created successfully",
+        taskAssignmentEmailSent: notificationResult.sent,
+        taskAssignmentEmailError: notificationResult.error,
         data: task,
       });
     } catch (error) {
@@ -407,13 +506,26 @@ class TaskController {
         });
       }
 
+      const previousResponsibleBy = task.responsibleBy?.toString();
       Object.assign(task, payload);
       await task.save();
       await this.populateTask(task);
+      const nextResponsibleBy = task.responsibleBy?._id?.toString() || task.responsibleBy?.toString();
+      const responsibleChanged =
+        payload.responsibleBy !== undefined &&
+        nextResponsibleBy &&
+        nextResponsibleBy !== previousResponsibleBy;
+      const notificationResult = responsibleChanged
+        ? await this.trySendTaskAssignmentEmail(task, this.getUserId(req))
+        : { sent: false, error: null };
 
       return res.status(200).json({
         success: true,
-        message: "Task updated successfully",
+        message: notificationResult.error
+          ? "Task updated, but assignment email was not sent"
+          : "Task updated successfully",
+        taskAssignmentEmailSent: notificationResult.sent,
+        taskAssignmentEmailError: notificationResult.error,
         data: task,
       });
     } catch (error) {
