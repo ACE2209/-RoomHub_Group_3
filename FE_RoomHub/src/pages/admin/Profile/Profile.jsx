@@ -165,6 +165,7 @@ function Profile() {
     } catch (error) {
       Swal.fire({ icon: "error", title: "Error", text: error?.response?.data?.message || "Update failed" });
     }
+  };
 
   /* ── avatar upload ── */
   const handleAvatarChange = async (e) => {
@@ -601,25 +602,5 @@ function Profile() {
     </div>
   );
 }
-
-const Info = ({ icon, label, value }) => (
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "12px 14px",
-      background: "#f8fafc",
-      borderRadius: 10,
-      border: "1px solid #eef2f7",
-      gap: 12,
-    }}
-  >
-    <span style={{ display: "flex", alignItems: "center", gap: 8, color: "#374151" }}>
-      {icon} {label}
-    </span>
-    <b style={{ color: "#111827", textAlign: "right" }}>{value || "N/A"}</b>
-  </div>
-);
 
 export default Profile;
