@@ -109,7 +109,7 @@ const AppRoutes = () => {
       <Route path="/appointments" element={userPage(<AppointmentPage />)} />
       <Route
         path="/deposits/create/:roomId"
-        element={userPage(<CreateDepositPage />)}
+        element={publicPage(<CreateDepositPage />)}
       />
       <Route path="/favorites" element={userPage(<FavoritesPage />)} />
       <Route path="/watchlater" element={userPage(<WatchLaterPage />)} />

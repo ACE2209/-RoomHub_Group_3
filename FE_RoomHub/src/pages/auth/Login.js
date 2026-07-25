@@ -1,45 +1,46 @@
 import { useState } from "react";
-import {
-    useNavigate,
-    Link,
-} from "react-router-dom";
-import {
-    toast,
-    ToastContainer,
-} from "react-toastify";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { toast, ToastContainer } from "react-toastify";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { loginAPI } from "../../api/auth";
-import { getRoleHomePath } from "../../utils/roleNavigation";
+import {
+    getRoleHomePath,
+    normalizeRole,
+} from "../../utils/roleNavigation";
+
+const getSafeReturnPath = (from) => {
+    const path =
+        typeof from === "string"
+            ? from
+            : typeof from?.pathname === "string"
+            ? `${from.pathname}${from.search || ""}${from.hash || ""}`
+            : "";
+
+    if (!path.startsWith("/") || path.startsWith("//")) {
+        return "";
+    }
+
+    return path;
+};
 
 const Login = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [showPassword, setShowPassword] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-
-    const [loading, setLoading] =
-        useState(false);
-
-    const [formData, setFormData] =
-        useState({
-            username: "",
-            password: "",
-            remember: false,
-        });
+    const [formData, setFormData] = useState({
+        username: "",
+        password: "",
+        remember: false,
+    });
 
     const handleChange = (e) => {
-        const {
-            name,
-            value,
-            checked,
-            type,
-        } = e.target;
+        const { name, value, checked, type } = e.target;
 
         setFormData((prev) => ({
             ...prev,
-            [name]:
-                type === "checkbox"
-                    ? checked
-                    : value,
+            [name]: type === "checkbox" ? checked : value,
         }));
     };
 
@@ -47,50 +48,37 @@ const Login = () => {
         e.preventDefault();
 
         if (!formData.username.trim()) {
-            toast.error(
-                "Username is required"
-            );
+            toast.error("Username is required");
             return;
         }
 
         if (!formData.password.trim()) {
-            toast.error(
-                "Password is required"
-            );
+            toast.error("Password is required");
             return;
         }
 
         try {
             setLoading(true);
 
-            const data =
-                await loginAPI(formData);
+            const data = await loginAPI(formData);
 
-            localStorage.setItem(
-                "token",
-                data.token
-            );
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("user", JSON.stringify(data.user));
 
-            localStorage.setItem(
-                "user",
-                JSON.stringify(data.user)
-            );
+            toast.success("Login successful");
 
-            toast.success(
-                "Login successful"
-            );
-
-            const destination = getRoleHomePath(data.user?.role);
+            const role = normalizeRole(data.user?.role);
+            const requestedPath = getSafeReturnPath(location.state?.from);
+            const destination =
+                role === "user" && requestedPath
+                    ? requestedPath
+                    : getRoleHomePath(role);
 
             setTimeout(() => {
                 navigate(destination, { replace: true });
-            }, 700);
+            }, 500);
         } catch (error) {
-            toast.error(
-                error.response?.data
-                    ?.message ||
-                "Login failed"
-            );
+            toast.error(error.response?.data?.message || "Login failed");
         } finally {
             setLoading(false);
         }
@@ -147,16 +135,13 @@ const Login = () => {
                                     maxWidth: "600px",
                                 }}
                             >
-                                Hệ thống quản lý và tìm kiếm
-                                phòng trọ hàng đầu, giúp kết
-                                nối người thuê và chủ nhà một
+                                Hệ thống quản lý và tìm kiếm phòng trọ hàng
+                                đầu, giúp kết nối người thuê và chủ nhà một
                                 cách minh bạch và hiệu quả.
                             </p>
                         </div>
 
-                        <small>
-                            © 2026 RoomHub.
-                        </small>
+                        <small>© 2026 RoomHub.</small>
                     </div>
                 </div>
 
@@ -170,94 +155,83 @@ const Login = () => {
                         }}
                     >
                         <div className="mb-4">
-                            <h2 className="fw-bold">
-                                Chào mừng trở lại
-                            </h2>
+                            <h2 className="fw-bold">Chào mừng trở lại</h2>
 
                             <p className="text-muted mb-0">
-                                Vui lòng đăng nhập vào
-                                RoomHub
+                                Vui lòng đăng nhập vào RoomHub
                             </p>
                         </div>
+
+                        {location.state?.notice && (
+                            <div
+                                className="alert alert-warning py-2 px-3"
+                                role="status"
+                            >
+                                {location.state.notice}
+                            </div>
+                        )}
 
                         <form onSubmit={handleLogin}>
                             {/* Username */}
                             <div className="mb-3">
-                                <label className="form-label">
+                                <label className="form-label" htmlFor="login-username">
                                     Username
                                 </label>
 
                                 <div className="input-group">
                                     <span className="input-group-text">
-                                        <Mail
-                                            size={18}
-                                        />
+                                        <Mail size={18} />
                                     </span>
 
                                     <input
+                                        id="login-username"
                                         type="text"
                                         className="form-control"
                                         name="username"
                                         placeholder="Enter username"
-                                        value={
-                                            formData.username
-                                        }
-                                        onChange={
-                                            handleChange
-                                        }
+                                        value={formData.username}
+                                        onChange={handleChange}
+                                        autoComplete="username"
                                     />
                                 </div>
                             </div>
 
                             {/* Password */}
                             <div className="mb-3">
-
+                                <label className="form-label" htmlFor="login-password">
+                                    Password
+                                </label>
 
                                 <div className="input-group">
                                     <span className="input-group-text">
-                                        <Lock
-                                            size={18}
-                                        />
+                                        <Lock size={18} />
                                     </span>
 
                                     <input
-                                        type={
-                                            showPassword
-                                                ? "text"
-                                                : "password"
-                                        }
+                                        id="login-password"
+                                        type={showPassword ? "text" : "password"}
                                         className="form-control"
                                         name="password"
                                         placeholder="Enter password"
-                                        value={
-                                            formData.password
-                                        }
-                                        onChange={
-                                            handleChange
-                                        }
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        autoComplete="current-password"
                                     />
 
                                     <button
                                         type="button"
                                         className="btn btn-outline-secondary"
-                                        onClick={() =>
-                                            setShowPassword(
-                                                !showPassword
-                                            )
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        aria-label={
+                                            showPassword
+                                                ? "Hide password"
+                                                : "Show password"
                                         }
                                     >
                                         {showPassword ? (
-                                            <EyeOff
-                                                size={
-                                                    18
-                                                }
-                                            />
+                                            <EyeOff size={18} />
                                         ) : (
-                                            <Eye
-                                                size={
-                                                    18
-                                                }
-                                            />
+                                            <Eye size={18} />
                                         )}
                                     </button>
                                 </div>
@@ -265,14 +239,13 @@ const Login = () => {
 
                             {/* Remember + Forgot */}
                             <div className="d-flex justify-content-between align-items-center mb-4">
-                                <div className="form-check">
-                                </div>
+                                <div className="form-check" />
 
                                 <Link
                                     to="/forgot-password"
                                     className="text-decoration-none fw-semibold"
                                     style={{
-                                        color: "#ff6b00",
+                                        color: "#c2410c",
                                     }}
                                 >
                                     Forgot Password?
@@ -283,14 +256,12 @@ const Login = () => {
                                 type="submit"
                                 className="btn w-100 py-2 text-white"
                                 style={{
-                                    backgroundColor: "rgb(255, 107, 0)",
-                                    borderColor: "rgb(255, 107, 0)",
+                                    backgroundColor: "#c2410c",
+                                    borderColor: "#c2410c",
                                 }}
                                 disabled={loading}
                             >
-                                {loading
-                                    ? "Loading..."
-                                    : "Login"}
+                                {loading ? "Loading..." : "Login"}
                             </button>
                         </form>
 
@@ -301,7 +272,7 @@ const Login = () => {
                                 to="/register"
                                 className="ms-2 text-decoration-none fw-semibold"
                                 style={{
-                                    color: "#ff6b00",
+                                    color: "#c2410c",
                                 }}
                             >
                                 Register
